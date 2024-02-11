@@ -1,0 +1,246 @@
+import enum
+import typing
+from .util import T_JSON_DICT as T_JSON_DICT, event_class as event_class
+from dataclasses import dataclass
+
+class GraphObjectId(str):
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> GraphObjectId: ...
+
+class ContextType(enum.Enum):
+    REALTIME: str
+    OFFLINE: str
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> ContextType: ...
+
+class ContextState(enum.Enum):
+    SUSPENDED: str
+    RUNNING: str
+    CLOSED: str
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> ContextState: ...
+
+class NodeType(str):
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> NodeType: ...
+
+class ChannelCountMode(enum.Enum):
+    CLAMPED_MAX: str
+    EXPLICIT: str
+    MAX_: str
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> ChannelCountMode: ...
+
+class ChannelInterpretation(enum.Enum):
+    DISCRETE: str
+    SPEAKERS: str
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> ChannelInterpretation: ...
+
+class ParamType(str):
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> ParamType: ...
+
+class AutomationRate(enum.Enum):
+    A_RATE: str
+    K_RATE: str
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> AutomationRate: ...
+
+@dataclass
+class ContextRealtimeData:
+    current_time: float
+    render_capacity: float
+    callback_interval_mean: float
+    callback_interval_variance: float
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> ContextRealtimeData: ...
+    def __init__(self, current_time, render_capacity, callback_interval_mean, callback_interval_variance) -> None: ...
+
+@dataclass
+class BaseAudioContext:
+    context_id: GraphObjectId
+    context_type: ContextType
+    context_state: ContextState
+    callback_buffer_size: float
+    max_output_channel_count: float
+    sample_rate: float
+    realtime_data: typing.Optional[ContextRealtimeData] = ...
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> BaseAudioContext: ...
+    def __init__(self, context_id, context_type, context_state, callback_buffer_size, max_output_channel_count, sample_rate, realtime_data) -> None: ...
+
+@dataclass
+class AudioListener:
+    listener_id: GraphObjectId
+    context_id: GraphObjectId
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AudioListener: ...
+    def __init__(self, listener_id, context_id) -> None: ...
+
+@dataclass
+class AudioNode:
+    node_id: GraphObjectId
+    context_id: GraphObjectId
+    node_type: NodeType
+    number_of_inputs: float
+    number_of_outputs: float
+    channel_count: float
+    channel_count_mode: ChannelCountMode
+    channel_interpretation: ChannelInterpretation
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AudioNode: ...
+    def __init__(self, node_id, context_id, node_type, number_of_inputs, number_of_outputs, channel_count, channel_count_mode, channel_interpretation) -> None: ...
+
+@dataclass
+class AudioParam:
+    param_id: GraphObjectId
+    node_id: GraphObjectId
+    context_id: GraphObjectId
+    param_type: ParamType
+    rate: AutomationRate
+    default_value: float
+    min_value: float
+    max_value: float
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AudioParam: ...
+    def __init__(self, param_id, node_id, context_id, param_type, rate, default_value, min_value, max_value) -> None: ...
+
+def enable() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def disable() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def get_realtime_data(context_id: GraphObjectId) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, ContextRealtimeData]: ...
+
+@dataclass
+class ContextCreated:
+    context: BaseAudioContext
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> ContextCreated: ...
+    def to_json(self) -> T_JSON_DICT: ...
+    def __init__(self, context) -> None: ...
+
+@dataclass
+class ContextWillBeDestroyed:
+    context_id: GraphObjectId
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> ContextWillBeDestroyed: ...
+    def to_json(self) -> T_JSON_DICT: ...
+    def __init__(self, context_id) -> None: ...
+
+@dataclass
+class ContextChanged:
+    context: BaseAudioContext
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> ContextChanged: ...
+    def to_json(self) -> T_JSON_DICT: ...
+    def __init__(self, context) -> None: ...
+
+@dataclass
+class AudioListenerCreated:
+    listener: AudioListener
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AudioListenerCreated: ...
+    def to_json(self) -> T_JSON_DICT: ...
+    def __init__(self, listener) -> None: ...
+
+@dataclass
+class AudioListenerWillBeDestroyed:
+    context_id: GraphObjectId
+    listener_id: GraphObjectId
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AudioListenerWillBeDestroyed: ...
+    def to_json(self) -> T_JSON_DICT: ...
+    def __init__(self, context_id, listener_id) -> None: ...
+
+@dataclass
+class AudioNodeCreated:
+    node: AudioNode
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AudioNodeCreated: ...
+    def to_json(self) -> T_JSON_DICT: ...
+    def __init__(self, node) -> None: ...
+
+@dataclass
+class AudioNodeWillBeDestroyed:
+    context_id: GraphObjectId
+    node_id: GraphObjectId
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AudioNodeWillBeDestroyed: ...
+    def to_json(self) -> T_JSON_DICT: ...
+    def __init__(self, context_id, node_id) -> None: ...
+
+@dataclass
+class AudioParamCreated:
+    param: AudioParam
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AudioParamCreated: ...
+    def to_json(self) -> T_JSON_DICT: ...
+    def __init__(self, param) -> None: ...
+
+@dataclass
+class AudioParamWillBeDestroyed:
+    context_id: GraphObjectId
+    node_id: GraphObjectId
+    param_id: GraphObjectId
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AudioParamWillBeDestroyed: ...
+    def to_json(self) -> T_JSON_DICT: ...
+    def __init__(self, context_id, node_id, param_id) -> None: ...
+
+@dataclass
+class NodesConnected:
+    context_id: GraphObjectId
+    source_id: GraphObjectId
+    destination_id: GraphObjectId
+    source_output_index: typing.Optional[float]
+    destination_input_index: typing.Optional[float]
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> NodesConnected: ...
+    def to_json(self) -> T_JSON_DICT: ...
+    def __init__(self, context_id, source_id, destination_id, source_output_index, destination_input_index) -> None: ...
+
+@dataclass
+class NodesDisconnected:
+    context_id: GraphObjectId
+    source_id: GraphObjectId
+    destination_id: GraphObjectId
+    source_output_index: typing.Optional[float]
+    destination_input_index: typing.Optional[float]
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> NodesDisconnected: ...
+    def to_json(self) -> T_JSON_DICT: ...
+    def __init__(self, context_id, source_id, destination_id, source_output_index, destination_input_index) -> None: ...
+
+@dataclass
+class NodeParamConnected:
+    context_id: GraphObjectId
+    source_id: GraphObjectId
+    destination_id: GraphObjectId
+    source_output_index: typing.Optional[float]
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> NodeParamConnected: ...
+    def to_json(self) -> T_JSON_DICT: ...
+    def __init__(self, context_id, source_id, destination_id, source_output_index) -> None: ...
+
+@dataclass
+class NodeParamDisconnected:
+    context_id: GraphObjectId
+    source_id: GraphObjectId
+    destination_id: GraphObjectId
+    source_output_index: typing.Optional[float]
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> NodeParamDisconnected: ...
+    def to_json(self) -> T_JSON_DICT: ...
+    def __init__(self, context_id, source_id, destination_id, source_output_index) -> None: ...

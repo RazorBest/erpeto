@@ -1,0 +1,73 @@
+from _typeshed import Incomplete
+from autobahn.websocket.compress_base import PerMessageCompress, PerMessageCompressOffer, PerMessageCompressOfferAccept, PerMessageCompressResponse, PerMessageCompressResponseAccept
+
+__all__ = ['PerMessageDeflateMixin', 'PerMessageDeflateOffer', 'PerMessageDeflateOfferAccept', 'PerMessageDeflateResponse', 'PerMessageDeflateResponseAccept', 'PerMessageDeflate']
+
+class PerMessageDeflateMixin:
+    EXTENSION_NAME: str
+    WINDOW_SIZE_PERMISSIBLE_VALUES: Incomplete
+    MEM_LEVEL_PERMISSIBLE_VALUES: Incomplete
+
+class PerMessageDeflateOffer(PerMessageCompressOffer, PerMessageDeflateMixin):
+    @classmethod
+    def parse(cls, params): ...
+    accept_no_context_takeover: Incomplete
+    accept_max_window_bits: Incomplete
+    request_no_context_takeover: Incomplete
+    request_max_window_bits: Incomplete
+    def __init__(self, accept_no_context_takeover: bool = True, accept_max_window_bits: bool = True, request_no_context_takeover: bool = False, request_max_window_bits: int = 0) -> None: ...
+    def get_extension_string(self): ...
+    def __json__(self): ...
+
+class PerMessageDeflateOfferAccept(PerMessageCompressOfferAccept, PerMessageDeflateMixin):
+    offer: Incomplete
+    request_no_context_takeover: Incomplete
+    request_max_window_bits: Incomplete
+    no_context_takeover: Incomplete
+    window_bits: Incomplete
+    mem_level: Incomplete
+    max_message_size: Incomplete
+    def __init__(self, offer, request_no_context_takeover: bool = False, request_max_window_bits: int = 0, no_context_takeover: Incomplete | None = None, window_bits: Incomplete | None = None, mem_level: Incomplete | None = None, max_message_size: Incomplete | None = None) -> None: ...
+    def get_extension_string(self): ...
+    def __json__(self): ...
+
+class PerMessageDeflateResponse(PerMessageCompressResponse, PerMessageDeflateMixin):
+    @classmethod
+    def parse(cls, params): ...
+    client_max_window_bits: Incomplete
+    client_no_context_takeover: Incomplete
+    server_max_window_bits: Incomplete
+    server_no_context_takeover: Incomplete
+    def __init__(self, client_max_window_bits, client_no_context_takeover, server_max_window_bits, server_no_context_takeover) -> None: ...
+    def __json__(self): ...
+
+class PerMessageDeflateResponseAccept(PerMessageCompressResponseAccept, PerMessageDeflateMixin):
+    response: Incomplete
+    no_context_takeover: Incomplete
+    window_bits: Incomplete
+    mem_level: Incomplete
+    max_message_size: Incomplete
+    def __init__(self, response, no_context_takeover: Incomplete | None = None, window_bits: Incomplete | None = None, mem_level: Incomplete | None = None, max_message_size: Incomplete | None = None) -> None: ...
+    def __json__(self): ...
+
+class PerMessageDeflate(PerMessageCompress, PerMessageDeflateMixin):
+    DEFAULT_WINDOW_BITS: Incomplete
+    DEFAULT_MEM_LEVEL: int
+    @classmethod
+    def create_from_response_accept(cls, is_server, accept): ...
+    @classmethod
+    def create_from_offer_accept(cls, is_server, accept): ...
+    server_no_context_takeover: Incomplete
+    client_no_context_takeover: Incomplete
+    server_max_window_bits: Incomplete
+    client_max_window_bits: Incomplete
+    mem_level: Incomplete
+    max_message_size: Incomplete
+    def __init__(self, is_server, server_no_context_takeover, client_no_context_takeover, server_max_window_bits, client_max_window_bits, mem_level, max_message_size: Incomplete | None = None) -> None: ...
+    def __json__(self): ...
+    def start_compress_message(self) -> None: ...
+    def compress_message_data(self, data): ...
+    def end_compress_message(self): ...
+    def start_decompress_message(self) -> None: ...
+    def decompress_message_data(self, data): ...
+    def end_decompress_message(self) -> None: ...

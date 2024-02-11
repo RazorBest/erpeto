@@ -1,0 +1,8 @@
+from _typeshed import Incomplete
+from autobahn.websocket.compress_base import PerMessageCompress as PerMessageCompress, PerMessageCompressOffer as PerMessageCompressOffer, PerMessageCompressOfferAccept as PerMessageCompressOfferAccept, PerMessageCompressResponse as PerMessageCompressResponse, PerMessageCompressResponseAccept as PerMessageCompressResponseAccept
+from autobahn.websocket.compress_bzip2 import PerMessageBzip2 as PerMessageBzip2, PerMessageBzip2Offer as PerMessageBzip2Offer, PerMessageBzip2OfferAccept as PerMessageBzip2OfferAccept, PerMessageBzip2Response as PerMessageBzip2Response, PerMessageBzip2ResponseAccept as PerMessageBzip2ResponseAccept
+from autobahn.websocket.compress_deflate import PerMessageDeflate as PerMessageDeflate, PerMessageDeflateOffer as PerMessageDeflateOffer, PerMessageDeflateOfferAccept as PerMessageDeflateOfferAccept, PerMessageDeflateResponse as PerMessageDeflateResponse, PerMessageDeflateResponseAccept as PerMessageDeflateResponseAccept
+
+__all__ = ['PerMessageCompressOffer', 'PerMessageCompressOfferAccept', 'PerMessageCompressResponse', 'PerMessageCompressResponseAccept', 'PerMessageCompress', 'PerMessageDeflateOffer', 'PerMessageDeflateOfferAccept', 'PerMessageDeflateResponse', 'PerMessageDeflateResponseAccept', 'PerMessageDeflate', 'PERMESSAGE_COMPRESSION_EXTENSION', 'PerMessageBzip2Offer', 'PerMessageBzip2OfferAccept', 'PerMessageBzip2Response', 'PerMessageBzip2ResponseAccept', 'PerMessageBzip2']
+
+PERMESSAGE_COMPRESSION_EXTENSION: Incomplete

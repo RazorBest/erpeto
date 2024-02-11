@@ -1,0 +1,6 @@
+from _typeshed import Incomplete
+
+__all__ = ['create_url', 'parse_url']
+
+def create_url(hostname, port: Incomplete | None = None, isSecure: bool = False, path: Incomplete | None = None, params: Incomplete | None = None): ...
+def parse_url(url): ...

@@ -8,6 +8,7 @@ import sys
 import time
 import urllib
 
+from dataclasses import dataclass
 from enum import Enum
 from typing import AsyncIterator, Any, Callable, cast, Iterator, Optional, Protocol, Sequence, TypeVar, Union, TYPE_CHECKING
 
@@ -97,11 +98,6 @@ CONST_HEADERS = [
     "accept",
     "x-requested-with"
 ]
-
-cdp_host = "localhost"
-cdp_port = 9222
-
-cdp_url = f"http://{cdp_host}:{cdp_port}"
 
 
 def is_url_ignored(url: str, origin: Optional[str] = None) -> bool:
@@ -865,7 +861,19 @@ async def insert_js_action_listener(target_session: pycdp.twisted.CDPSession, ke
     ret = await target_session.execute(cdp.runtime.evaluate(expression))
 
 
-async def main() -> None:
+@dataclass(frozen=True)
+class RecorderOptions:
+    start_url: str
+    keep_only_same_origin_urls = True
+    cdp_host = "localhost"
+    cdp_port = 9222
+
+    @property
+    def cdp_url(self):
+        return f"http://{self.cdp_host}:{self.cdp_port}"
+
+
+async def run(options: RecorderOptions) -> None:
     """
     chrome = ChromeLauncher(
         binary='C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', # windows path
@@ -874,13 +882,8 @@ async def main() -> None:
     await threads.deferToThread(chrome.launch)
     """
     urlfilter = filters.URLFilter()
-    """
-    with open("urlfilter", "rb") as f:
-        import pickle
-        urlfilter = pickle.load(f)
-        """
 
-    conn = await connect_cdp(cdp_url, reactor)
+    conn = await connect_cdp(options.cdp_url, reactor)
     target_id = await conn.execute(cdp.target.create_target("about:blank"))
     print(target_id)
     target_session = await conn.connect_session(target_id)
@@ -908,8 +911,18 @@ async def main() -> None:
     keystr = randomstr(32)
     await insert_js_action_listener(target_session, keystr)
 
-    start_origin = extract_origin(start_url)
-    communications = await collect_communications(target_session, listener, urlfilter, keystr, 20, False, start_origin)
+    start_origin = None
+    if options.keep_only_same_origin_urls:
+        start_origin = extract_origin(start_url)
+    communications = await collect_communications(
+        target_session,
+        listener,
+        urlfilter,
+        keystr,
+        20,
+        False,
+        start_origin
+    )
 
     actions = parse_communications_into_actions(communications)
 
@@ -942,6 +955,11 @@ async def main() -> None:
     """
     await threads.deferToThread(chrome.kill)
     """
+
+
+async def main() -> None:
+    options = RecorderOptions("test")
+    await run(options)
 
 def main_error(failure: Failure) -> None:
     err(failure) # type: ignore[no-untyped-call]

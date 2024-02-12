@@ -2,6 +2,7 @@ import collections
 import string
 
 def randomness_score(text: str) -> float:
+    """Computes the chi squared statistic, with the frequencies of the text."""
     if len(text) <= 3:
         return 0
 

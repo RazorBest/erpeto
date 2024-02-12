@@ -4,8 +4,54 @@ import pytest
 from pycdp import cdp
 
 from .mocks import UrlfilterMock, EventMock
-from cdprecorder.recorder import collect_communications, HttpCommunication
+from cdprecorder.recorder import (
+    collect_communications,
+    extract_origin,
+    is_url_ignored,
+    url_belongs_to_origin,
+    HttpCommunication,
+)
 
+
+def test_extract_origin():
+    extract_origin("http://test.com") == "http://test.com"
+    extract_origin("http://test.com/") == "http://test.com"
+    extract_origin("http://test.com/test") == "http://test.com"
+    extract_origin("http://test.com:80/test") == "http://test.com:80"
+    extract_origin("http://test.com:1234/test") == "http://test.com:1234"
+    extract_origin("https://test.com:1234/test") == "https://test.com:1234"
+    extract_origin("ftp://test.com:1234/test") == "https://test.com:1234"
+
+def test_url_belongs_to_origin():
+    assert url_belongs_to_origin("http://test.com/", "http://real.com/test") == False
+    assert url_belongs_to_origin("http://real.com/another/path", "http://real.com/test") == True
+    assert url_belongs_to_origin("http://real.com", "http://real.com/test") == True
+    assert url_belongs_to_origin("https://real.com", "http://real.com") == False
+    assert url_belongs_to_origin("https://real.com", "http://test.real.com") == False
+    assert url_belongs_to_origin("https://test.real.com", "http://real.com") == False
+    assert url_belongs_to_origin("https://real.com:80", "http://real.com") == False
+    assert url_belongs_to_origin("https://real.com:1234", "http://real.com") == False
+    assert url_belongs_to_origin("https://real.com", "http://real.com:1234") == False
+
+
+def test_is_url_ignored():
+    assert is_url_ignored("data:text/plain;base64,SGVsbG8sIFdvcmxkIQ==") == True
+    assert is_url_ignored("http://test.com/index.js") == True
+    assert is_url_ignored("http://test.com/index.js?query#fragment") == True
+    assert is_url_ignored("http://test.com/index.css?query#fragment") == True
+    assert is_url_ignored("http://test.com/logo.svg?query#fragment") == True
+    assert is_url_ignored("https://test.com/logo.svg") == True
+    assert is_url_ignored("ftp://test.com/logo.svg") == True
+
+    assert is_url_ignored("ftp://test.com/logo/page.png") == False
+    assert is_url_ignored("http://test.com/logo/page.png") == False
+    assert is_url_ignored("http://test.com/logo/page") == False
+    assert is_url_ignored("http://test.com/") == False
+
+    assert is_url_ignored("http://test.com/", origin="http://real.com/test") == True
+    assert is_url_ignored("http://test.com/", origin="http://test.com/test") == False
+    assert is_url_ignored("http://test.com/test", origin="http://test.com") == False
+    
 
 # These communications were parsed by hand from events_youtube.json
 YOUTUBE_FIRST_COMMUNICATION = HttpCommunication(

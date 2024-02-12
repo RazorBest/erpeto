@@ -35,9 +35,8 @@ def extract_origin(url: str) -> str:
     return f"{parsed_url.scheme}://{parsed_url.netloc}"
 
 
-def url_belongs_to_origin(origin: str, url: str) -> bool:
-    url_origin = extract_origin(url)
-    return url_origin == origin
+def url_belongs_to_origin(url: str, origin: str) -> bool:
+    return extract_origin(url) == extract_origin(origin)
 
 
 def is_url_ignored(url: str, origin: Optional[str] = None) -> bool:
@@ -49,7 +48,7 @@ def is_url_ignored(url: str, origin: Optional[str] = None) -> bool:
     if path.endswith(".js") or path.endswith(".svg") or path.endswith(".css"):
         return True
 
-    if origin and not url_belongs_to_origin(origin, url):
+    if origin and not url_belongs_to_origin(url, origin):
         return True
 
     return False

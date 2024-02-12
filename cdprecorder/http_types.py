@@ -1,22 +1,20 @@
 from __future__ import annotations
 import urllib
 
+from dataclasses import dataclass
 from typing import Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     import http
 
+@dataclass
 class Cookie:
-    def __init__(self, name: str = "", value: str = "", expires: Optional[Union[str, int]] = None, path: Optional[str] = None, samesite: Optional[str] = None, httponly: Optional[str] = None):
-        self.name = name
-        self.value = value
-        self.expires = expires
-        self.path = path
-        self.samesite = samesite
-        self.httponly = httponly
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(name={self.name!r}, value={self.value!r}, expires={self.expires!r}, path={self.path!r}, samesite={self.samesite!r})"
+    name: str = ""
+    value: str = ""
+    expires: Optional[Union[str, int]] = None
+    path: Optional[str] = None
+    samesite: Optional[str] = None
+    httponly: Optional[str] = None
 
     def to_dict(self) -> dict[str, str]:
         return {self.name: self.value}

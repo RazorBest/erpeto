@@ -3,7 +3,8 @@ import json
 
 from dataclasses import dataclass
 
-from ..main import Cookie, BrowserAction, HttpAction, RequestAction, ResponseAction
+from cdprecorder.http_types import Cookie
+from cdprecorder.action import BrowserAction, HttpAction, RequestAction, ResponseAction
 
 @dataclass
 class LengthBody:

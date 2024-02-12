@@ -30,7 +30,8 @@ class InputAction(BrowserAction):
 
 
 class HttpAction(BrowserAction):
-    def __init__(self, request_data: Optional[RequestInfo] = None, body: Optional[bytes] = None,
+    def __init__(self, request_data: Optional[RequestInfo] = None,
+        body: Optional[bytes] = None,
         method: Optional[str] = None,
         headers: Optional[dict[LowercaseStr, str]] = None,
         url: Optional[str] = None,

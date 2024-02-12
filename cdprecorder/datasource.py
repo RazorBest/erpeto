@@ -7,13 +7,15 @@ from typing import Optional, Sequence, TYPE_CHECKING
 
 from .str_evaluator import randomness_score
 
+from .action import LowercaseStr
+
 if TYPE_CHECKING:
     from .action import HttpAction
 
-class DataSource(ABC):
-    def __init__(self, index: int):
-        self.index = index
+class ActionNotFound(ValueError):
+    pass
 
+class DataSource(ABC):
     @abstractmethod
     def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
         pass
@@ -26,14 +28,30 @@ class DataSource(ABC):
         classname = self.__class__.__name__
         return f"{classname}({args_line})"
 
+class ActionDataSource(ABC):
+    def __init__(self, index: int):
+        self.__index = index
 
-class IntermediaryDataSource(DataSource):
+    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
+        if self.__index >= len(prev_actions):
+            raise ActionNotFound(self.__index)
+        action = prev_actions[self.__index]
+        if action is None:
+            return None
+        return self.get_value_from_action(action)
+
+    @abstractmethod
+    def get_value_from_action(self, action: Optional[HttpAction]) -> Optional[str]:
+        pass
+
+
+class IntermediaryDataSource:
     def __init__(self, upper_source: DataSource) -> None:
         self.upper_source = upper_source
 
     def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
         upper_source_value = self.upper_source.get_value(prev_actions)
-        return get_value_from_upper_value(self.upper_source)
+        return self.get_value_from_upper_value(upper_source_value)
 
     @abstractmethod
     def get_value_from_upper_value(self, upper_value: str) -> Optional[str]:
@@ -58,31 +76,24 @@ class StrSource(DataSource):
         return self.text
 
 
-class HeaderSource(DataSource):
-    def __init__(self, index: int, key: LowercaseStr, strcontext: str):
+class HeaderSource(ActionDataSource):
+    def __init__(self, index: int, key: str):
         super().__init__(index)
-        self.key = key
-        self.strcontext = strcontext
+        self.key = LowercaseStr(key)
 
-    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
-        # TODO: solve casing (upper/lower) problem
-        # TODO: handler errrrror :((
-        action = prev_actions[self.index] 
-        if action is None:
+    def get_value_from_action(self, action: HttpAction) -> Optional[str]:
+        if self.key not in action.headers:
             return None
         return action.headers[self.key]
-        
 
-class CookieSource(DataSource):
+
+class CookieSource(ActionDataSource):
     def __init__(self, index: int, name: str, strcontext: str):
         super().__init__(index)
         self.name = name
         self.strcontext = strcontext
 
-    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
-        action = prev_actions[self.index]
-        if action is None:
-            return None
+    def get_value_from_action(self, action: HttpAction) -> Optional[str]:
         for cookie in action.cookies:
             if cookie.name == self.name:
                 matched = re.match(self.strcontext, cookie.value)
@@ -94,10 +105,9 @@ class CookieSource(DataSource):
         return None
 
 
-class BodySource(DataSource):
-    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
-        action = prev_actions[self.index]
-        if action is None or action.body is None:
+class BodySource(ActionDataSource):
+    def get_value_from_action(self, action: HttpAction) -> Optional[str]:
+        if action.body is None:
             return None
 
         return action.body.decode("utf8")

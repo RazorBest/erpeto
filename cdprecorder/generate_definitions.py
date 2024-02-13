@@ -147,4 +147,6 @@ def generate_definitions():
     content += generate_datatarget_definitions()
     content += generate_action_functions()
 
+    content = content.rstrip()
+
     return content

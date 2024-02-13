@@ -27,8 +27,7 @@ REQUEST_SENDING_TEMPLATE = \
     data={action_var}.body,
     cookies={action_var}.cookies_to_dict(),
 ).prepare()
-response_{request_index} = Session().send(prepared_request_{request_index}, allow_redirects=False)
-actions.append(response_action_from_python_response(response_{request_index}))"""
+response_{request_index} = Session().send(prepared_request_{request_index}, allow_redirects=False)"""
 
 
 def indent_lines(lines: str, spaces: int = 4):
@@ -85,12 +84,15 @@ def generate_python_request_action(request_index: int, action: RequestAction):
 def generate_python_request(request_index: int, action: RequestAction):
     action_var = f"action_{request_index}"
 
-    return REQUEST_SENDING_TEMPLATE.format(
+    content = REQUEST_SENDING_TEMPLATE.format(
         request_index=request_index,
         method=action.method,
         url=action.url,
         action_var=action_var,
     )
+    if action.has_response:
+        content += f"\nactions.append(response_action_from_python_response(response_{request_index}))"
+    return content
 
 
 def generate_request_bodies(actions: list[HttpAction]):
@@ -99,7 +101,8 @@ def generate_request_bodies(actions: list[HttpAction]):
         if isinstance(action, RequestAction) and action.body is not None:
             content += f"REQUEST_BODY_{index} = {action.body!r}\n"
 
-    content += "\n\n"
+    if not content:
+        content += "\n"
 
     return content
 
@@ -121,14 +124,19 @@ def generate_python_actions(actions: list[HttpAction]) -> None:
         elif not isinstance(action, ResponseAction):
             lines += "actions.append(None)\n"
 
+    lines = lines.rstrip() + "\n"
+
     return lines
 
 
-def write_python_code(actions: list[HttpAction], path):
+def write_python_code(actions: list[HttpAction], path: str):
     code = ""
     code += generate_definitions()
-    code += generate_request_bodies(actions)
-    code += generate_python_actions(actions)
+    body_code = generate_request_bodies(actions)
+    if body_code.strip():
+        body_code = "\n\n" + body_code
+    code += body_code
+    code += "\n\n" + generate_python_actions(actions)
 
     with open(path, "w") as f:
         f.write(code)

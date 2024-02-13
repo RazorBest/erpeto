@@ -15,11 +15,8 @@ if TYPE_CHECKING:
 class ActionNotFound(ValueError):
     pass
 
-class DataSource(ABC):
-    @abstractmethod
-    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
-        pass
 
+class ReprSource:
     def __repr__(self):
         params = inspect.signature(self.__init__).parameters
         args = [f"{name}={getattr(self, name)!r}" for name in params]
@@ -27,6 +24,13 @@ class DataSource(ABC):
 
         classname = self.__class__.__name__
         return f"{classname}({args_line})"
+
+
+class DataSource(ABC, ReprSource):
+    @abstractmethod
+    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
+        pass
+
 
 class ActionDataSource(ABC):
     def __init__(self, index: int):

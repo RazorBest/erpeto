@@ -48,6 +48,19 @@ class ActionDataSource(ABC):
     def get_value_from_action(self, action: Optional[HttpAction]) -> Optional[str]:
         pass
 
+    def __repr__(self):
+        params = inspect.signature(self.__init__).parameters
+        args = []
+        for name in params:
+            if name == "index":
+                args.append(f"{name}={self.__index!r}")
+                continue
+            args.append(f"{name}={getattr(self, name)!r}")
+        args_line = ", ".join(args)
+
+        classname = self.__class__.__name__
+        return f"{classname}({args_line})"
+
 
 class IntermediaryDataSource:
     def __init__(self, upper_source: DataSource) -> None:

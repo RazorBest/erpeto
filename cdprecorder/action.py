@@ -134,8 +134,8 @@ class HttpAction(BrowserAction):
 
 class RequestAction(HttpAction):
     def __init__(self, *args: Any, **kwargs: Any):
+        self.has_response = kwargs.pop("has_response", False)
         super().__init__(*args, **kwargs)
-        self.has_response = False
 
 
 class ResponseAction(HttpAction):

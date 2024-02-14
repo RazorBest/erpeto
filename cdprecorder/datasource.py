@@ -45,7 +45,7 @@ class ActionDataSource(ABC):
         return self.get_value_from_action(action)
 
     @abstractmethod
-    def get_value_from_action(self, action: Optional[HttpAction]) -> Optional[str]:
+    def get_value_from_action(self, action: HttpAction) -> Optional[str]:
         pass
 
     def __repr__(self):

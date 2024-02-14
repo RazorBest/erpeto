@@ -1,8 +1,14 @@
+from __future__ import annotations
 import inspect
+
+from typing import TYPE_CHECKING
 
 from . import action
 from . import datasource
 from . import datatarget
+
+if TYPE_CHECKING:
+    import types
 
 
 IMPORTS = \
@@ -104,14 +110,23 @@ INTERMEDIARY_DATASOURCE_DEFINITION = \
 """
 
 
+def get_module_level_classes(module: types.ModuleType) -> list[object]:
+    module_name = module.__name__
+
+    classes = []
+    for name, obj in inspect.getmembers(module):
+        if not inspect.isclass(obj) or obj.__module__ != module_name:
+            continue
+        classes.append(obj)
+
+    return classes
+
 def generate_datasource_definitions():
     content = ""
 
     content += inspect.getsource(datasource.DataSource) + "\n\n"
     content += inspect.getsource(datasource.IntermediaryDataSource) + "\n\n"
-    for name, obj in inspect.getmembers(datasource):
-        if not inspect.isclass(obj):
-            continue
+    for obj in get_module_level_classes(datasource):
         if not issubclass(obj, datasource.DataSource):
             continue
         if obj == datasource.DataSource or obj == datasource.IntermediaryDataSource:
@@ -124,10 +139,7 @@ def generate_datasource_definitions():
 
 def generate_datatarget_definitions():
     content = ""
-    for name, obj in inspect.getmembers(datatarget):
-        if not inspect.isclass(obj):
-            continue
-
+    for obj in get_module_level_classes(datatarget):
         content += inspect.getsource(obj) + "\n\n"
 
     return content

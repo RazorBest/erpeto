@@ -141,45 +141,48 @@ class StrSource(DataSource):
         return self.text
 
 
-class BodyTarget:
-    def __init__(self, source: DataSource):
-        self.source = source
-
-    def apply(self, action: HttpAction, prev_actions: Sequence[Optional[HttpAction]]) -> None:
-        value = self.source.get_value(prev_actions)
-        if value is None:
-            return
+class BodyTarget(SingleSourcedTarget):
+    def apply_value(self, action: HttpAction, value:str) -> None:
         action.body = value.encode()
 
 
-class CookieTarget:
+class CookieTarget(SingleSourcedTarget):
     def __init__(self, name: str, source: DataSource):
-        self.source = source
+        super().__init__(source)
         self.name = name
 
-    def apply(self, action: HttpAction, prev_actions: list[Optional[HttpAction]]) -> None:
-        value = self.source.get_value(prev_actions)
-        if value is None:
-            return
+    def apply_value(self, action: HttpAction, value: str) -> None:
         for cookie in action.cookies:
             if cookie.name == self.name:
                 cookie.value = value
                 break
         else:
-            action.cookies.append(Cookie(self.cookie.name, value))
+            action.cookies.append(Cookie(self.name, value))
 
 
-class HeaderTarget:
-    def __init__(self, source: DataSource, key: LowercaseStr, value: str):
-        self.source = source
-        self.key = key
+class HeaderTarget(SingleSourcedTarget):
+    def __init__(self, source: DataSource, key: str, value: str):
+        super().__init__(source)
+        self.key = LowercaseStr(key)
         self.value = value
 
-    def apply(self, action: HttpAction, prev_actions: Sequence[Optional[HttpAction]]) -> None:
+    def apply_value(self, action: HttpAction, value: str) -> None:
+        action.headers[self.key] = value
+
+
+class SingleSourcedTarget(ABC):
+    def __init__(self, source: DataSource):
+        self.source = source
+
+    def apply(self, action: HttpAction, prev_actions: list[Optional[HttpAction]]) -> None:
         value = self.source.get_value(prev_actions)
         if value is None:
             return
-        action.headers[self.key] = value
+        self.apply_value(action, value)
+
+    @abstractmethod
+    def apply_value(self, action: HttpAction, value: str) -> None:
+        pass
 
 
 def response_action_from_python_response(resp: requests.Response) -> ResponseAction:
@@ -243,7 +246,7 @@ action_2 = RequestAction(
     has_response=True,
 )
 actions.append(action_2)
-HeaderTarget(source=CookieSource(index=1, name='XSRF-TOKEN', strcontext='.*'), key='X-XSRF-TOKEN', value='gd76s8adghjsad7a').apply(action_2, actions)
+HeaderTarget(source=CookieSource(index=1, name='XSRF-TOKEN', strcontext='.*'), key='x-xsrf-token', value='gd76s8adghjsad7a').apply(action_2, actions)
 CookieTarget(name='XSRF-TOKEN', source=CookieSource(index=1, name='XSRF-TOKEN', strcontext='.*')).apply(action_2, actions)
 CookieTarget(name='test-session', source=CookieSource(index=1, name='test-session', strcontext='.*')).apply(action_2, actions)
 prepared_request_2 = requests.Request(

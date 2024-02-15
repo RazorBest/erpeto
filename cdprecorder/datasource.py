@@ -140,6 +140,17 @@ class BodySource(ActionDataSource):
         return action.body.decode("utf8")
 
 
+def get_object_at_json_path(data: object, path: list[Union[str, int]]) -> Optional[object]:
+    try:
+        for key in path:
+            if not isinstance(data, list) and not isinstance(data, dict):
+                return None
+            data = data[key]
+        return data
+    except LookupError:
+        return None
+
+
 class JSONFieldSource(IntermediaryDataSource):
     def __init__(self, upper_source: DataSource, path: list[Union[str, int]]):
         super().__init__(upper_source)
@@ -152,12 +163,13 @@ class JSONFieldSource(IntermediaryDataSource):
         except json.JSONDecodeError: 
             return None
 
-        try:
-            data = src_data
-            for key in self.path:
-                data = data[key]
-        except LookupError:
+        data = get_object_at_json_path(src_data, self.path)
+        if data is None:
             return None
+        if isinstance(data, list) or isinstance(data, dict) or isinstance(data, bool):
+            return json.dumps(data)
+
+        return str(data)
 
 
 class JSONFieldTarget:
@@ -167,23 +179,23 @@ class JSONFieldTarget:
 
     def apply(self, container_data: object, prev_actions: list[Optional[HttpAction]]) -> None:
         value = self.source.get_value(prev_actions)
-        if value is None:
+        if value is None or len(self.path) == 0:
             return
 
-        try:
-            data = container_data
-            for key in self.path[:-1]:
-                data = data[key]
-
-            if not isinstance(data, list) and not isinstance(data, dict):
-                return
-
-            if isinstance(data, dict) and self.path[-1] not in data:
-                return
-
-            data[self.path[-1]] = value
-        except LookupError:
+        data = get_object_at_json_path(container_data, self.path[:-1])
+        if data is None:
             return
+
+        if not isinstance(data, list) and not isinstance(data, dict):
+            return
+
+        key = self.path[-1]
+        if isinstance(data, list) and isinstance(key, int) and key >= len(data):
+            return
+        if isinstance(data, dict) and key not in data:
+            return
+
+        data[key] = value
 
 
 class JSONContainer(DataSource):

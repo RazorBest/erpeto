@@ -1,9 +1,12 @@
 from __future__ import annotations
 import inspect
 import json
+import re
+import urllib
 
 from abc import ABC, abstractmethod
-from typing import Optional, Sequence, TYPE_CHECKING
+from copy import deepcopy
+from typing import Optional, Sequence, Union, TYPE_CHECKING
 
 from .str_evaluator import randomness_score
 
@@ -30,6 +33,11 @@ class DataSource(ABC, ReprSource):
     @abstractmethod
     def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
         pass
+
+
+class GroupDataSource():
+    def __init__(sources: list[DataSource]):
+        self.sources = sources
 
 
 class ActionDataSource(ABC):
@@ -130,66 +138,61 @@ class BodySource(ActionDataSource):
         return action.body.decode("utf8")
 
 
-class JSONField:
-    def __init__(self, value: str, path: list[Union[str, int]], source: Optional[DataSource] = None):
-        """
-        Args:
-            path: The list of keys/indexes to use to arrive to a JSON element.
-        """
-        self.value = value
+class JSONFieldSource(IntermediaryDataSource):
+    def __init__(self, upper_source: DataSource, path: list[Union[str, int]]):
+        super().__init__(upper_source)
         self.path = path
+
+    def get_value_from_upper_value(self, upper_value: str) -> Optional[str]:
+        src_data = None
+        try:
+            src_data = json.loads(upper_value)
+        except json.JSONDecodeError: 
+            return None
+
+        try:
+            data = src_data
+            for key in self.path:
+                data = data[key]
+        except LookupError:
+            return None
+
+
+class JSONFieldTarget:
+    def __init__(self, source: DataSource, path: list[Union[int, str]]):
         self.source = source
+        self.path = path
 
-    def apply(self, src_data: dict, prev_actions: Sequence[Optional[HttpAction]]) -> None:
-        if self.source is None:
-            return
-
+    def apply(self, container_data: object, prev_actions: list[Optional[HttpAction]]) -> None:
         value = self.source.get_value(prev_actions)
         if value is None:
             return
-        data = src_data
-        for key in self.path[:-1]:
-            data = data[key]
 
-        last_key = self.path[-1]
-        data[last_key] = value
+        try:
+            data = container_data
+            for key in self.path[:-1]:
+                data = data[key]
+
+            if not isinstance(data, list) and not isinstance(data, dict):
+                return
+
+            if isinstance(data, dict) and self.path[-1] not in data:
+                return
+
+            data[self.path[-1]] = value
+        except LookupError:
+            return
 
 
-class JSONSource(DataSource):
-    def __init__(self, data: str, token_classifier: Optional[Callable[[str], bool]] = None):
-        self.data = json.loads(data)
+class JSONContainer(DataSource):
+    def __init__(self, schema: JSONSchema, targets: list[DataSource]):
+        self.data = schema.data
+        self.targets: list[JSONFieldTarget] = targets
 
-        if token_classifier is not None:
-            self.classifier = token_classifier
-        else:
-            self.classifier = lambda token: randomness_score(token) >= 50
+    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
+        data = deepcopy(self.data)
 
-        self.targets: list[JSONField] = []
-        self.classify_tokens()
+        for target in self.targets:
+            target.apply(data, prev_actions)
 
-    def _classify(self, data: object, path: list[Union[str, int]]) -> list[JSONField]:
-        targets = []
-        if isinstance(data, dict):
-            for key, val in data.items():
-                targets += self._classify(val, path + [key])
-        elif isinstance(data, list):
-            for index, val in enumerate(data):
-                targets += self._classify(val, path + [index])
-        elif isinstance(data, str):
-            if self.classifier(data):
-                target = JSONField(data, path)
-                targets.append(target)
-        # TODO: decide for int, bool, bytes etc
-
-        return targets
-
-    def classify_tokens(self) -> None:
-        self.targets = self._classify(self.data, [])
-
-    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> str:
-        for field_target in self.targets:
-            if not field_target.source:
-                continue
-            field_target.apply(self.data, prev_actions)
-
-        return json.dumps(self.data)
+        return json.dumps(data)

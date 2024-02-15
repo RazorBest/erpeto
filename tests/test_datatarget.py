@@ -3,18 +3,12 @@ import pytest
 
 from typing import TYPE_CHECKING
 
+from .conftest import DummyDataSource
+
 from cdprecorder.action import HttpAction, LowercaseStr
 from cdprecorder.http_types import Cookie
 from cdprecorder.datatarget import BodyTarget, CookieTarget, HeaderTarget
 
-
-class DummyDataSource:
-    def __init__(self, value):
-        self.value = value
-
-    def get_value(self, prev_actions):
-        return self.value
-        
 
 @pytest.fixture
 def actions_list():

@@ -34,9 +34,10 @@ from cdprecorder.datasource import (
     SubstrSource,
     StrSource,
     HeaderSource,
+    JSONFieldTarget,
+    JSONContainer,
     CookieSource,
     BodySource,
-    JSONSource,
 )
 from cdprecorder.datatarget import (
     CookieTarget,
@@ -47,6 +48,7 @@ from cdprecorder.http_types import (
     Cookie,
     parse_cookie,
 )
+from cdprecorder.json_analyser import JSONSchema
 from cdprecorder.recorder import (
     HttpCommunication,
     RecorderOptions,
@@ -305,16 +307,18 @@ def analyze_actions(actions: list[BrowserAction]) -> None:
                 try:
                     body = body_bytes.decode("utf8")
                     json.loads(body)
-                    source_group = JSONSource(body)
+                    schema = JSONSchema(body)
                     has_sources = False
-                    for field in source_group.targets:
+                    json_targets = []
+                    for field in schema.fields:
                         index, source = look_for_str_in_actions(field.value, actions[:i])
                         if source:
+                            json.targets.append(JSONFieldTarget(source, field.path))
                             has_sources = True
-                            field.source = source
 
                     if has_sources:
-                        action.targets.append(BodyTarget(source_group))
+                        container = JSONContainer(schema, json_targets)
+                        action.targets.append(BodyTarget(container))
                         print(f"Found {source_group.__class__.__name__} for BodyTarget")
                 except json.JSONDecodeError:
                     # This shouldn't be functional

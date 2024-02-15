@@ -15,6 +15,7 @@ from .action import LowercaseStr
 if TYPE_CHECKING:
     from .action import HttpAction
 
+
 class ActionNotFound(ValueError):
     pass
 
@@ -22,7 +23,11 @@ class ActionNotFound(ValueError):
 class ReprSource:
     def __repr__(self):
         params = inspect.signature(self.__init__).parameters
-        args = [f"{name}={getattr(self, name)!r}" for name in params]
+        args = []
+        for name in params:
+            if not hasattr(self, name):
+                continue
+            args.append(f"{name}={getattr(self, name)!r}")
         args_line = ", ".join(args)
 
         classname = self.__class__.__name__

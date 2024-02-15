@@ -10,7 +10,3 @@ class URLFilter(AdblockRules):
         res.raise_for_status()
         raw_rules = res.text.split("\n")
         super().__init__(raw_rules)
-
-        with open("urlfilter", "wb") as f:
-            import pickle
-            pickle.dump(self, f)

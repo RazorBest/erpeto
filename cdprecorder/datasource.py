@@ -37,12 +37,7 @@ class ReprSource:
 class DataSource(ABC, ReprSource):
     @abstractmethod
     def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
-        pass
-
-
-class GroupDataSource():
-    def __init__(sources: list[DataSource]):
-        self.sources = sources
+        """Returns the value obtained from the actions, if available."""
 
 
 class ActionDataSource(ABC):
@@ -59,7 +54,7 @@ class ActionDataSource(ABC):
 
     @abstractmethod
     def get_value_from_action(self, action: HttpAction) -> Optional[str]:
-        pass
+        """Returns the value obtained from one action, if available."""
 
     def __repr__(self):
         params = inspect.signature(self.__init__).parameters
@@ -81,11 +76,13 @@ class IntermediaryDataSource:
 
     def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
         upper_source_value = self.upper_source.get_value(prev_actions)
+        if upper_source_value is None:
+            return None
         return self.get_value_from_upper_value(upper_source_value)
 
     @abstractmethod
     def get_value_from_upper_value(self, upper_value: str) -> Optional[str]:
-        pass
+        """Returns the value obtained by processing the upper value."""
 
 
 class SubstrSource(IntermediaryDataSource):

@@ -110,10 +110,10 @@ INTERMEDIARY_DATASOURCE_DEFINITION = \
 """
 
 
-def get_module_level_classes(module: types.ModuleType) -> list[object]:
+def get_module_level_classes(module: types.ModuleType) -> list[type]:
     module_name = module.__name__
 
-    classes = []
+    classes: list[type] = []
     for name, obj in inspect.getmembers(module):
         if not inspect.isclass(obj) or obj.__module__ != module_name:
             continue
@@ -121,7 +121,7 @@ def get_module_level_classes(module: types.ModuleType) -> list[object]:
 
     return classes
 
-def generate_datasource_definitions():
+def generate_datasource_definitions() -> str:
     content = ""
 
     content += inspect.getsource(datasource.DataSource) + "\n\n"
@@ -137,17 +137,19 @@ def generate_datasource_definitions():
     return content
 
 
-def generate_datatarget_definitions():
+def generate_datatarget_definitions() -> str:
     content = ""
     for obj in get_module_level_classes(datatarget):
         content += inspect.getsource(obj) + "\n\n"
 
     return content
 
-def generate_action_functions():
+
+def generate_action_functions() -> str:
     return inspect.getsource(action.response_action_from_python_response) + "\n\n"
 
-def generate_definitions():
+
+def generate_definitions() -> str:
     content = ""
     content += IMPORTS
     content += LOWERCASESTR_DEFINITION

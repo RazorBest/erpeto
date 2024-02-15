@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    import http
+    import http.cookiejar
 
 @dataclass
 class Cookie:

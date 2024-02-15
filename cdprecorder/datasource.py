@@ -14,6 +14,7 @@ from .action import LowercaseStr
 
 if TYPE_CHECKING:
     from .action import HttpAction
+    from .json_analyser import JSONSchema
 
 
 class ActionNotFound(ValueError):
@@ -21,7 +22,7 @@ class ActionNotFound(ValueError):
 
 
 class ReprSource:
-    def __repr__(self):
+    def __repr__(self) -> str:
         params = inspect.signature(self.__init__).parameters
         args = []
         for name in params:
@@ -56,7 +57,7 @@ class ActionDataSource(ABC):
     def get_value_from_action(self, action: HttpAction) -> Optional[str]:
         """Returns the value obtained from one action, if available."""
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         params = inspect.signature(self.__init__).parameters
         args = []
         for name in params:
@@ -143,9 +144,14 @@ class BodySource(ActionDataSource):
 def get_object_at_json_path(data: object, path: list[Union[str, int]]) -> Optional[object]:
     try:
         for key in path:
-            if not isinstance(data, list) and not isinstance(data, dict):
+            if isinstance(data, list):
+                if not isinstance(key, int):
+                    return None
+                data = data[key]
+            elif isinstance(data, dict):
+                data = data[key]
+            else:
                 return None
-            data = data[key]
         return data
     except LookupError:
         return None
@@ -177,7 +183,7 @@ class JSONFieldTarget:
         self.source = source
         self.path = path
 
-    def apply(self, container_data: object, prev_actions: list[Optional[HttpAction]]) -> None:
+    def apply(self, container_data: object, prev_actions: Sequence[Optional[HttpAction]]) -> None:
         value = self.source.get_value(prev_actions)
         if value is None or len(self.path) == 0:
             return
@@ -186,20 +192,15 @@ class JSONFieldTarget:
         if data is None:
             return
 
-        if not isinstance(data, list) and not isinstance(data, dict):
-            return
-
         key = self.path[-1]
-        if isinstance(data, list) and isinstance(key, int) and key >= len(data):
-            return
-        if isinstance(data, dict) and key not in data:
-            return
-
-        data[key] = value
+        if isinstance(data, list) and isinstance(key, int) and key < len(data):
+            data[key] = value
+        elif isinstance(data, dict) and key in data:
+            data[key] = value
 
 
 class JSONContainer(DataSource):
-    def __init__(self, schema: JSONSchema, targets: list[DataSource]):
+    def __init__(self, schema: JSONSchema, targets: list[JSONFieldTarget]):
         self.data = schema.data
         self.targets: list[JSONFieldTarget] = targets
 

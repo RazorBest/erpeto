@@ -7,7 +7,8 @@ from .action import RequestAction, ResponseAction, HttpAction
 from .generate_definitions import generate_definitions
 
 if TYPE_CHECKING:
-    from .httponly import Cookies
+    from .action import LowercaseStr
+    from .http_types import Cookie
 
 REQUEST_ACTION_CONSTRUCTION_TEMPLATE = \
 """action_{request_index} = RequestAction(
@@ -30,13 +31,13 @@ REQUEST_SENDING_TEMPLATE = \
 response_{request_index} = Session().send(prepared_request_{request_index}, allow_redirects=False)"""
 
 
-def indent_lines(lines: str, spaces: int = 4):
+def indent_lines(lines: str, spaces: int = 4) -> str:
     indent = " " * spaces
     return indent + f"\n{indent}".join(lines.split('\n'))
 
 
-def generate_python_target(target):
-    params = inspect.signature(target.__init__).parameters
+def generate_python_target(target: object) -> str:
+    params = inspect.signature(target.__init__).parameters # type: ignore[misc]
     args = [f"{name}={getattr(target, name)!r}" for name in params]
     args_line = ", ".join(args)
 
@@ -44,7 +45,7 @@ def generate_python_target(target):
     return f"{classname}({args_line})"
 
 
-def generate_python_headers(headers: dict):
+def generate_python_headers(headers: dict[LowercaseStr, str]) -> str:
     elements = [f"    {key!r}: {val!r},\n" for key, val in headers.items()]
     content = "".join(elements)
 
@@ -54,7 +55,7 @@ def generate_python_headers(headers: dict):
     return f"{{\n{content}}}"
 
 
-def generate_python_cookies(cookies: list[Cookie]):
+def generate_python_cookies(cookies: list[Cookie]) -> str:
     content = ""
     for cookie in cookies:
         content += f"    Cookie({cookie.name!r}, {cookie.value!r}),\n"
@@ -65,7 +66,7 @@ def generate_python_cookies(cookies: list[Cookie]):
     return f"[\n{content}]"
     
 
-def generate_python_request_action(request_index: int, action: RequestAction):
+def generate_python_request_action(request_index: int, action: RequestAction) -> str:
     body_var = "None"
     if action.body is not None:
         body_var = f"REQUEST_BODY_{request_index}"
@@ -81,7 +82,7 @@ def generate_python_request_action(request_index: int, action: RequestAction):
     )
 
 
-def generate_python_request(request_index: int, action: RequestAction):
+def generate_python_request(request_index: int, action: RequestAction) -> str:
     action_var = f"action_{request_index}"
 
     content = REQUEST_SENDING_TEMPLATE.format(
@@ -95,7 +96,7 @@ def generate_python_request(request_index: int, action: RequestAction):
     return content
 
 
-def generate_request_bodies(actions: list[HttpAction]):
+def generate_request_bodies(actions: list[HttpAction]) -> str:
     content = ""
     for index, action in enumerate(actions):
         if isinstance(action, RequestAction) and action.body is not None:
@@ -107,7 +108,7 @@ def generate_request_bodies(actions: list[HttpAction]):
     return content
 
 
-def generate_python_actions(actions: list[HttpAction]) -> None:
+def generate_python_actions(actions: list[HttpAction]) -> str:
     lines = "actions = []\n\n"
     for index, action in enumerate(actions):
         if isinstance(action, RequestAction):
@@ -129,7 +130,7 @@ def generate_python_actions(actions: list[HttpAction]) -> None:
     return lines
 
 
-def write_python_code(actions: list[HttpAction], path: str):
+def write_python_code(actions: list[HttpAction], path: str) -> None:
     code = ""
     code += generate_definitions()
     body_code = generate_request_bodies(actions)

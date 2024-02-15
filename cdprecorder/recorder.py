@@ -7,7 +7,7 @@ import time
 import urllib
 
 from dataclasses import dataclass
-from typing import cast
+from typing import AsyncIterator, cast, Optional, Union, TYPE_CHECKING
 
 import pycdp
 import twisted.internet.reactor
@@ -21,6 +21,11 @@ from . import filters
 from .action import (
     InputAction
 )
+
+if TYPE_CHECKING:
+    import builtins
+
+    from .type_checking import CdpEvent
 
 # https://github.com/twisted/twisted/issues/9909
 reactor = cast(IReactorCore, twisted.internet.reactor)
@@ -287,12 +292,12 @@ async def collect_communications(
 @dataclass(frozen=True)
 class RecorderOptions:
     start_url: str
-    keep_only_same_origin_urls = True
-    cdp_host = "localhost"
-    cdp_port = 9222
+    keep_only_same_origin_urls: bool = True
+    cdp_host: str = "localhost"
+    cdp_port: int = 9222
 
     @property
-    def cdp_url(self):
+    def cdp_url(self) -> str:
         return f"http://{self.cdp_host}:{self.cdp_port}"
 
 

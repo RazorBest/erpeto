@@ -1,8 +1,12 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Any, Optional, TYPE_CHECKING
 
 from .http_types import Cookie, parse_cookie
 
+if TYPE_CHECKING:
+    import requests
+
+    from .type_checking import HttpTarget, RequestInfo
 
 class LowercaseStr(str):
     def __new__(cls, value: str, *args: object, **kwargs: object) -> LowercaseStr:
@@ -56,16 +60,11 @@ class HttpAction(BrowserAction):
 
     def update_info(self, data: RequestInfo) -> None:
         if getattr(data, "headers", None):
-            cookie_key: Optional[str] = None
             for key, val in data.headers.items():
                 if key.lower() == "cookie":
-                    cookie_key = key
+                    self.cookies += [parse_cookie(block) for block in val.split(";")]
+                    del data.headers[key]
                     break
-
-            if cookie_key:
-                val = data.headers[cookie_key]
-                self.cookies += [parse_cookie(block) for block in val.split(";")]
-                del data.headers[cookie_key]
 
             for key, val in data.headers.items():
                 # Ignore pseudo-headers: https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2.1

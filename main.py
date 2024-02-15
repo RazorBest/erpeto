@@ -6,7 +6,7 @@ import sys
 import urllib
 
 from enum import Enum
-from typing import AsyncIterator, Any, Callable, cast, Iterator, Optional, Protocol, Sequence, TypeVar, Union, TYPE_CHECKING
+from typing import AsyncIterator, Any, Callable, cast, Iterator, Optional, Sequence, TypeVar, Union, TYPE_CHECKING
 
 import pycdp
 import requests
@@ -65,22 +65,7 @@ if TYPE_CHECKING:
     from pycdp.cdp.util import T_JSON_DICT
     from twisted.python.failure import Failure
 
-    class CdpEvent(Protocol):
-        def to_json(self) -> T_JSON_DICT: ...
-
-    class HttpTarget(Protocol):
-        def apply(self, action: HttpAction, prev_actions: list[Optional[HttpAction]]) -> None: ...
-
-    RequestInfo = Union[
-        #cdp.network.RequestWillBeSent,
-        cdp.network.Request,
-        cdp.network.RequestWillBeSentExtraInfo,
-        #cdp.network.ResponseReceived,
-        cdp.network.Response,
-        cdp.network.ResponseReceivedExtraInfo,
-        "HttpAction",
-        requests.models.Response
-    ]
+    from cdprecorder.type_checking import CdpEvent, HttpTarget
 
 
 # https://github.com/twisted/twisted/issues/9909

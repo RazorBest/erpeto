@@ -11,15 +11,108 @@ from cdprecorder.action import (
     ResponseAction,
 )
 from cdprecorder.datasource import (
+    ActionDataSource,
+    ActionNotFound,
+    BodySource,
     CookieSource,
     HeaderSource,
     JSONContainer,
+    JSONFieldSource,
     JSONFieldTarget,
+    ReprSource,
     SubstrSource,
     StrSource,
 )
 from cdprecorder.http_types import Cookie
 
+
+@pytest.fixture()
+def actions_list():
+    action1 = ResponseAction(
+        headers={
+            LowercaseStr("User-Agent"): "Chrome",
+            LowercaseStr("Test1"): "test",
+            LowercaseStr("Time"): "12:06:29",
+        },
+        cookies=[
+            Cookie("session", "test"),
+            Cookie("_gl", "1.0.21879"),
+        ],
+        body=b'{"json_key": [{"key3": "test"}, "test2", 2, false], "key2": null}',
+    ) 
+    action2 = ResponseAction(
+        headers={
+            LowercaseStr("User-Agent"): "Chrome",
+            LowercaseStr("Test2"): "test",
+            LowercaseStr("Time"): "12:06:30",
+        },
+    ) 
+    action3 = ResponseAction(
+        headers={
+            LowercaseStr("User-Agent"): "Chrome",
+            LowercaseStr("Test3"): "test",
+            LowercaseStr("X-Link"): "url",
+        },
+        cookies=[
+            Cookie("session", "test2"),
+            Cookie("_gl2", "1.0.12368"),
+        ],
+        # Invalid JSON
+        body=b'{"json_key": [{"key3": "test"}, "test2", 2, false, "key2": null}',
+    ) 
+
+    actions = [action1, action2, action3]
+
+    yield actions
+
+
+class TestReprSource:
+    class InitReprSource(ReprSource):
+        def __init__(self, a, b, c, *, d, test=2, key="test", **kwargs):
+            self.a = a
+            self.b = b
+            self.c = c
+            self.d = d
+            self.test = test
+            self.key = key
+            self.keyword = kwargs["keyword"]
+
+    def test_repr(self):
+        source = self.InitReprSource(1, True, "dhsajk", d=8.3269, test=set(), keyword="new")
+        value = repr(source)
+        assert value == "InitReprSource(a=1, b=True, c='dhsajk', d=8.3269, test=set(), key='test')"
+
+
+class TestActionDataSource:
+    class DummyAction(ActionDataSource):
+        def get_value_from_action(self, action):
+            return "test"
+
+    class DummyAction2(ActionDataSource):
+        def __init__(self, index, a, b, d='test', e=list):
+            super().__init__(index)
+            self.a = a
+            self.b = b
+            self.d = d
+            self.e = e
+
+        def get_value_from_action(self, action):
+            return "test"
+
+    def get_value(self, actions_list):
+        action = self.DummyAction(0)
+        value = action.get_value(actions_list)
+        assert value == "test"
+
+    def test_action_not_found(self, actions_list):
+        action = self.DummyAction(100)
+        with pytest.raises(ActionNotFound):
+            action.get_value(actions_list)
+
+    def test_repr(self):
+        action = self.DummyAction2(100, "323", 9.23, e=list((1,)))
+        value = repr(action)
+        assert value == "DummyAction2(index=100, a='323', b=9.23, d='test', e=[1])"
 
 class TestSubstrSource:
     def test_get_value(self):
@@ -45,42 +138,12 @@ class TestSubstrSource:
         assert source.get_value([]) == "er_te"
 
 
-@pytest.fixture()
-def actions_list():
-    action1 = ResponseAction(
-        headers={
-            LowercaseStr("User-Agent"): "Chrome",
-            LowercaseStr("Test1"): "test",
-            LowercaseStr("Time"): "12:06:29",
-        },
-        cookies=[
-            Cookie("session", "test"),
-            Cookie("_gl", "1.0.21879"),
-        ],
-        body='{"json_key": [{"key3": "test"}, "test2", 2, false], "key2": none}',
-    ) 
-    action2 = ResponseAction(headers={
-        LowercaseStr("User-Agent"): "Chrome",
-        LowercaseStr("Test2"): "test",
-        LowercaseStr("Time"): "12:06:30",
-    }) 
-    action3 = ResponseAction(
-        headers={
-            LowercaseStr("User-Agent"): "Chrome",
-            LowercaseStr("Test3"): "test",
-            LowercaseStr("X-Link"): "url",
-        },
-        cookies=[
-            Cookie("session", "test2"),
-            Cookie("_gl2", "1.0.12368"),
-        ],
-        # Invalid JSON
-        body='{"json_key": [{"key3": "test"}, "test2", 2, false, "key2": none}',
-    ) 
 
-    actions = [action1, action2, action3]
-
-    yield actions
+class TestStrSource:
+    def test_get_value(self, actions_list):
+        source = StrSource("str_source")
+        value = source.get_value(actions_list)
+        assert value == "str_source"
 
 
 class TestHeaderSource:
@@ -118,6 +181,94 @@ class TestCookieSource:
         assert value == None
 
 
+class TestBodySource:
+    def test_get_value(self, actions_list):
+        source = BodySource(0)
+        value = source.get_value(actions_list)
+        assert value == '{"json_key": [{"key3": "test"}, "test2", 2, false], "key2": null}'
+
+        source = BodySource(1)
+        value = source.get_value(actions_list)
+        assert value == None
+
+
+class TestJSONFieldSource:
+    def test_value(self, actions_list):
+        init_source1 = BodySource(0)
+        init_source2 = BodySource(1)
+        init_source3 = BodySource(2)
+
+        source = JSONFieldSource(init_source1, path=["json_key"])
+        value = source.get_value(actions_list)
+        assert value == '[{"key3": "test"}, "test2", 2, false]'
+
+        source = JSONFieldSource(init_source1, path=["json_key", 0])
+        value = source.get_value(actions_list)
+        assert value == '{"key3": "test"}'
+
+        source = JSONFieldSource(init_source1, path=["json_key", 0, "key3"])
+        value = source.get_value(actions_list)
+        assert value == "test"
+
+        source = JSONFieldSource(init_source1, path=["json_key", 2])
+        value = source.get_value(actions_list)
+        assert value == "2"
+
+        source = JSONFieldSource(init_source1, path=["json_key", 3])
+        value = source.get_value(actions_list)
+        assert value == "false"
+
+        source = JSONFieldSource(init_source1, path=["key2", 3])
+        value = source.get_value(actions_list)
+        assert value == None
+
+        # The following tests invalid cases
+
+        source = JSONFieldSource(init_source2, path=["json_key"])
+        value = source.get_value(actions_list)
+        assert value == None
+
+        source = JSONFieldSource(init_source3, path=["json_key"])
+        value = source.get_value(actions_list)
+        assert value == None
+
+        source = JSONFieldSource(init_source1, path=["json_key", 4])
+        value = source.get_value(actions_list)
+        assert value == None
+
+        source = JSONFieldSource(init_source1, path=["json_key", 0, 0])
+        value = source.get_value(actions_list)
+        assert value == None
+
+        source = JSONFieldSource(init_source1, path=["json_key", 1, 0])
+        value = source.get_value(actions_list)
+        assert value == None
+
+        source = JSONFieldSource(init_source1, path=["json_key", 2, 0])
+        value = source.get_value(actions_list)
+        assert value == None
+
+        source = JSONFieldSource(init_source1, path=["json_key", 2, "invalid"])
+        value = source.get_value(actions_list)
+        assert value == None
+
+        source = JSONFieldSource(init_source1, path=["json_key", 3, 0])
+        value = source.get_value(actions_list)
+        assert value == None
+
+        source = JSONFieldSource(init_source1, path=["json_key", 3, "invalid"])
+        value = source.get_value(actions_list)
+        assert value == None
+
+        source = JSONFieldSource(init_source1, path=["key2", "invalid"])
+        value = source.get_value(actions_list)
+        assert value == None
+
+        source = JSONFieldSource(init_source1, path=["key2", 0])
+        value = source.get_value(actions_list)
+        assert value == None
+
+
 class SchemaDummy:
     def __init__(self, data):
         self.data = data
@@ -126,7 +277,13 @@ class SchemaDummy:
 class TestFieldTarget:
     def test_apply(self, actions_list):
         source = DummyDataSource("expected")
+        none_source = DummyDataSource(None)
         body = '{"json_key": [{"key3": "test"}, "test2", 2, false], "key2": null}'
+
+        data = json.loads(body)
+        target = JSONFieldTarget(none_source, ["json_key"])
+        target.apply(data, actions_list)
+        assert data == json.loads(body)
 
         data = json.loads(body)
         target = JSONFieldTarget(source, ["json_key"])

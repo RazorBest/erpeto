@@ -1,6 +1,5 @@
 from __future__ import annotations
-
-#from typing import Optional
+from typing import Optional
 
 from .http_types import Cookie, parse_cookie
 
@@ -95,6 +94,7 @@ class HttpAction(BrowserAction):
         self.url = action.url
         self.body = action.body
         self.cookies = action.cookies
+        self.status = action.status
 
     def cookies_to_dict(self) -> dict[str, str]:
         cookie_dict = {}

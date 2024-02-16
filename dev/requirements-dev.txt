@@ -1,5 +1,12 @@
 coverage-badge
-mypy==1.8
-pylint==3
-isort==5
-black==24
+pytest
+pytest-cov==4.*
+pytest-asyncio==0.23.5
+mypy==1.8.*
+pylint==3.*
+isort==5.*
+black==24.*
+mypy-zope==1.0.*
+
+# Mypy stubs
+types-requests

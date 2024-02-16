@@ -4,3 +4,6 @@ pylint==3.*
 isort==5.*
 black==24.*
 mypy-zope==1.0.*
+
+# Mypy stubs
+types-requests

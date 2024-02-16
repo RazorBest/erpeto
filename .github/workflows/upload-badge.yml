@@ -1,6 +1,8 @@
-name: Pylint
+name: Upload coverage badge
 
-on: [push]
+on: 
+  push:
+    branches: master
 
 permissions:
   contents: write

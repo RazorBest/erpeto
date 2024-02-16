@@ -96,7 +96,7 @@ class IntermediaryDataSource:
 
 
 class JSONContainer(DataSource):
-    def __init__(self, schema: JSONSchema, targets: list[DataSource]):
+    def __init__(self, schema: JSONSchema, targets: list[JSONFieldTarget]):
         self.data = schema.data
         self.targets: list[JSONFieldTarget] = targets
 

@@ -5,6 +5,7 @@
 </p>
 
 [![Basic validation](https://github.com/RazorBest/erpeto/actions/workflows/mypy-check.yml/badge.svg?branch=master)](https://github.com/RazorBest/erpeto/actions/workflows/check.yml)
+[![Basic validation](https://github.com/RazorBest/erpeto/actions/workflows/black-check.yml/badge.svg?branch=master)](https://github.com/RazorBest/erpeto/actions/workflows/check.yml)
 
 A Python browser recorder that turns actions into Python code that uses only
 requests library.

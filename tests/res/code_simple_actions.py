@@ -74,7 +74,7 @@ class IntermediaryDataSource:
         return get_value_from_upper_value(self.upper_source)
 
 
-class DataSource(ABC, ReprSource):
+class DataSource(ABC, DynamicRepr):
     @abstractmethod
     def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
         """Returns the value obtained from the actions, if available."""

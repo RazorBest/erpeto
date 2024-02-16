@@ -8,9 +8,9 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Optional, Sequence, Union, TYPE_CHECKING
 
-from .str_evaluator import randomness_score
-
 from .action import LowercaseStr
+from .str_evaluator import randomness_score
+from .util import DynamicRepr
 
 if TYPE_CHECKING:
     from .action import HttpAction
@@ -21,34 +21,20 @@ class ActionNotFound(ValueError):
     pass
 
 
-class ReprSource:
-    def __repr__(self) -> str:
-        params = inspect.signature(self.__init__).parameters
-        args = []
-        for name in params:
-            if not hasattr(self, name):
-                continue
-            args.append(f"{name}={getattr(self, name)!r}")
-        args_line = ", ".join(args)
-
-        classname = self.__class__.__name__
-        return f"{classname}({args_line})"
-
-
-class DataSource(ABC, ReprSource):
+class DataSource(ABC, DynamicRepr):
     @abstractmethod
     def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
         """Returns the value obtained from the actions, if available."""
 
 
-class ActionDataSource(ABC):
+class ActionDataSource(ABC, DynamicRepr):
     def __init__(self, index: int):
-        self.__index = index
+        self.index = index
 
     def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
-        if self.__index >= len(prev_actions):
-            raise ActionNotFound(self.__index)
-        action = prev_actions[self.__index]
+        if self.index >= len(prev_actions):
+            raise ActionNotFound(self.index)
+        action = prev_actions[self.index]
         if action is None:
             return None
         return self.get_value_from_action(action)
@@ -56,19 +42,6 @@ class ActionDataSource(ABC):
     @abstractmethod
     def get_value_from_action(self, action: HttpAction) -> Optional[str]:
         """Returns the value obtained from one action, if available."""
-
-    def __repr__(self) -> str:
-        params = inspect.signature(self.__init__).parameters
-        args = []
-        for name in params:
-            if name == "index":
-                args.append(f"{name}={self.__index!r}")
-                continue
-            args.append(f"{name}={getattr(self, name)!r}")
-        args_line = ", ".join(args)
-
-        classname = self.__class__.__name__
-        return f"{classname}({args_line})"
 
 
 class IntermediaryDataSource:

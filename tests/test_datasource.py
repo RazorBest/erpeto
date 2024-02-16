@@ -19,7 +19,6 @@ from cdprecorder.datasource import (
     JSONContainer,
     JSONFieldSource,
     JSONFieldTarget,
-    ReprSource,
     SubstrSource,
     StrSource,
 )
@@ -66,36 +65,8 @@ def actions_list():
     yield actions
 
 
-class TestReprSource:
-    class InitReprSource(ReprSource):
-        def __init__(self, a, b, c, *, d, test=2, key="test", **kwargs):
-            self.a = a
-            self.b = b
-            self.c = c
-            self.d = d
-            self.test = test
-            self.key = key
-            self.keyword = kwargs["keyword"]
-
-    def test_repr(self):
-        source = self.InitReprSource(1, True, "dhsajk", d=8.3269, test=set(), keyword="new")
-        value = repr(source)
-        assert value == "InitReprSource(a=1, b=True, c='dhsajk', d=8.3269, test=set(), key='test')"
-
-
 class TestActionDataSource:
     class DummyAction(ActionDataSource):
-        def get_value_from_action(self, action):
-            return "test"
-
-    class DummyAction2(ActionDataSource):
-        def __init__(self, index, a, b, d='test', e=list):
-            super().__init__(index)
-            self.a = a
-            self.b = b
-            self.d = d
-            self.e = e
-
         def get_value_from_action(self, action):
             return "test"
 
@@ -109,10 +80,6 @@ class TestActionDataSource:
         with pytest.raises(ActionNotFound):
             action.get_value(actions_list)
 
-    def test_repr(self):
-        action = self.DummyAction2(100, "323", 9.23, e=list((1,)))
-        value = repr(action)
-        assert value == "DummyAction2(index=100, a='323', b=9.23, d='test', e=[1])"
 
 class TestSubstrSource:
     def test_get_value(self):

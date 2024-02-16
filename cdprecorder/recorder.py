@@ -210,7 +210,7 @@ async def collect_communications(
     Returns:
         A list of communications.
     """
-    communications = []
+    communications: list[Union[HttpCommunication, InputAction]] = []
     request_map = {}
 
     start_time = time.time()
@@ -239,7 +239,7 @@ async def collect_communications(
             else:
                 if evt.args[0].object_id is not None:
                     result = await target_session.execute(cdp.runtime.get_properties(evt.args[0].object_id, own_properties=True))
-                    data = {attr.name: attr.value.value for attr in result[0]}
+                    data = {attr.name: attr.value.value for attr in result[0] if attr.value}
 
             if data["event"] == "input":
                 action = InputAction(data["value"], data["selector"], data["timestamp"])

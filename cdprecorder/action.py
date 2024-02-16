@@ -61,15 +61,13 @@ class HttpAction(BrowserAction):
     def update_info(self, data: RequestInfo) -> None:
         if getattr(data, "headers", None):
             for key, val in data.headers.items():
-                if key.lower() == "cookie":
-                    self.cookies += [parse_cookie(block) for block in val.split(";")]
-                    del data.headers[key]
-                    break
-
-            for key, val in data.headers.items():
                 # Ignore pseudo-headers: https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2.1
                 if key.startswith(":"):
                     continue
+                if key.lower() == "cookie":
+                    self.cookies += [parse_cookie(block) for block in val.split(";")]
+                    continue
+
                 self.headers[LowercaseStr(key)] = val
 
         if hasattr(data, "cookies") and isinstance(data.cookies, list):

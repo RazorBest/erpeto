@@ -64,7 +64,7 @@ jobs:
           else
             color=green
           fi
-          python -m pybadges --left-text=pylint --right-text="$score" --right-color="$color" > /dev/pylint_badge.svg
+          python -m pybadges --left-text=pylint --right-text="$score" --right-color="$color" > dev/pylint_badge.svg
       - name: Upload pylint score badge
         uses: EndBug/add-and-commit@v9
         with:

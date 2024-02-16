@@ -3,3 +3,4 @@ mypy==1.8.*
 pylint==3.*
 isort==5.*
 black==24.*
+mypy-zope==1.0.*

@@ -40,4 +40,5 @@ jobs:
         add: 'dev/coverage-badge.svg'
         author_name: Razvan Pricop
         author_email: 22615594+RazorBest@users.noreply.github.com
+        commit: --signoff
         message: 'Upload coverage percentage badge'

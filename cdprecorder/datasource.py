@@ -1,12 +1,12 @@
 from __future__ import annotations
+
 import inspect
 import json
 import re
 import urllib
-
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Optional, Sequence, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from .action import LowercaseStr
 from .str_evaluator import randomness_score
@@ -66,7 +66,7 @@ class SubstrSource(IntermediaryDataSource):
         self.end = end
 
     def get_value_from_upper_value(self, upper_value: str) -> Optional[str]:
-        return upper_value[self.start:self.end]
+        return upper_value[self.start : self.end]
 
 
 class StrSource(DataSource):
@@ -139,13 +139,13 @@ class JSONFieldSource(IntermediaryDataSource):
         src_data = None
         try:
             src_data = json.loads(upper_value)
-        except json.JSONDecodeError: 
+        except json.JSONDecodeError:
             return None
 
         data = get_object_at_json_path(src_data, self.path)
         if data is None:
             return None
-        if isinstance(data, list) or isinstance(data, dict) or isinstance(data, bool):
+        if isinstance(data, (list, dict, bool)):
             return json.dumps(data)
 
         return str(data)

@@ -1,6 +1,7 @@
 import collections
 import string
 
+
 def randomness_score(text: str) -> float:
     """Computes the chi squared statistic, with the frequencies of the text."""
     if len(text) <= 3:
@@ -15,9 +16,8 @@ def randomness_score(text: str) -> float:
     chi = 0.0
     T = len(string.ascii_lowercase + string.digits)
     for c in string.ascii_lowercase + string.digits:
-        chi += freq[c]**2 
+        chi += freq[c] ** 2
     chi = chi * T / n
     chi -= n
 
     return chi
-    

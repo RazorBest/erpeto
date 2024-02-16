@@ -1,5 +1,25 @@
+"""
+This module contains objects called `actions`, representing http requests and
+user interactions.
+
+Classes:
+    - LowercaseStr
+    - BrowserAction: Base class for all actions.
+    - InputAction: A user keyboard interaction with an HTML element.
+    - HttpAction: Base class for HTTP requests and responses.
+    - RequestAction: Represents an HTTP request.
+    - ResponseAction: Represents an HTTP response.
+
+Functions:
+    - response_actions_from_python_response: Converts a response to a
+    ResponseAction.
+
+
+"""
+
 from __future__ import annotations
-from typing import Any, Optional, TYPE_CHECKING
+
+from typing import TYPE_CHECKING, Any, Optional
 
 from .http_types import Cookie, parse_cookie
 
@@ -8,7 +28,10 @@ if TYPE_CHECKING:
 
     from .type_checking import HttpTarget, RequestInfo
 
+
 class LowercaseStr(str):
+    """Subclass of str whose value is always lowercase."""
+
     def __new__(cls, value: str, *args: object, **kwargs: object) -> LowercaseStr:
         return super(LowercaseStr, cls).__new__(cls, value.lower(), *args, **kwargs)
 
@@ -20,11 +43,15 @@ class LowercaseStr(str):
 
 
 class BrowserAction:
+    """Base class for all actions performed in Chrome."""
+
     def __init__(self) -> None:
         self.targets: list[HttpTarget] = []
 
 
 class InputAction(BrowserAction):
+    """Represents a user keyboard interaction with an HTML element."""
+
     def __init__(self, text: str, selector: str, timestamp: float) -> None:
         super().__init__()
         self.text = text
@@ -33,7 +60,13 @@ class InputAction(BrowserAction):
 
 
 class HttpAction(BrowserAction):
-    def __init__(self, request_data: Optional[RequestInfo] = None,
+    """Represents an HTTP request or response. Can parse info from cdp events
+    and python's requests objects. Contains helper methods for the execution
+    of actions."""
+
+    def __init__(
+        self,
+        request_data: Optional[RequestInfo] = None,
         body: Optional[bytes] = None,
         method: Optional[str] = None,
         headers: Optional[dict[LowercaseStr, str]] = None,
@@ -130,16 +163,21 @@ class HttpAction(BrowserAction):
 
 
 class RequestAction(HttpAction):
+    """Represents an HTTP request."""
+
     def __init__(self, *args: Any, **kwargs: Any):
         self.has_response = kwargs.pop("has_response", False)
         super().__init__(*args, **kwargs)
 
 
 class ResponseAction(HttpAction):
+    """Represents an HTTP response."""
+
     pass
 
 
 def response_action_from_python_response(resp: requests.Response) -> ResponseAction:
+    """Converts a python response from the requests module to a ResponseAction."""
     headers: dict[LowercaseStr, str] = {}
     for key, val in resp.headers.items():
         # Ignore pseudo-headers: https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2.1

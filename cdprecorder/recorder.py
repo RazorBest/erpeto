@@ -1,26 +1,23 @@
 from __future__ import annotations
+
 import base64
 import json
 import random
 import string
 import time
 import urllib
-
 from dataclasses import dataclass
-from typing import AsyncIterator, cast, Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, AsyncIterator, Optional, Union, cast
 
 import pycdp
 import twisted.internet.reactor
-
 from pycdp import cdp
 from pycdp.browser import ChromeLauncher
 from pycdp.twisted import connect_cdp
 from twisted.internet.interfaces import IReactorCore
 
 from . import filters
-from .action import (
-    InputAction
-)
+from .action import InputAction
 
 if TYPE_CHECKING:
     import builtins
@@ -60,7 +57,8 @@ def is_url_ignored(url: str, origin: Optional[str] = None) -> bool:
 
 
 async def insert_js_action_listener(target_session: pycdp.twisted.CDPSession, keystr: str) -> None:
-    expression = """
+    expression = (
+        """
     get_element_selector = (target) => {
         const tag_selector = target.tagName.toLowerCase();
         const classes = target.className.split(' ');
@@ -140,20 +138,23 @@ async def insert_js_action_listener(target_session: pycdp.twisted.CDPSession, ke
         console.log(_keystr01238 + JSON.stringify({"event": "input", timestamp, selector, value}));
     });
 
-    """ + f"var _keystr01238 = {json.dumps(keystr)};"
+    """
+        + f"var _keystr01238 = {json.dumps(keystr)};"
+    )
 
     ret = await target_session.execute(cdp.runtime.evaluate(expression))
 
 
 class HttpCommunication:
-    """Represents a collection of network CDP events with the same request id.
-    """
-    def __init__(self,
-            request_id: cdp.network.RequestId,
-            ignored: bool = False,
-            events: Optional[list[CdpEvent]] = None,
-            response_bodies: Optional[list[Optional[bytes]]] = None,
-        ):
+    """Represents a collection of network CDP events with the same request id."""
+
+    def __init__(
+        self,
+        request_id: cdp.network.RequestId,
+        ignored: bool = False,
+        events: Optional[list[CdpEvent]] = None,
+        response_bodies: Optional[list[Optional[bytes]]] = None,
+    ):
         self.request_id = request_id
         self.ignored = ignored
         self.events = events if events is not None else []
@@ -186,14 +187,14 @@ class HttpCommunication:
 
 
 async def collect_communications(
-        target_session: pycdp.twisted.CDPSession,
-        listener: AsyncIterator[builtins.object],
-        urlfilter: filters.URLFilter,
-        keystr: str,
-        timeout: int = 8,
-        collect_all: bool = False,
-        start_origin: Optional[str] = None,
-    ) -> list[Union[HttpCommunication, InputAction]]:
+    target_session: pycdp.twisted.CDPSession,
+    listener: AsyncIterator[builtins.object],
+    urlfilter: filters.URLFilter,
+    keystr: str,
+    timeout: int = 8,
+    collect_all: bool = False,
+    start_origin: Optional[str] = None,
+) -> list[Union[HttpCommunication, InputAction]]:
     """Takes a cdp session, listens for events, and generates a list of
     communications.
 
@@ -218,27 +219,30 @@ async def collect_communications(
         if time.time() - start_time > timeout:
             break
 
-        if isinstance(evt, cdp.network.RequestWillBeSent) or \
-                isinstance(evt, cdp.network.RequestWillBeSentExtraInfo) or \
-                isinstance(evt, cdp.network.ResponseReceived) or \
-                isinstance(evt, cdp.network.ResponseReceivedExtraInfo):
+        if (
+            isinstance(evt, cdp.network.RequestWillBeSent)
+            or isinstance(evt, cdp.network.RequestWillBeSentExtraInfo)
+            or isinstance(evt, cdp.network.ResponseReceived)
+            or isinstance(evt, cdp.network.ResponseReceivedExtraInfo)
+        ):
             if evt.request_id not in request_map:
                 comm = HttpCommunication(evt.request_id)
                 communications.append(comm)
                 request_map[evt.request_id] = comm
 
         if isinstance(evt, cdp.runtime.ConsoleAPICalled):
-            if evt.type_ != 'log' or \
-                (isinstance(evt.args[0].value, str) and not evt.args[0].value.startswith(keystr)):
+            if evt.type_ != "log" or (isinstance(evt.args[0].value, str) and not evt.args[0].value.startswith(keystr)):
                 continue
 
             printed_arg = evt.args[0]
             if printed_arg.value:
                 value = printed_arg.value.removeprefix(keystr)
-                data = json.loads(value) 
+                data = json.loads(value)
             else:
                 if evt.args[0].object_id is not None:
-                    result = await target_session.execute(cdp.runtime.get_properties(evt.args[0].object_id, own_properties=True))
+                    result = await target_session.execute(
+                        cdp.runtime.get_properties(evt.args[0].object_id, own_properties=True)
+                    )
                     data = {attr.name: attr.value.value for attr in result[0] if attr.value}
 
             if data["event"] == "input":
@@ -251,8 +255,9 @@ async def collect_communications(
 
             request_map[request_id].add_event(evt)
 
-            if not collect_all and \
-                    (is_url_ignored(cdp_req.url, start_origin) or urlfilter.should_block(evt.request.url)):
+            if not collect_all and (
+                is_url_ignored(cdp_req.url, start_origin) or urlfilter.should_block(evt.request.url)
+            ):
                 request_map[request_id].ignored = True
         elif isinstance(evt, cdp.network.RequestWillBeSentExtraInfo):
             if request_map[evt.request_id].ignored:
@@ -341,15 +346,7 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
     if options.keep_only_same_origin_urls:
         start_origin = extract_origin(start_url)
 
-    communications = await collect_communications(
-        target_session,
-        listener,
-        urlfilter,
-        keystr,
-        20,
-        False,
-        start_origin
-    )
+    communications = await collect_communications(target_session, listener, urlfilter, keystr, 20, False, start_origin)
 
     await conn.close()
 

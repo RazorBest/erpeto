@@ -1,18 +1,15 @@
 from __future__ import annotations
-import inspect
 
+import inspect
 from typing import TYPE_CHECKING
 
-from . import action
-from . import datasource
-from . import datatarget
+from . import action, datasource, datatarget
 
 if TYPE_CHECKING:
     import types
 
 
-IMPORTS = \
-"""from __future__ import annotations
+IMPORTS = """from __future__ import annotations
 import re
 import requests
 import urllib
@@ -24,8 +21,7 @@ from abc import ABC, abstractmethod
 """
 
 
-REQUEST_ACTION_DEFINITION = \
-"""class RequestAction:
+REQUEST_ACTION_DEFINITION = """class RequestAction:
     def __init__(self, method=None, url=None, headers=None, body=None, cookies=None, has_response=None):
         self.method = method
         self.url = url
@@ -45,8 +41,7 @@ REQUEST_ACTION_DEFINITION = \
 """
 
 
-RESPONSE_ACTION_DEFINITION = \
-"""class ResponseAction:
+RESPONSE_ACTION_DEFINITION = """class ResponseAction:
     def __init__(self, url=None, headers=None, body=None, cookies=None, status=None):
         self.url = url
         self.headers = headers
@@ -58,8 +53,7 @@ RESPONSE_ACTION_DEFINITION = \
 """
 
 
-COOKIE_DEFINITION = \
-"""class Cookie:
+COOKIE_DEFINITION = """class Cookie:
     def __init__(self, name = "", value = ""):
         self.name = name
         self.value = value
@@ -82,8 +76,7 @@ COOKIE_DEFINITION = \
 
 """
 
-LOWERCASESTR_DEFINITION = \
-"""class LowercaseStr(str):
+LOWERCASESTR_DEFINITION = """class LowercaseStr(str):
     def __new__(cls, value: str, *args: object, **kwargs: object) -> LowercaseStr:
         return super(LowercaseStr, cls).__new__(cls, value.lower(), *args, **kwargs)
 
@@ -97,8 +90,7 @@ LOWERCASESTR_DEFINITION = \
 """
 
 
-INTERMEDIARY_DATASOURCE_DEFINITION = \
-"""class IntermediaryDataSource:
+INTERMEDIARY_DATASOURCE_DEFINITION = """class IntermediaryDataSource:
     def __init__(self, upper_source):
         self.upper_source = upper_source
 
@@ -120,6 +112,7 @@ def get_module_level_classes(module: types.ModuleType) -> list[type]:
         classes.append(obj)
 
     return classes
+
 
 def generate_datasource_definitions() -> str:
     content = ""

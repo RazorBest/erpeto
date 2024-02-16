@@ -1,8 +1,9 @@
 import inspect
 
+
 class DynamicRepr:
     def __repr__(self) -> str:
-        params = inspect.signature(self.__init__).parameters # type: ignore[misc]
+        params = inspect.signature(self.__init__).parameters  # type: ignore[misc]
         args = []
         for name in params:
             if not hasattr(self, name):

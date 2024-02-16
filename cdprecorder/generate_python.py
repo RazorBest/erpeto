@@ -1,17 +1,16 @@
 from __future__ import annotations
-import inspect
 
+import inspect
 from typing import TYPE_CHECKING
 
-from .action import RequestAction, ResponseAction, HttpAction
+from .action import HttpAction, RequestAction, ResponseAction
 from .generate_definitions import generate_definitions
 
 if TYPE_CHECKING:
     from .action import LowercaseStr
     from .http_types import Cookie
 
-REQUEST_ACTION_CONSTRUCTION_TEMPLATE = \
-"""action_{request_index} = RequestAction(
+REQUEST_ACTION_CONSTRUCTION_TEMPLATE = """action_{request_index} = RequestAction(
     method={method!r},
     url={url!r},
     headers={headers},
@@ -20,8 +19,7 @@ REQUEST_ACTION_CONSTRUCTION_TEMPLATE = \
     has_response={has_response!r},
 )"""
 
-REQUEST_SENDING_TEMPLATE = \
-"""prepared_request_{request_index} = requests.Request(
+REQUEST_SENDING_TEMPLATE = """prepared_request_{request_index} = requests.Request(
     method={method!r},
     url={url!r},
     headers={action_var}.headers,
@@ -33,11 +31,11 @@ response_{request_index} = Session().send(prepared_request_{request_index}, allo
 
 def indent_lines(lines: str, spaces: int = 4) -> str:
     indent = " " * spaces
-    return indent + f"\n{indent}".join(lines.split('\n'))
+    return indent + f"\n{indent}".join(lines.split("\n"))
 
 
 def generate_python_target(target: object) -> str:
-    params = inspect.signature(target.__init__).parameters # type: ignore[misc]
+    params = inspect.signature(target.__init__).parameters  # type: ignore[misc]
     args = [f"{name}={getattr(target, name)!r}" for name in params]
     args_line = ", ".join(args)
 
@@ -64,7 +62,7 @@ def generate_python_cookies(cookies: list[Cookie]) -> str:
         return "[]"
 
     return f"[\n{content}]"
-    
+
 
 def generate_python_request_action(request_index: int, action: RequestAction) -> str:
     body_var = "None"
@@ -72,7 +70,7 @@ def generate_python_request_action(request_index: int, action: RequestAction) ->
         body_var = f"REQUEST_BODY_{request_index}"
 
     return REQUEST_ACTION_CONSTRUCTION_TEMPLATE.format(
-        request_index=request_index, 
+        request_index=request_index,
         method=action.method,
         url=action.url,
         headers=indent_lines(generate_python_headers(action.headers)).lstrip(),

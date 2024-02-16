@@ -1,21 +1,18 @@
 from __future__ import annotations
-import json
 
+import json
+from dataclasses import dataclass
 from typing import Callable, Optional, Union
 
 from .datasource import DataSource
 from .str_evaluator import randomness_score
 
 
+@dataclass(frozen=True, eq=False)
 class JSONField:
-    def __init__(self, value: str, path: list[Union[str, int]], source: Optional[DataSource] = None):
-        """
-        Args:
-            path: The list of keys/indexes to use to arrive to a JSON element.
-        """
-        self.value = value
-        self.path = path
-        self.source = source
+    value: str
+    path: list[Union[str, int]]
+    source: Optional[DataSource] = None
 
 
 class JSONSchema:

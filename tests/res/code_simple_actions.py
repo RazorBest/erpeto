@@ -118,7 +118,7 @@ class StrSource(DataSource):
 
 
 class BodyTarget(SingleSourcedTarget):
-    def apply_value(self, action: HttpAction, value:str) -> None:
+    def apply_value(self, action: HttpAction, value: str) -> None:
         action.body = value.encode()
 
 
@@ -162,6 +162,7 @@ class SingleSourcedTarget(ABC):
 
 
 def response_action_from_python_response(resp: requests.Response) -> ResponseAction:
+    """Converts a python response from the requests module to a ResponseAction."""
     headers: dict[LowercaseStr, str] = {}
     for key, val in resp.headers.items():
         # Ignore pseudo-headers: https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2.1

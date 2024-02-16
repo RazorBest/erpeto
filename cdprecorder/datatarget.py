@@ -1,9 +1,11 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+
+from cdprecorder.http_types import Cookie
 
 from .action import LowercaseStr
-from cdprecorder.http_types import Cookie
 
 if TYPE_CHECKING:
     from .action import HttpAction
@@ -50,5 +52,5 @@ class HeaderTarget(SingleSourcedTarget):
 
 
 class BodyTarget(SingleSourcedTarget):
-    def apply_value(self, action: HttpAction, value:str) -> None:
+    def apply_value(self, action: HttpAction, value: str) -> None:
         action.body = value.encode()

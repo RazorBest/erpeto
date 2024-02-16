@@ -1,8 +1,8 @@
 import requests
-
 from adblockparser import AdblockRules
 
 EASYLIST_URL = "https://easylist.to/easylist/easylist.txt"
+
 
 class URLFilter(AdblockRules):
     def __init__(self) -> None:

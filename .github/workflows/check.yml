@@ -2,6 +2,9 @@ name: Python Check
 
 on: [push]
 
+env:
+  NO_COLOR: false
+
 jobs:
   build:
     runs-on: ubuntu-latest

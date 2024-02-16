@@ -5,6 +5,7 @@
 </p>
 
 ![pylint](dev/pylint_badge.svg)
+![pylint](dev/coverage-badge.svg)
 [![Basic validation](https://github.com/RazorBest/erpeto/actions/workflows/mypy-check.yml/badge.svg?branch=master)](https://github.com/RazorBest/erpeto/actions/workflows/check.yml)
 [![Basic validation](https://github.com/RazorBest/erpeto/actions/workflows/black-check.yml/badge.svg?branch=master)](https://github.com/RazorBest/erpeto/actions/workflows/check.yml)
 

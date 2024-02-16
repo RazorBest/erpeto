@@ -5,6 +5,7 @@ set -e
 set -o pipefail
 
 export NO_COLOR=false
+export PYTEST_ADDOPTS="--color=yes"
 
 python3 -m isort -c cdprecorder/
 python3 -m black --line-length 120 --check cdprecorder/

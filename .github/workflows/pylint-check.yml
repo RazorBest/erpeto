@@ -61,4 +61,12 @@ jobs:
           else
             color=green
           fi
-          python -m pybadges --left-text=pylint --right-text="$score" --right-color="$color"
+          python -m pybadges --left-text=pylint --right-text="$score" --right-color="$color" > /dev/pylint_badge.svg
+      - name: Upload pylint score badge
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: 'dev/pylint_badge.svg'
+          author_name: Razvan Pricop
+          author_email: 22615594+RazorBest@users.noreply.github.com
+          commit: --signoff
+          message: 'Upload pylint score badge'

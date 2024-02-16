@@ -3,7 +3,7 @@ name: black
 on: [push]
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     strategy:
       matrix:

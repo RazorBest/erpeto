@@ -3,7 +3,7 @@ name: Python Check
 on: [push]
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -26,4 +26,4 @@ jobs:
     - name: Install dev dependencies
       run: python -m pip install -r dev/requirements-dev.txt
     - name: Run all the python checks
-      run: ./dev/check.sh
+      run: ./dev/check.sh pytest

@@ -24,11 +24,12 @@ jobs:
       run: python -m pip install -r requirements.txt
     - name: Install dev dependencies
       run: python -m pip install -r dev/requirements-dev.txt
-    - name: Run all the python checks
-      run: ./dev/check.sh pylint
-    - uses: Silleellie/pylint-github-action@v2
+    - name: Run pylint
+      run: |
+        python3 -m pylint --output-format=text:pylint_output.txt,colorized cdprecorder/
+        tail -2 pylint_output.txt | head -1 | awk -F'[^0-9.]+' '{ print $2 }' > pylint_score.txt
+    - name: Archive code coverage results
+      uses: actions/upload-artifact@v4
       with:
-        lint-path: cdprecorder
-        python-version: 3.9
-        readme-path: README.md
-        badge-text: pylint
+        name: pylint-score
+        path: pylint_score.txt

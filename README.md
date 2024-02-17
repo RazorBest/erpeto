@@ -13,10 +13,12 @@
 
 
 <p align="center">
-A Python browser recorder that turns actions into simple Python code.
+<b>A Python browser recorder that turns actions into simple Python code.</b>
 </p>
 
-Erpeto is a Chrome browser recorder aimed for automation and HTTP content analysis. Its philosophy is simple: any HTTP request is a transformation of strings from the previous responses. It can generate automation scripts that only use Python's requests library.
+---
+
+Erpeto is a Chrome recorder aimed for automation and HTTP content analysis. Its philosophy is simple: any HTTP request is a transformation of strings from the previous responses. It can generate automation scripts that only use Python's requests library.
 
 # Get started
 

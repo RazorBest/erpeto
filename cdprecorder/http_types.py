@@ -1,3 +1,14 @@
+"""
+This module contains object often found in the HTTP protocol.
+
+classes:
+    - Cookie
+
+functions:
+    - parse_cookie: Parses a cookie string from an HTTP header to a Cookie
+    object.
+"""
+
 from __future__ import annotations
 
 import urllib

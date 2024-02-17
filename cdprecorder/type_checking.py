@@ -1,3 +1,7 @@
+"""
+This module contains type variables used by mypy. It's not used at runtime.
+"""
+
 from typing import Optional, Protocol, Union
 
 import requests

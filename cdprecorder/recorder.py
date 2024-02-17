@@ -219,11 +219,14 @@ async def collect_communications(
         if time.time() - start_time > timeout:
             break
 
-        if (
-            isinstance(evt, cdp.network.RequestWillBeSent)
-            or isinstance(evt, cdp.network.RequestWillBeSentExtraInfo)
-            or isinstance(evt, cdp.network.ResponseReceived)
-            or isinstance(evt, cdp.network.ResponseReceivedExtraInfo)
+        if isinstance(
+            evt,
+            (
+                cdp.network.RequestWillBeSent,
+                cdp.network.RequestWillBeSentExtraInfo,
+                cdp.network.ResponseReceived,
+                cdp.network.ResponseReceivedExtraInfo,
+            ),
         ):
             if evt.request_id not in request_map:
                 comm = HttpCommunication(evt.request_id)
@@ -285,7 +288,7 @@ async def collect_communications(
                 else:
                     body = resulted_body.encode()
 
-            except pycdp.exceptions.CDPBrowserError as exc:
+            except pycdp.exceptions.CDPBrowserError:
                 print("  --cdp-browser-error")
 
             request_map[request_id].add_event(evt)

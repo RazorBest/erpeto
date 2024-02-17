@@ -1,7 +1,7 @@
 [tool.mypy]
 python_version = "3.9"
 plugins = ["mypy_zope:plugin"]
-mypy_path = "./external_stubs/"
+mypy_path = "./dev/external_stubs/"
 warn_return_any = true
 warn_unused_configs = true
 disallow_any_unimported = true

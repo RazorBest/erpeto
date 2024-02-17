@@ -9,6 +9,7 @@
   <img src="dev/pylint_badge.svg" alt="pylint"/>
   <img src="https://github.com/RazorBest/erpeto/actions/workflows/mypy-check.yml/badge.svg?branch=master" alt="mypy"/>
   <img src="https://github.com/RazorBest/erpeto/actions/workflows/black-check.yml/badge.svg?branch=master" alt="black"/>
+  <img src="dev/python_badge.svg" alt="pylint"/>
 </div>
 
 

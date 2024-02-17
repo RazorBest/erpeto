@@ -106,7 +106,7 @@ def get_module_level_classes(module: types.ModuleType) -> list[type]:
     module_name = module.__name__
 
     classes: list[type] = []
-    for name, obj in inspect.getmembers(module):
+    for _, obj in inspect.getmembers(module):
         if not inspect.isclass(obj) or obj.__module__ != module_name:
             continue
         classes.append(obj)
@@ -122,7 +122,7 @@ def generate_datasource_definitions() -> str:
     for obj in get_module_level_classes(datasource):
         if not issubclass(obj, datasource.DataSource):
             continue
-        if obj == datasource.DataSource or obj == datasource.IntermediaryDataSource:
+        if obj in (datasource.DataSource, datasource.IntermediaryDataSource):
             continue
 
         content += inspect.getsource(obj) + "\n\n"

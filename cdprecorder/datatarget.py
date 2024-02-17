@@ -1,3 +1,18 @@
+"""
+This module contains `DataTarget` objects, that represent modifiable fields
+in HTTP requests or other data containers They are used for dynamic contents,
+like session cookies, CSRF tokens, login credentials in the body etc.
+
+Generally, a target has a source from which takes data at action execution.
+That data, is then used to fill the target.
+
+Classes:
+    - SingleSourcedTarget: Base class for a target linked to a source.
+    - CookieTarget: Represents a cookie in an HTTP header.
+    - HeaderTarget: Represents a header field.
+    - BodyTarget: Represents the HTTP body.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

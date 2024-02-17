@@ -1,6 +1,33 @@
+"""
+This module contains `DataSource` objects, representing data coming from a
+response, more generally, from an action. This can be: headers, cookies, body,
+user input etc.
+
+Classes:
+    - DataSource: Base class for all sources.
+    - ActionDataSource: Base class for data sources that extract values from
+    one previous action.
+    - IntermediaryDataSource: Base class for data sources that process data
+    from other data sources.
+    - SubstrSource: Represents a `slice` operation on strings.
+    - StrSource: Represents a constant string.
+    - HeaderSource: Represents data from an HTTP header.
+    - CookieSource: Represents data from an HTTP cookie.
+    - BodySource: Represents data from an HTTP body.
+    - JSONFieldSource: Represents data extracted from a JSON string.
+    - JSONFieldTarget: Represents a JSON field (see datatargets.py).
+    - JSONContainer: Represents a JSON string that can dinamically be updated.
+
+Functions:
+    - get_object_at_json_path: Performs a lookup in a JSON object.
+
+Exceptions:
+    - ActionNotFound: Thrown when trying to get the value from an inexistent
+    action.
+"""
+
 from __future__ import annotations
 
-import inspect
 import json
 import re
 import urllib
@@ -9,7 +36,6 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from .action import LowercaseStr
-from .str_evaluator import randomness_score
 from .util import DynamicRepr
 
 if TYPE_CHECKING:

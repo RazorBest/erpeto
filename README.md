@@ -28,7 +28,7 @@ To get started you need to make sure you have Google Chrome installed, or a simi
 To install, you can either:
 ```
 git clone https://github.com/RazorBest/erpeto && cd erpeto
-python3 -m pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 or:
 ```
@@ -39,7 +39,7 @@ pip install git+https://github.com/RazorBest/erpeto.git
 
 To run from repository:
 ```
-python3 main.py --help
+python main.py --help
 ```
 Or, if installed via pip, you can use the `erpeto` command:
 ```

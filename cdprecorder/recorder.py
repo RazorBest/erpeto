@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import random
@@ -13,8 +14,11 @@ import pycdp
 import twisted.internet.reactor
 from pycdp import cdp
 from pycdp.browser import ChromeLauncher
-from pycdp.twisted import connect_cdp
+from pycdp.twisted import CDPConnection as _PyCDPConnection
+from twisted.internet import threads, defer
 from twisted.internet.interfaces import IReactorCore
+from twisted.internet.error import ConnectionRefusedError
+from twisted.web.client import Agent
 
 from . import filters
 from .action import InputAction
@@ -186,6 +190,51 @@ class HttpCommunication:
         return True
 
 
+class AsyncIteratorWithTimeout:
+    def __init__(self, aiter: AsyncIterable, timeout: float, start_time: Optional[float] = None):
+        self.aiter = aiter
+        self.timeout = timeout
+        if start_time is None:
+            self.start_time = time.time()
+        else:
+            self.start_time = start_time
+
+        self.timeout_waiter = None
+
+    async def wait_for_next(self, coro):
+        result = await coro
+        if self.timeout_waiter:
+            self.timeout_waiter.cancel()
+            self.timeout_waiter = None
+
+        return result
+
+    async def __anext__(self):
+        curr_time = time.time()
+        remained = self.timeout - (curr_time - self.start_time)
+        if remained <= 0:
+            raise StopAsyncIteration
+
+        d = defer.Deferred.fromCoroutine(self.aiter.__anext__())
+        d.addTimeout(remained, reactor)
+        #self.timeout_waiter = reactor.callLater(int(remained), lambda : d.cancel())
+        return await d
+
+
+class AsyncIterableWithTimeout:
+    def __init__(self, iterator: AsyncIterable, timeout: float, start_time: Optional[float] = None):
+        self.iterator = iterator
+        self.timeout = timeout
+        if start_time is None:
+            self.start_time = time.time()
+        else:
+            self.start_time = start_time
+
+    def __aiter__(self):
+        return AsyncIteratorWithTimeout(self.iterator.__aiter__(), self.timeout, self.start_time)
+
+
+
 async def collect_communications(
     target_session: pycdp.twisted.CDPSession,
     listener: AsyncIterator[builtins.object],
@@ -215,9 +264,12 @@ async def collect_communications(
     request_map = {}
 
     start_time = time.time()
+    listener = AsyncIteratorWithTimeout(listener, 60)
     async for evt in listener:
+        """
         if time.time() - start_time > timeout:
             break
+        """
 
         if isinstance(
             evt,

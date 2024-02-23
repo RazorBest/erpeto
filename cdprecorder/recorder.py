@@ -526,9 +526,16 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
         buffer_size=1024,
     )
 
-    start_url = options.start_url
+    if options.start_url:
+        print(f"info: {options.start_url!r}")
+        start_url = options.start_url
+        await target_session.execute(cdp.page.navigate(start_url))
+    else:
+        info = await target_session.execute(cdp.target.get_target_info())
+        # The path of this can be set with the History API
+        # But the origin can't be changed
+        start_url = info.url
 
-    await target_session.execute(cdp.page.navigate(start_url))
 
     # DOC: https://developer.chrome.com/docs/devtools/console/utilities
     await target_session.execute(cdp.runtime.enable())

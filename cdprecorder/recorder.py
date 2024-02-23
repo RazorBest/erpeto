@@ -222,7 +222,7 @@ class AsyncIteratorWithTimeout:
 
         d = defer.Deferred.fromCoroutine(self.aiter.__anext__())
         d.addTimeout(remained, reactor)
-        #self.timeout_waiter = reactor.callLater(int(remained), lambda : d.cancel())
+        # self.timeout_waiter = reactor.callLater(int(remained), lambda : d.cancel())
         return await d
 
 
@@ -237,7 +237,6 @@ class AsyncIterableWithTimeout:
 
     def __aiter__(self):
         return AsyncIteratorWithTimeout(self.iterator.__aiter__(), self.timeout, self.start_time)
-
 
 
 async def collect_communications(
@@ -360,7 +359,7 @@ class CDPConnection(_PyCDPConnection):
 
 
 # Default path: Windows
-CHROME_BINARY = r'C:\Program Files\Google\Chrome\Application\chrome.exe'
+CHROME_BINARY = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 if platform.system() == "Linux":
     CHROME_BINARY = "/usr/bin/google-chrome-stable"
 if platform.system() == "Darwin":
@@ -425,7 +424,7 @@ async def obtain_cdp_target_id(conn: CDPConnection) -> cdp.target.TargetId:
     return target_id
 
 
-class RuntimeContext():
+class RuntimeContext:
     def __init__(self, target_session, context_name: str, context_id: cdp.runtime.ExecutionContextId):
         self.target_session = target_session
         self.context_name = context_name
@@ -439,7 +438,9 @@ class RuntimeContext():
     async def _send_state_elapsed(self, start_time: int):
         elapsed = time.time() - self.start_time
         print(f"Sending {elapsed}")
-        ret = await self.target_session.execute(cdp.runtime.evaluate(f"setTimerElapsed({elapsed})", context_id=self.context_id))
+        ret = await self.target_session.execute(
+            cdp.runtime.evaluate(f"setTimerElapsed({elapsed})", context_id=self.context_id)
+        )
         print(ret)
 
     async def send_state(self):
@@ -449,19 +450,20 @@ class RuntimeContext():
 
 async def insert_widget_extension(target_session):
     from importlib import resources as impresources
-    logo_file = (impresources.files(__package__) / LOGO_PATH)
-    widget_file = (impresources.files(__package__) / RECORDER_WIDGET_PATH)
+
+    logo_file = impresources.files(__package__) / LOGO_PATH
+    widget_file = impresources.files(__package__) / RECORDER_WIDGET_PATH
 
     data_url = ""
-    with logo_file.open('rb') as file:
+    with logo_file.open("rb") as file:
         data = file.read()
-        encoded = base64.b64encode(data).decode('utf-8')
-        extension = LOGO_PATH.split('.')[-1]
-        data_url = f'data:image/{extension};base64,{encoded}'
+        encoded = base64.b64encode(data).decode("utf-8")
+        extension = LOGO_PATH.split(".")[-1]
+        data_url = f"data:image/{extension};base64,{encoded}"
 
     expression = f"""const logo_src = "{data_url}";\n"""
 
-    with widget_file.open('r', encoding="utf8") as file:
+    with widget_file.open("r", encoding="utf8") as file:
         expression += file.read()
 
     runtime_init_timeout = 5
@@ -470,10 +472,13 @@ async def insert_widget_extension(target_session):
 
     await target_session.execute(cdp.page.runtime.enable())
 
-
     try:
         runtime_listener = target_session.listen(cdp.runtime.ExecutionContextCreated)
-        await target_session.execute(cdp.page.add_script_to_evaluate_on_new_document(expression, run_immediately=True, world_name=recorder_context_name))
+        await target_session.execute(
+            cdp.page.add_script_to_evaluate_on_new_document(
+                expression, run_immediately=True, world_name=recorder_context_name
+            )
+        )
         timed_runtime_listener = AsyncIterableWithTimeout(runtime_listener, runtime_init_timeout)
         async for evt in timed_runtime_listener:
             if evt.context.name == recorder_context_name:
@@ -490,8 +495,9 @@ async def insert_widget_extension(target_session):
 
     return runtime
 
+
 async def record(options: RecorderOptions) -> list[Union[HttpCommunication, InputAction]]:
-    #urlfilter = filters.URLFilter()
+    # urlfilter = filters.URLFilter()
 
     try:
         conn = CDPConnection(options.cdp_url, Agent(reactor), reactor)
@@ -499,10 +505,7 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
     except ConnectionRefusedError:
         if options.fail_if_no_connection:
             raise ConnectionRefusedError
-        chrome = ChromeLauncher(
-            binary=options.binary,
-            args=['--remote-debugging-port=9222', '--incognito']
-        )
+        chrome = ChromeLauncher(binary=options.binary, args=["--remote-debugging-port=9222", "--incognito"])
         await threads.deferToThread(chrome.launch)
         await conn.connect()
 
@@ -538,9 +541,7 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
 
     runtime = await insert_widget_extension(target_session)
 
-    runtime_listener = target_session.listen(
-        cdp.runtime.ExecutionContextCreated
-    )
+    runtime_listener = target_session.listen(cdp.runtime.ExecutionContextCreated)
 
     runtime_init_timeout = 15
     timed_runtime_listener = AsyncIterableWithTimeout(runtime_listener, runtime_init_timeout)

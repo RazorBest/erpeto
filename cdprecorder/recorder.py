@@ -4,6 +4,7 @@ import asyncio
 import base64
 import json
 import random
+import platform
 import string
 import time
 import urllib
@@ -349,10 +350,19 @@ async def collect_communications(
     return communications
 
 
+# Default path: Windows
+CHROME_BINARY = r'C:\Program Files\Google\Chrome\Application\chrome.exe'
+if platform.system() == "Linux":
+    CHROME_BINARY = "/usr/bin/google-chrome-stable"
+if platform.system() == "Darwin":
+    CHROME_BINARY = r"/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome"
+
+
 @dataclass(frozen=True)
 class RecorderOptions:
     start_url: str
     keep_only_same_origin_urls: bool = True
+    binary: str = CHROME_BINARY
     cdp_host: str = "localhost"
     cdp_port: int = 9222
 

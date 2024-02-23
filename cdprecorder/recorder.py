@@ -536,9 +536,23 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
         # But the origin can't be changed
         start_url = info.url
 
+    runtime = await insert_widget_extension(target_session)
 
-    # DOC: https://developer.chrome.com/docs/devtools/console/utilities
-    await target_session.execute(cdp.runtime.enable())
+    runtime_listener = target_session.listen(
+        cdp.runtime.ExecutionContextCreated
+    )
+
+    runtime_init_timeout = 15
+    timed_runtime_listener = AsyncIterableWithTimeout(runtime_listener, runtime_init_timeout)
+    try:
+        async for evt in timed_runtime_listener:
+            print(evt)
+            if evt.context.name == runtime.context_name:
+                js_context_id = evt.context.id_
+                runtime.context_id = js_context_id
+                await runtime.send_state()
+    except defer.TimeoutError as exc:
+        raise Exception from exc
 
     keystr = randomstr(32)
     await insert_js_action_listener(target_session, keystr)

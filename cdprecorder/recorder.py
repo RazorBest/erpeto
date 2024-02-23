@@ -371,20 +371,52 @@ class RecorderOptions:
         return f"http://{self.cdp_host}:{self.cdp_port}"
 
 
-async def record(options: RecorderOptions) -> list[Union[HttpCommunication, InputAction]]:
-    """
-    chrome = ChromeLauncher(
-        binary='C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', # windows path
-        args=['--remote-debugging-port=9222', '--incognito']
-    )
-    await threads.deferToThread(chrome.launch)
-    """
-    urlfilter = filters.URLFilter()
+async def obtain_active_tab(targets, conn: CDPConnection):
+    if not targets:
+        return None
 
-    conn = await connect_cdp(options.cdp_url, reactor)
-    target_id = await conn.execute(cdp.target.create_target("about:blank"))
+    visible_targets = []
+    for target in targets:
+        session = await conn.connect_session(target.target_id)
+        await session.execute(cdp.runtime.enable())
+        ret, _ = await session.execute(cdp.runtime.evaluate("document.hidden"))
+        print(ret)
+        if not ret.type_ == "boolean" or ret.value != True:
+            visible_targets.append(target)
+        ret, _ = await session.execute(cdp.runtime.evaluate("browser.tabs"))
+        print(ret)
+
+    if len(visible_targets) == 1:
+        return visible_targets[0]
+
+    return None
+
+
+
+async def record(options: RecorderOptions) -> list[Union[HttpCommunication, InputAction]]:
+    #urlfilter = filters.URLFilter()
+
+    try:
+        conn = CDPConnection(options.cdp_url, Agent(reactor), reactor)
+        await conn.connect()
+    except ConnectionRefusedError:
+        if options.fail_if_no_connection:
+            raise ConnectionRefusedError
+        chrome = ChromeLauncher(
+            binary=options.binary,
+            args=['--remote-debugging-port=9222', '--incognito']
+        )
+        await threads.deferToThread(chrome.launch)
+        await conn.connect()
+
+    target_id = await obtain_cdp_target_id(conn)
     target_session = await conn.connect_session(target_id)
     await target_session.execute(cdp.page.enable())
+    await target_session.execute(cdp.page.bring_to_front())
+
+    # Clean remaining data from possible previous run
+    await target_session.execute(cdp.runtime.disable())
+    await target_session.execute(cdp.runtime.enable())
 
     await target_session.execute(cdp.network.enable())
     listener = target_session.listen(

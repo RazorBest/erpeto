@@ -33,6 +33,10 @@ if TYPE_CHECKING:
 reactor = cast(IReactorCore, twisted.internet.reactor)
 
 
+LOGO_PATH = "./logo.png"
+RECORDER_WIDGET_PATH = "./recorder_widget.js"
+
+
 def randomstr(length: int) -> str:
     return "".join(random.choices(string.printable, k=length))
 
@@ -420,6 +424,71 @@ async def obtain_cdp_target_id(conn: CDPConnection) -> cdp.target.TargetId:
 
     return target_id
 
+
+class RuntimeContext():
+    def __init__(self, target_session, context_name: str, context_id: cdp.runtime.ExecutionContextId):
+        self.target_session = target_session
+        self.context_name = context_name
+        self.context_id = context_id
+        self.start_time: Optional[int] = None
+
+    async def start_timer(self):
+        await self.target_session.execute(cdp.runtime.evaluate("startTimerIfElemLoaded()", context_id=self.context_id))
+        self.start_time = time.time()
+
+    async def _send_state_elapsed(self, start_time: int):
+        elapsed = time.time() - self.start_time
+        print(f"Sending {elapsed}")
+        ret = await self.target_session.execute(cdp.runtime.evaluate(f"setTimerElapsed({elapsed})", context_id=self.context_id))
+        print(ret)
+
+    async def send_state(self):
+        if self.start_time is not None:
+            await self._send_state_elapsed(self.start_time)
+
+
+async def insert_widget_extension(target_session):
+    from importlib import resources as impresources
+    logo_file = (impresources.files(__package__) / LOGO_PATH)
+    widget_file = (impresources.files(__package__) / RECORDER_WIDGET_PATH)
+
+    data_url = ""
+    with logo_file.open('rb') as file:
+        data = file.read()
+        encoded = base64.b64encode(data).decode('utf-8')
+        extension = LOGO_PATH.split('.')[-1]
+        data_url = f'data:image/{extension};base64,{encoded}'
+
+    expression = f"""const logo_src = "{data_url}";\n"""
+
+    with widget_file.open('r', encoding="utf8") as file:
+        expression += file.read()
+
+    runtime_init_timeout = 5
+    js_context_id = None
+    recorder_context_name = "recorder_window_" + randomstr(16)
+
+    await target_session.execute(cdp.page.runtime.enable())
+
+
+    try:
+        runtime_listener = target_session.listen(cdp.runtime.ExecutionContextCreated)
+        await target_session.execute(cdp.page.add_script_to_evaluate_on_new_document(expression, run_immediately=True, world_name=recorder_context_name))
+        timed_runtime_listener = AsyncIterableWithTimeout(runtime_listener, runtime_init_timeout)
+        async for evt in timed_runtime_listener:
+            if evt.context.name == recorder_context_name:
+                js_context_id = evt.context.id_
+                break
+    except defer.TimeoutError as exc:
+        raise Exception from exc
+    finally:
+        target_session.close_listeners()
+
+    runtime = RuntimeContext(target_session, recorder_context_name, js_context_id)
+    await runtime.start_timer()
+    await runtime.send_state()
+
+    return runtime
 
 async def record(options: RecorderOptions) -> list[Union[HttpCommunication, InputAction]]:
     #urlfilter = filters.URLFilter()

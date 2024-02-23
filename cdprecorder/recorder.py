@@ -350,6 +350,11 @@ async def collect_communications(
     return communications
 
 
+class CDPConnection(_PyCDPConnection):
+    # Remove `retry_on` wrapper from function
+    connect = _PyCDPConnection.connect.__wrapped__
+
+
 # Default path: Windows
 CHROME_BINARY = r'C:\Program Files\Google\Chrome\Application\chrome.exe'
 if platform.system() == "Linux":
@@ -365,6 +370,7 @@ class RecorderOptions:
     binary: str = CHROME_BINARY
     cdp_host: str = "localhost"
     cdp_port: int = 9222
+    fail_if_no_connection: bool = False
 
     @property
     def cdp_url(self) -> str:
@@ -391,6 +397,28 @@ async def obtain_active_tab(targets, conn: CDPConnection):
 
     return None
 
+
+async def obtain_cdp_target_id(conn: CDPConnection) -> cdp.target.TargetId:
+    targets = await conn.execute(cdp.target.get_targets())
+    page_targets = []
+    for target in targets:
+        if target.type_ == "page" and not target.url.startswith("devtools://"):
+            page_targets.append(target)
+
+    desired_target = None
+    if len(page_targets) == 1:
+        desired_target = page_targets[0]
+    elif len(page_targets) > 0:
+        desired_target = await obtain_active_tab(page_targets, conn)
+
+    if desired_target:
+        return desired_target.target_id
+
+    context_id = None
+    context_id = await conn.execute(cdp.target.create_browser_context())
+    target_id = await conn.execute(cdp.target.create_target("about:blank", browser_context_id=context_id))
+
+    return target_id
 
 
 async def record(options: RecorderOptions) -> list[Union[HttpCommunication, InputAction]]:

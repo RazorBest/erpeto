@@ -215,6 +215,7 @@ drag_button.onmousedown = (e) => {
             elem.style.left = 0;
         } else if (x + rect.width > window.innerWidth) {
             elem.style.right = 0;
+            elem.style.left = null;
         } else {
             elem.style.left = x + "px";
         }

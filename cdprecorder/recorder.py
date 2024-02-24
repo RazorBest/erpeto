@@ -524,7 +524,7 @@ async def insert_widget_extension(target_session: pycdp.twisted.CDPSession) -> R
 
 
 async def record(options: RecorderOptions) -> list[Union[HttpCommunication, InputAction]]:
-    # urlfilter = filters.URLFilter()
+    urlfilter = filters.URLFilter()
 
     try:
         conn = CDPConnection(options.cdp_url, Agent(reactor), reactor)  # type: ignore[no-untyped-call]

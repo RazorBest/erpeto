@@ -520,7 +520,8 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
     except ConnectionRefusedError:
         if options.fail_if_no_connection:
             raise ConnectionRefusedError
-        chrome = ChromeLauncher(binary=options.binary, args=["--remote-debugging-port=9222", "--incognito"])
+        port = options.cdp_port
+        chrome = ChromeLauncher(binary=options.binary, args=[f"--remote-debugging-port={port}", "--incognito"])
         await threads.deferToThread(chrome.launch)  # type: ignore[no-untyped-call]
         await conn.connect()
 

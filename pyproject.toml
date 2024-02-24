@@ -46,3 +46,6 @@ disable = ["missing-function-docstring", "missing-class-docstring"]
 
 [tool.pylint.format]
 max-line-length = 120
+
+[tool.isort]
+profile = "black"

@@ -255,6 +255,107 @@ class AsyncIterableWithTimeout(Generic[T]):
         return AsyncIteratorWithTimeout(self.iterable.__aiter__(), self.timeout, self.start_time)
 
 
+class Recorder:
+    def __init__(
+        self,
+        target_session: pycdp.twisted.CDPSession,
+        urlfilter: filters.URLFilter,
+        keystr: str,
+        collect_all: bool,
+        start_origin: Optional[str],
+    ):
+        self.target_session = target_session
+        self.urlfilter = urlfilter
+        self.keystr = keystr
+        self.start_origin = start_origin
+        self.collect_all = collect_all
+        self.communications: list[Union[HttpCommunication, InputAction]] = []
+        self.request_map: dict[pycdp.cdp.network.RequestId, HttpCommunication] = {}
+        self.runtime_ctx = get_runtime_context()
+
+    async def on_http_data(
+        self,
+        evt: Union[
+            cdp.network.RequestWillBeSent,
+            cdp.network.RequestWillBeSentExtraInfo,
+            cdp.network.ResponseReceived,
+            cdp.network.ResponseReceivedExtraInfo,
+        ],
+    ) -> None:
+        if evt.request_id not in self.request_map:
+            comm = HttpCommunication(evt.request_id)
+            self.communications.append(comm)
+            self.request_map[evt.request_id] = comm
+
+    async def on_execution_context_created(self, evt: cdp.runtime.ExecutionContextCreated) -> None:
+        if evt.context.name == self.runtime_ctx.context_name:
+            js_context_id = evt.context.id_
+            self.runtime_ctx.context_id = js_context_id
+            await self.runtime_ctx.send_state()
+
+    async def on_console_api_called(self, evt: cdp.runtime.ConsoleAPICalled) -> None:
+        if evt.type_ != "log" or (isinstance(evt.args[0].value, str) and not evt.args[0].value.startswith(self.keystr)):
+            return
+
+        printed_arg = evt.args[0]
+        if printed_arg.value:
+            value = printed_arg.value.removeprefix(self.keystr)
+            data = json.loads(value)
+        else:
+            if evt.args[0].object_id is not None:
+                result = await self.target_session.execute(
+                    cdp.runtime.get_properties(evt.args[0].object_id, own_properties=True)
+                )
+                data = {attr.name: attr.value.value for attr in result[0] if attr.value}
+
+        if data["event"] == "input":
+            action = InputAction(data["value"], data["selector"], data["timestamp"])
+            self.communications.append(action)
+
+    async def on_request_will_be_sent(self, evt: cdp.network.RequestWillBeSent) -> None:
+        cdp_req = evt.request
+        request_id = evt.request_id
+
+        self.request_map[request_id].add_event(evt)
+
+        if not self.collect_all and (
+            is_url_ignored(cdp_req.url, self.start_origin) or self.urlfilter.should_block(evt.request.url)
+        ):
+            self.request_map[request_id].ignored = True
+
+    async def on_request_will_be_sent_extra_info(self, evt: cdp.network.RequestWillBeSentExtraInfo) -> None:
+        if not self.request_map[evt.request_id].ignored:
+            self.request_map[evt.request_id].add_event(evt)
+
+    async def on_response_received(self, evt: cdp.network.ResponseReceived) -> None:
+        if not self.request_map[evt.request_id].ignored:
+            self.request_map[evt.request_id].add_event(evt)
+
+    async def on_response_received_extra_info(self, evt: cdp.network.ResponseReceivedExtraInfo) -> None:
+        if not self.request_map[evt.request_id].ignored:
+            self.request_map[evt.request_id].add_event(evt)
+
+    async def on_loading_finished(self, evt: cdp.network.LoadingFinished) -> None:
+        request_id = evt.request_id
+        if request_id not in self.request_map or self.request_map[request_id].ignored:
+            return
+
+        body = None
+        try:
+            cdp_body_result = await self.target_session.execute(cdp.network.get_response_body(request_id))
+            resulted_body, is_base_64 = cdp_body_result
+            if is_base_64:
+                body = base64.b64decode(resulted_body)
+            else:
+                body = resulted_body.encode()
+
+        except pycdp.exceptions.CDPBrowserError:
+            print("  --cdp-browser-error")
+
+        self.request_map[request_id].add_event(evt)
+        self.request_map[request_id].response_bodies.append(body)
+
+
 async def collect_communications(
     target_session: pycdp.twisted.CDPSession,
     listener: AsyncIterator[object],
@@ -279,10 +380,7 @@ async def collect_communications(
     Returns:
         A list of communications.
     """
-    communications: list[Union[HttpCommunication, InputAction]] = []
-    request_map = {}
-
-    runtime_ctx = get_runtime_context()
+    recorder = Recorder(target_session, urlfilter, keystr, collect_all, start_origin)
 
     timed_listener = AsyncIterableWithTimeout(listener, timeout)
     async for evt in timed_listener:
@@ -295,79 +393,23 @@ async def collect_communications(
                 cdp.network.ResponseReceivedExtraInfo,
             ),
         ):
-            if evt.request_id not in request_map:
-                comm = HttpCommunication(evt.request_id)
-                communications.append(comm)
-                request_map[evt.request_id] = comm
-
+            await recorder.on_http_data(evt)
         if isinstance(evt, cdp.runtime.ExecutionContextCreated):
-            if evt.context.name == runtime_ctx.context_name:
-                js_context_id = evt.context.id_
-                runtime_ctx.context_id = js_context_id
-                await runtime_ctx.send_state()
-
+            await recorder.on_execution_context_created(evt)
         if isinstance(evt, cdp.runtime.ConsoleAPICalled):
-            if evt.type_ != "log" or (isinstance(evt.args[0].value, str) and not evt.args[0].value.startswith(keystr)):
-                continue
-
-            printed_arg = evt.args[0]
-            if printed_arg.value:
-                value = printed_arg.value.removeprefix(keystr)
-                data = json.loads(value)
-            else:
-                if evt.args[0].object_id is not None:
-                    result = await target_session.execute(
-                        cdp.runtime.get_properties(evt.args[0].object_id, own_properties=True)
-                    )
-                    data = {attr.name: attr.value.value for attr in result[0] if attr.value}
-
-            if data["event"] == "input":
-                action = InputAction(data["value"], data["selector"], data["timestamp"])
-                communications.append(action)
-
+            await recorder.on_console_api_called(evt)
         elif isinstance(evt, cdp.network.RequestWillBeSent):
-            cdp_req = evt.request
-            request_id = evt.request_id
-
-            request_map[request_id].add_event(evt)
-
-            if not collect_all and (
-                is_url_ignored(cdp_req.url, start_origin) or urlfilter.should_block(evt.request.url)
-            ):
-                request_map[request_id].ignored = True
+            await recorder.on_request_will_be_sent(evt)
         elif isinstance(evt, cdp.network.RequestWillBeSentExtraInfo):
-            if request_map[evt.request_id].ignored:
-                continue
-            request_map[evt.request_id].add_event(evt)
+            await recorder.on_request_will_be_sent_extra_info(evt)
         elif isinstance(evt, cdp.network.ResponseReceived):
-            if request_map[evt.request_id].ignored:
-                continue
-            request_map[evt.request_id].add_event(evt)
+            await recorder.on_response_received(evt)
         elif isinstance(evt, cdp.network.ResponseReceivedExtraInfo):
-            if request_map[evt.request_id].ignored:
-                continue
-            request_map[evt.request_id].add_event(evt)
+            await recorder.on_response_received_extra_info(evt)
         elif isinstance(evt, cdp.network.LoadingFinished):
-            request_id = evt.request_id
-            if request_id not in request_map or request_map[request_id].ignored:
-                continue
+            await recorder.on_loading_finished(evt)
 
-            body = None
-            try:
-                cdp_body_result = await target_session.execute(cdp.network.get_response_body(request_id))
-                resulted_body, is_base_64 = cdp_body_result
-                if is_base_64:
-                    body = base64.b64decode(resulted_body)
-                else:
-                    body = resulted_body.encode()
-
-            except pycdp.exceptions.CDPBrowserError:
-                print("  --cdp-browser-error")
-
-            request_map[request_id].add_event(evt)
-            request_map[request_id].response_bodies.append(body)
-
-    return communications
+    return recorder.communications
 
 
 class CDPConnection(_PyCDPConnection):
@@ -567,22 +609,6 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
         start_url = info.url
 
     await insert_widget_extension(target_session)
-
-    """
-    runtime_listener = target_session.listen(cdp.runtime.ExecutionContextCreated)
-    runtime_ctx = get_runtime_context()
-
-    runtime_init_timeout = 15
-    timed_runtime_listener = AsyncIterableWithTimeout(runtime_listener, runtime_init_timeout)
-    try:
-        async for evt in timed_runtime_listener:
-            if evt.context.name == runtime_ctx.context_name:
-                js_context_id = evt.context.id_
-                runtime_ctx.context_id = js_context_id
-                await runtime_ctx.send_state()
-    except defer.TimeoutError as exc:
-        raise Exception from exc
-    """
 
     keystr = randomstr(32)
     await insert_js_action_listener(target_session, keystr)

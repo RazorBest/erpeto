@@ -2,12 +2,15 @@ import json
 import pytest
 
 from pycdp import cdp
+from unittest.mock import patch
 
+import cdprecorder
 from .mocks import UrlfilterMock, EventMock
 from cdprecorder.recorder import (
     collect_communications,
     extract_origin,
     is_url_ignored,
+    set_runtime_context,
     url_belongs_to_origin,
     HttpCommunication,
 )
@@ -442,8 +445,9 @@ YOUTUBE_LAST_COMMUNICATION = HttpCommunication(
         ),
     ],
 )
+@patch('cdprecorder.recorder.RuntimeContext')
 @pytest.mark.asyncio
-async def test_collect_communications(
+async def test_collect_communications(RuntimeContext,
         events_file, comm_count, first_comm, last_comm):
     """Tests the collect_communication function. Mocks the event listener and
     the CDP session with events read from file. Expects an amount of generated
@@ -454,11 +458,13 @@ async def test_collect_communications(
 
     event_mock = EventMock(events)
     urlfilter = UrlfilterMock()
+    set_runtime_context(RuntimeContext())
 
     # Event mock acts both as an event iterator and CDP session
     # Keystr is not needed, we let it be an empty string
     # Function should exit before timeout. We just make sure it's big enough.
     communications = await collect_communications(event_mock, event_mock, urlfilter, "", timeout=10)
+    set_runtime_context(None)
 
     assert len(communications) == comm_count
     assert communications[0] == first_comm

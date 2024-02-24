@@ -49,6 +49,7 @@ reactor = cast(Reactor, twisted.internet.reactor)
 
 LOGO_PATH = "./logo.png"
 RECORDER_WIDGET_PATH = "./recorder_widget.js"
+EVENT_LISTENER_PATH = "./event_listener.js"
 
 
 class AwaitableIsNotCoroutine(Exception):
@@ -84,92 +85,19 @@ def is_url_ignored(url: str, origin: Optional[str] = None) -> bool:
 
 
 async def insert_js_action_listener(target_session: pycdp.twisted.CDPSession, keystr: str) -> None:
-    expression = (
-        """
-    get_element_selector = (target) => {
-        const tag_selector = target.tagName.toLowerCase();
-        const classes = target.className.split(' ');
-        let cls_selector = '';
-        classes.forEach(cls => {
-            if (cls.trim().length == 0) {
-                return;
-            }
-            cls_selector += '.' + cls;
-        })
-        const id_selector = event.id ? ('#' + event.id) : '';
+    from importlib import resources as impresources
 
-        let attr_selector = '';
-        for (let i = 0; i < target.attributes.length; i++) {
-            const attr = target.attributes.item(i)
-            if (attr.name == 'id' || attr.name == 'class') {
-                continue
-            }
-            attr_selector += '[' + attr.name + '="' + attr.value + '"]';
-        }
+    listener_file = impresources.files(__package__) / EVENT_LISTENER_PATH
+    with listener_file.open("r") as file:
+        expression = file.read()
 
-        let index_selector = '';
-        if (target.parentNode.children.length > 1) {
-            const index = Array.from(target.parentNode.children).indexOf(target) + 1;
-            index_selector = ":nth-child(" + index.toString() + ")";
-        }
-        // Should count last of type
-
-        selector = tag_selector + id_selector + cls_selector + attr_selector + index_selector;
-
-        return selector;
-    }
-    getSelectorToRoot = (target) => {
-        let selector = "";
-
-        selector += get_element_selector(target);
-        target = target.parentNode;
-        while (target) {
-            if (!target.tagName) {
-                if (!target.host) {
-                    break
-                }
-                // If shadow root
-                target = target.host;
-            }
-            selector = get_element_selector(target) + '>' + selector;
-            target = target.parentNode;
-        }
-
-        return selector;
-    }
-    addEventListener('click', (event) => {
-        // Try to get the original target, even if in shadow DOM
-        const timestamp = event.timeStamp;
-        const target = event.composedPath()[0];
-        const selector = getSelectorToRoot(target);
-
-        console.log(_keystr01238 + JSON.stringify({"event": "click", timestamp, selector}))
-    });
-
-    addEventListener('keypress', (event) => {
-        const charCode = event.charCode;
-        const timestamp = event.timeStamp;
-        const target = event.composedPath()[0];
-        const selector = getSelectorToRoot(target);
-        const value = target.value;
-
-        console.log(_keystr01238 + JSON.stringify({"event": "keypress", timestamp, selector, value, charCode}));
-    });
-
-    addEventListener('input', (event) => {
-        const target = event.composedPath()[0];
-        const selector = getSelectorToRoot(target);
-        const value = target.value;
-        const timestamp = event.timeStamp;
-
-        console.log(_keystr01238 + JSON.stringify({"event": "input", timestamp, selector, value}));
-    });
-
-    """
-        + f"var _keystr01238 = {json.dumps(keystr)};"
+    expression += f"\nvar _keystr01238 = {json.dumps(keystr)};\n"
+    await target_session.execute(
+        cdp.page.add_script_to_evaluate_on_new_document(
+            expression,
+            run_immediately=True,
+        )
     )
-
-    await target_session.execute(cdp.runtime.evaluate(expression))
 
 
 class HttpCommunication:
@@ -287,6 +215,9 @@ class Recorder:
             self.communications.append(comm)
             self.request_map[evt.request_id] = comm
 
+    async def on_binding_called(self, evt: cdp.runtime.BindingCalled) -> None:
+        await self.runtime_ctx.on_binding_called(evt)
+
     async def on_execution_context_created(self, evt: cdp.runtime.ExecutionContextCreated) -> None:
         if evt.context.name == self.runtime_ctx.context_name:
             js_context_id = evt.context.id_
@@ -381,9 +312,15 @@ async def collect_communications(
         A list of communications.
     """
     recorder = Recorder(target_session, urlfilter, keystr, collect_all, start_origin)
+    runtime_context = get_runtime_context()
 
     timed_listener = AsyncIterableWithTimeout(listener, timeout)
     async for evt in timed_listener:
+        if isinstance(evt, cdp.runtime.BindingCalled):
+            await recorder.on_binding_called(evt)
+        if not runtime_context.recording_running:
+            break
+
         if isinstance(
             evt,
             (
@@ -486,6 +423,8 @@ async def obtain_cdp_target_id(conn: CDPConnection) -> cdp.target.TargetID:
 
 
 class RuntimeContext:
+    TOGGLE_RECORD_BINDING = "toggleRecord"
+
     def __init__(
         self, target_session: pycdp.twisted.CDPSession, context_name: str, context_id: cdp.runtime.ExecutionContextId
     ):
@@ -493,6 +432,18 @@ class RuntimeContext:
         self.context_name = context_name
         self.context_id = context_id
         self.start_time: Optional[float] = None
+        self.stop_time: Optional[float] = None
+
+    async def bind(self) -> None:
+        await self.target_session.execute(
+            cdp.runtime.add_binding(self.TOGGLE_RECORD_BINDING, execution_context_name=self.context_name)
+        )
+
+    async def on_binding_called(self, evt: cdp.runtime.BindingCalled) -> None:
+        if evt.name == self.TOGGLE_RECORD_BINDING and self.stop_time is None:
+            # Mark the time when the recording is stopped
+            self.stop_time = time.time()
+            await self.target_session.execute(cdp.runtime.remove_binding(self.TOGGLE_RECORD_BINDING))
 
     async def start_timer(self) -> None:
         await self.target_session.execute(cdp.runtime.evaluate("startTimerIfElemLoaded()", context_id=self.context_id))
@@ -500,6 +451,8 @@ class RuntimeContext:
 
     async def _send_state_elapsed(self, start_time: float) -> None:
         elapsed = time.time() - start_time
+        if self.stop_time is not None:
+            elapsed = self.stop_time - start_time
         await self.target_session.execute(
             cdp.runtime.evaluate(f"setTimerElapsed({elapsed})", context_id=self.context_id)
         )
@@ -507,6 +460,10 @@ class RuntimeContext:
     async def send_state(self) -> None:
         if self.start_time is not None:
             await self._send_state_elapsed(self.start_time)
+
+    @property
+    def recording_running(self) -> bool:
+        return self.stop_time is None
 
 
 RUNTIME_CONTEXT: Optional[RuntimeContext] = None
@@ -555,6 +512,7 @@ async def insert_widget_extension(target_session: pycdp.twisted.CDPSession) -> N
                 expression, run_immediately=True, world_name=recorder_context_name
             )
         )
+
         timed_runtime_listener = AsyncIterableWithTimeout(runtime_listener, runtime_init_timeout)
         async for evt in timed_runtime_listener:
             if evt.context.name == recorder_context_name:
@@ -569,6 +527,7 @@ async def insert_widget_extension(target_session: pycdp.twisted.CDPSession) -> N
         raise Exception
 
     runtime = RuntimeContext(target_session, recorder_context_name, js_context_id)
+    await runtime.bind()
     await runtime.start_timer()
     await runtime.send_state()
     set_runtime_context(runtime)
@@ -617,18 +576,23 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
     if options.keep_only_same_origin_urls:
         start_origin = extract_origin(start_url)
 
-    listener = target_session.listen(
-        cdp.runtime.ConsoleAPICalled,
-        cdp.runtime.ExecutionContextCreated,
-        cdp.network.RequestWillBeSent,
-        cdp.network.RequestWillBeSentExtraInfo,
-        cdp.network.ResponseReceived,
-        cdp.network.ResponseReceivedExtraInfo,
-        cdp.network.LoadingFinished,
-        buffer_size=1024,
-    )
-    communications = await collect_communications(target_session, listener, urlfilter, keystr, 20, False, start_origin)
-
-    await conn.close()
+    try:
+        listener = target_session.listen(
+            cdp.runtime.BindingCalled,
+            cdp.runtime.ConsoleAPICalled,
+            cdp.runtime.ExecutionContextCreated,
+            cdp.network.RequestWillBeSent,
+            cdp.network.RequestWillBeSentExtraInfo,
+            cdp.network.ResponseReceived,
+            cdp.network.ResponseReceivedExtraInfo,
+            cdp.network.LoadingFinished,
+            buffer_size=1024,
+        )
+        communications = await collect_communications(
+            target_session, listener, urlfilter, keystr, 20, False, start_origin
+        )
+    finally:
+        target_session.close_listeners()
+        await conn.close()
 
     return communications

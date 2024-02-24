@@ -10,8 +10,9 @@ const wrapper = document.createElement("div");
 wrapper.style["width"] = "100%"
 
 const elem = document.createElement("div");
-elem.style["all"] = "initial";
 elem.id = "main-elem";
+elem.style["all"] = "initial";
+elem.style["pointer-events"] = "none";
 elem.style["position"] = "fixed";
 elem.style["z-index"] = 16777271;
 elem.style["right"] = 0;
@@ -41,11 +42,13 @@ elem.append(drag_button);
 
 const timer_wrapper = document.createElement("div");
 timer_wrapper.style["all"] = "initial";
+timer_wrapper.style["pointer-events"] = "inherit";
 timer_wrapper.style["display"] = "flex";
 timer_wrapper.style["flex-wrap"] = "wrap";
 
 const timer_pad = document.createElement("div");
 timer_pad.style["all"] = "initial";
+timer_pad.style["pointer-events"] = "inherit";
 timer_pad.style["flex"] = "20%";
 // timer_pad.style["height"] = "1px";
 timer_pad.style["display"] = "inline";
@@ -99,6 +102,7 @@ timer_pad.append(big_circle);
 const timer_div = document.createElement("div");
 timer_div.textContent = "";
 timer_div.style["all"] = "initial";
+timer_div.style["pointer-events"] = "inherit";
 timer_div.style["flex"] = "60%";
 timer_div.style["display"] = "flex";
 timer_div.style["font-size"] = "x-large";
@@ -114,6 +118,7 @@ logo_div.style["flex"] = "20%";
 const logo = document.createElement("img");
 logo.src = logo_src;
 logo.style["all"] = "initial";
+logo.style["pointer-events"] = "inherit";
 logo.style["max-width"] = "100%";
 logo.style["display"] = "inline";
 logo.style["float"] = "right";
@@ -232,10 +237,12 @@ drag_button.onmousedown = (e) => {
 
 drag_button.addEventListener("mouseenter", () => {
     elem.style["background-color"] = "rgba(127,127,127, 1)";
+    elem.style["pointer-events"] = "auto";
 });
 
 elem.addEventListener("mouseleave", () => {
     elem.style["background-color"] = "rgba(127,127,127,0.5)";
+    elem.style["pointer-events"] = "none";
 });
 
 window.onresize = function() {

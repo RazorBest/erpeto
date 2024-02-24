@@ -257,7 +257,7 @@ class AsyncIterableWithTimeout(Generic[T]):
 
 async def collect_communications(
     target_session: pycdp.twisted.CDPSession,
-    listener: AsyncIterator[builtins.object],
+    listener: AsyncIterator[object],
     urlfilter: filters.URLFilter,
     keystr: str,
     timeout: int = 120,
@@ -272,7 +272,6 @@ async def collect_communications(
 
     Args:
         target_session: The CDP session.
-        listener: An async iterator that generates CDP events.
         urlfilter: Tells which URLs to ignore.
         keystr: A unique string used to distinguish console log messages.
         timeout: When to stop listening.
@@ -282,6 +281,8 @@ async def collect_communications(
     """
     communications: list[Union[HttpCommunication, InputAction]] = []
     request_map = {}
+
+    runtime_ctx = get_runtime_context()
 
     timed_listener = AsyncIterableWithTimeout(listener, timeout)
     async for evt in timed_listener:
@@ -298,6 +299,12 @@ async def collect_communications(
                 comm = HttpCommunication(evt.request_id)
                 communications.append(comm)
                 request_map[evt.request_id] = comm
+
+        if isinstance(evt, cdp.runtime.ExecutionContextCreated):
+            if evt.context.name == runtime_ctx.context_name:
+                js_context_id = evt.context.id_
+                runtime_ctx.context_id = js_context_id
+                await runtime_ctx.send_state()
 
         if isinstance(evt, cdp.runtime.ConsoleAPICalled):
             if evt.type_ != "log" or (isinstance(evt.args[0].value, str) and not evt.args[0].value.startswith(keystr)):
@@ -460,7 +467,22 @@ class RuntimeContext:
             await self._send_state_elapsed(self.start_time)
 
 
-async def insert_widget_extension(target_session: pycdp.twisted.CDPSession) -> RuntimeContext:
+RUNTIME_CONTEXT: Optional[RuntimeContext] = None
+
+
+def get_runtime_context() -> RuntimeContext:
+    if RUNTIME_CONTEXT is None:
+        raise RuntimeError("RUNTIME_CONTEXT is None")
+
+    return RUNTIME_CONTEXT
+
+
+def set_runtime_context(runtime_context: Optional[RuntimeContext]) -> None:
+    global RUNTIME_CONTEXT
+    RUNTIME_CONTEXT = runtime_context
+
+
+async def insert_widget_extension(target_session: pycdp.twisted.CDPSession) -> None:
     from importlib import resources as impresources
 
     logo_file = impresources.files(__package__) / LOGO_PATH
@@ -507,8 +529,7 @@ async def insert_widget_extension(target_session: pycdp.twisted.CDPSession) -> R
     runtime = RuntimeContext(target_session, recorder_context_name, js_context_id)
     await runtime.start_timer()
     await runtime.send_state()
-
-    return runtime
+    set_runtime_context(runtime)
 
 
 async def record(options: RecorderOptions) -> list[Union[HttpCommunication, InputAction]]:
@@ -535,18 +556,8 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
     await target_session.execute(cdp.runtime.enable())
 
     await target_session.execute(cdp.network.enable())
-    listener = target_session.listen(
-        cdp.runtime.ConsoleAPICalled,
-        cdp.network.RequestWillBeSent,
-        cdp.network.RequestWillBeSentExtraInfo,
-        cdp.network.ResponseReceived,
-        cdp.network.ResponseReceivedExtraInfo,
-        cdp.network.LoadingFinished,
-        buffer_size=1024,
-    )
 
     if options.start_url:
-        print(f"info: {options.start_url!r}")
         start_url = options.start_url
         await target_session.execute(cdp.page.navigate(start_url))
     else:
@@ -555,20 +566,23 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
         # But the origin can't be changed
         start_url = info.url
 
-    runtime = await insert_widget_extension(target_session)
+    await insert_widget_extension(target_session)
 
+    """
     runtime_listener = target_session.listen(cdp.runtime.ExecutionContextCreated)
+    runtime_ctx = get_runtime_context()
 
     runtime_init_timeout = 15
     timed_runtime_listener = AsyncIterableWithTimeout(runtime_listener, runtime_init_timeout)
     try:
         async for evt in timed_runtime_listener:
-            if evt.context.name == runtime.context_name:
+            if evt.context.name == runtime_ctx.context_name:
                 js_context_id = evt.context.id_
-                runtime.context_id = js_context_id
-                await runtime.send_state()
+                runtime_ctx.context_id = js_context_id
+                await runtime_ctx.send_state()
     except defer.TimeoutError as exc:
         raise Exception from exc
+    """
 
     keystr = randomstr(32)
     await insert_js_action_listener(target_session, keystr)
@@ -577,6 +591,16 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
     if options.keep_only_same_origin_urls:
         start_origin = extract_origin(start_url)
 
+    listener = target_session.listen(
+        cdp.runtime.ConsoleAPICalled,
+        cdp.runtime.ExecutionContextCreated,
+        cdp.network.RequestWillBeSent,
+        cdp.network.RequestWillBeSentExtraInfo,
+        cdp.network.ResponseReceived,
+        cdp.network.ResponseReceivedExtraInfo,
+        cdp.network.LoadingFinished,
+        buffer_size=1024,
+    )
     communications = await collect_communications(target_session, listener, urlfilter, keystr, 20, False, start_origin)
 
     await conn.close()

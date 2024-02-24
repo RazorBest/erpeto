@@ -3,22 +3,37 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-import random
 import platform
+import random
 import string
 import time
 import urllib
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, AsyncIterator, Optional, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncGenerator,
+    AsyncIterable,
+    AsyncIterator,
+    Coroutine,
+    Generic,
+    Optional,
+    Protocol,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import pycdp
 import twisted.internet.reactor
+import zope
 from pycdp import cdp
 from pycdp.browser import ChromeLauncher
 from pycdp.twisted import CDPConnection as _PyCDPConnection
-from twisted.internet import threads, defer
-from twisted.internet.interfaces import IReactorCore
+from twisted.internet import defer, threads
 from twisted.internet.error import ConnectionRefusedError
+from twisted.internet.interfaces import IReactorCore, IReactorTime
 from twisted.web.client import Agent
 
 from . import filters
@@ -29,12 +44,21 @@ if TYPE_CHECKING:
 
     from .type_checking import CdpEvent
 
+
+class Reactor(IReactorCore, IReactorTime):
+    pass
+
+
 # https://github.com/twisted/twisted/issues/9909
-reactor = cast(IReactorCore, twisted.internet.reactor)
+reactor = cast(Reactor, twisted.internet.reactor)
 
 
 LOGO_PATH = "./logo.png"
 RECORDER_WIDGET_PATH = "./recorder_widget.js"
+
+
+class AwaitableIsNotCoroutine(Exception):
+    pass
 
 
 def randomstr(length: int) -> str:
@@ -195,8 +219,11 @@ class HttpCommunication:
         return True
 
 
-class AsyncIteratorWithTimeout:
-    def __init__(self, aiter: AsyncIterable, timeout: float, start_time: Optional[float] = None):
+T = TypeVar("T")
+
+
+class AsyncIteratorWithTimeout(Generic[T]):
+    def __init__(self, aiter: AsyncIterator[T], timeout: float, start_time: Optional[float] = None):
         self.aiter = aiter
         self.timeout = timeout
         if start_time is None:
@@ -204,39 +231,34 @@ class AsyncIteratorWithTimeout:
         else:
             self.start_time = start_time
 
-        self.timeout_waiter = None
-
-    async def wait_for_next(self, coro):
-        result = await coro
-        if self.timeout_waiter:
-            self.timeout_waiter.cancel()
-            self.timeout_waiter = None
-
-        return result
-
-    async def __anext__(self):
+    async def __anext__(self) -> T:
         curr_time = time.time()
         remained = self.timeout - (curr_time - self.start_time)
         if remained <= 0:
             raise StopAsyncIteration
 
-        d = defer.Deferred.fromCoroutine(self.aiter.__anext__())
+        coro = self.aiter.__anext__()
+        if not isinstance(coro, Coroutine):
+            raise AwaitableIsNotCoroutine
+        d: defer.Deferred[T] = defer.Deferred.fromCoroutine(coro)
         d.addTimeout(remained, reactor)
-        # self.timeout_waiter = reactor.callLater(int(remained), lambda : d.cancel())
         return await d
 
+    def __aiter__(self) -> AsyncIteratorWithTimeout:
+        return self
 
-class AsyncIterableWithTimeout:
-    def __init__(self, iterator: AsyncIterable, timeout: float, start_time: Optional[float] = None):
-        self.iterator = iterator
+
+class AsyncIterableWithTimeout(Generic[T]):
+    def __init__(self, iterable: AsyncIterable[T], timeout: float, start_time: Optional[float] = None):
+        self.iterable = iterable
         self.timeout = timeout
         if start_time is None:
             self.start_time = time.time()
         else:
             self.start_time = start_time
 
-    def __aiter__(self):
-        return AsyncIteratorWithTimeout(self.iterator.__aiter__(), self.timeout, self.start_time)
+    def __aiter__(self) -> AsyncIterator[T]:
+        return AsyncIteratorWithTimeout(self.iterable.__aiter__(), self.timeout, self.start_time)
 
 
 async def collect_communications(
@@ -268,8 +290,8 @@ async def collect_communications(
     request_map = {}
 
     start_time = time.time()
-    listener = AsyncIteratorWithTimeout(listener, 60)
-    async for evt in listener:
+    timed_listener = AsyncIterableWithTimeout(listener, 60)
+    async for evt in timed_listener:
         """
         if time.time() - start_time > timeout:
             break
@@ -355,7 +377,7 @@ async def collect_communications(
 
 class CDPConnection(_PyCDPConnection):
     # Remove `retry_on` wrapper from function
-    connect = _PyCDPConnection.connect.__wrapped__
+    connect = _PyCDPConnection.connect.__wrapped__  # type: ignore[attr-defined]
 
 
 # Default path: Windows
@@ -380,7 +402,9 @@ class RecorderOptions:
         return f"http://{self.cdp_host}:{self.cdp_port}"
 
 
-async def obtain_active_tab(targets, conn: CDPConnection):
+async def obtain_active_tab(
+    targets: list[cdp.target.TargetInfo], conn: CDPConnection
+) -> Optional[cdp.target.TargetInfo]:
     if not targets:
         return None
 
@@ -401,7 +425,7 @@ async def obtain_active_tab(targets, conn: CDPConnection):
     return None
 
 
-async def obtain_cdp_target_id(conn: CDPConnection) -> cdp.target.TargetId:
+async def obtain_cdp_target_id(conn: CDPConnection) -> cdp.target.TargetID:
     targets = await conn.execute(cdp.target.get_targets())
     page_targets = []
     for target in targets:
@@ -425,30 +449,30 @@ async def obtain_cdp_target_id(conn: CDPConnection) -> cdp.target.TargetId:
 
 
 class RuntimeContext:
-    def __init__(self, target_session, context_name: str, context_id: cdp.runtime.ExecutionContextId):
+    def __init__(
+        self, target_session: pycdp.twisted.CDPSession, context_name: str, context_id: cdp.runtime.ExecutionContextId
+    ):
         self.target_session = target_session
         self.context_name = context_name
         self.context_id = context_id
-        self.start_time: Optional[int] = None
+        self.start_time: Optional[float] = None
 
-    async def start_timer(self):
+    async def start_timer(self) -> None:
         await self.target_session.execute(cdp.runtime.evaluate("startTimerIfElemLoaded()", context_id=self.context_id))
         self.start_time = time.time()
 
-    async def _send_state_elapsed(self, start_time: int):
-        elapsed = time.time() - self.start_time
-        print(f"Sending {elapsed}")
-        ret = await self.target_session.execute(
+    async def _send_state_elapsed(self, start_time: float) -> None:
+        elapsed = time.time() - start_time
+        await self.target_session.execute(
             cdp.runtime.evaluate(f"setTimerElapsed({elapsed})", context_id=self.context_id)
         )
-        print(ret)
 
-    async def send_state(self):
+    async def send_state(self) -> None:
         if self.start_time is not None:
             await self._send_state_elapsed(self.start_time)
 
 
-async def insert_widget_extension(target_session):
+async def insert_widget_extension(target_session: pycdp.twisted.CDPSession) -> RuntimeContext:
     from importlib import resources as impresources
 
     logo_file = impresources.files(__package__) / LOGO_PATH
@@ -489,6 +513,9 @@ async def insert_widget_extension(target_session):
     finally:
         target_session.close_listeners()
 
+    if js_context_id is None:
+        raise Exception
+
     runtime = RuntimeContext(target_session, recorder_context_name, js_context_id)
     await runtime.start_timer()
     await runtime.send_state()
@@ -500,13 +527,13 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
     # urlfilter = filters.URLFilter()
 
     try:
-        conn = CDPConnection(options.cdp_url, Agent(reactor), reactor)
+        conn = CDPConnection(options.cdp_url, Agent(reactor), reactor)  # type: ignore[no-untyped-call]
         await conn.connect()
     except ConnectionRefusedError:
         if options.fail_if_no_connection:
             raise ConnectionRefusedError
         chrome = ChromeLauncher(binary=options.binary, args=["--remote-debugging-port=9222", "--incognito"])
-        await threads.deferToThread(chrome.launch)
+        await threads.deferToThread(chrome.launch)  # type: ignore[no-untyped-call]
         await conn.connect()
 
     target_id = await obtain_cdp_target_id(conn)
@@ -547,7 +574,6 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
     timed_runtime_listener = AsyncIterableWithTimeout(runtime_listener, runtime_init_timeout)
     try:
         async for evt in timed_runtime_listener:
-            print(evt)
             if evt.context.name == runtime.context_name:
                 js_context_id = evt.context.id_
                 runtime.context_id = js_context_id

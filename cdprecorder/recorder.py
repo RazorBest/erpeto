@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import base64
 import json
 import platform
@@ -11,15 +10,11 @@ import urllib
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
-    Any,
-    AsyncGenerator,
     AsyncIterable,
     AsyncIterator,
     Coroutine,
     Generic,
     Optional,
-    Protocol,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -27,7 +22,6 @@ from typing import (
 
 import pycdp
 import twisted.internet.reactor
-import zope
 from pycdp import cdp
 from pycdp.browser import ChromeLauncher
 from pycdp.twisted import CDPConnection as _PyCDPConnection
@@ -45,7 +39,7 @@ if TYPE_CHECKING:
     from .type_checking import CdpEvent
 
 
-class Reactor(IReactorCore, IReactorTime):
+class Reactor(IReactorCore, IReactorTime):  # pylint disable=too-many-ancestors
     pass
 
 
@@ -175,7 +169,7 @@ async def insert_js_action_listener(target_session: pycdp.twisted.CDPSession, ke
         + f"var _keystr01238 = {json.dumps(keystr)};"
     )
 
-    ret = await target_session.execute(cdp.runtime.evaluate(expression))
+    await target_session.execute(cdp.runtime.evaluate(expression))
 
 
 class HttpCommunication:
@@ -223,8 +217,8 @@ T = TypeVar("T")
 
 
 class AsyncIteratorWithTimeout(Generic[T]):
-    def __init__(self, aiter: AsyncIterator[T], timeout: float, start_time: Optional[float] = None):
-        self.aiter = aiter
+    def __init__(self, iterator: AsyncIterator[T], timeout: float, start_time: Optional[float] = None):
+        self.iterator = iterator
         self.timeout = timeout
         if start_time is None:
             self.start_time = time.time()
@@ -237,7 +231,7 @@ class AsyncIteratorWithTimeout(Generic[T]):
         if remained <= 0:
             raise StopAsyncIteration
 
-        coro = self.aiter.__anext__()
+        coro = self.iterator.__anext__()
         if not isinstance(coro, Coroutine):
             raise AwaitableIsNotCoroutine
         d: defer.Deferred[T] = defer.Deferred.fromCoroutine(coro)
@@ -266,7 +260,7 @@ async def collect_communications(
     listener: AsyncIterator[builtins.object],
     urlfilter: filters.URLFilter,
     keystr: str,
-    timeout: int = 8,
+    timeout: int = 120,
     collect_all: bool = False,
     start_origin: Optional[str] = None,
 ) -> list[Union[HttpCommunication, InputAction]]:
@@ -278,7 +272,7 @@ async def collect_communications(
 
     Args:
         target_session: The CDP session.
-        listener: An asyncio iterator that generates CDP events.
+        listener: An async iterator that generates CDP events.
         urlfilter: Tells which URLs to ignore.
         keystr: A unique string used to distinguish console log messages.
         timeout: When to stop listening.
@@ -289,14 +283,8 @@ async def collect_communications(
     communications: list[Union[HttpCommunication, InputAction]] = []
     request_map = {}
 
-    start_time = time.time()
-    timed_listener = AsyncIterableWithTimeout(listener, 60)
+    timed_listener = AsyncIterableWithTimeout(listener, timeout)
     async for evt in timed_listener:
-        """
-        if time.time() - start_time > timeout:
-            break
-        """
-
         if isinstance(
             evt,
             (
@@ -377,7 +365,7 @@ async def collect_communications(
 
 class CDPConnection(_PyCDPConnection):
     # Remove `retry_on` wrapper from function
-    connect = _PyCDPConnection.connect.__wrapped__  # type: ignore[attr-defined]
+    connect = _PyCDPConnection.connect.__wrapped__  # type: ignore[attr-defined] # pylint: disable=no-member
 
 
 # Default path: Windows
@@ -414,7 +402,7 @@ async def obtain_active_tab(
         await session.execute(cdp.runtime.enable())
         ret, _ = await session.execute(cdp.runtime.evaluate("document.hidden"))
         print(ret)
-        if not ret.type_ == "boolean" or ret.value != True:
+        if not ret.type_ == "boolean" or ret.value is not True:
             visible_targets.append(target)
         ret, _ = await session.execute(cdp.runtime.evaluate("browser.tabs"))
         print(ret)
@@ -482,7 +470,7 @@ async def insert_widget_extension(target_session: pycdp.twisted.CDPSession) -> R
     with logo_file.open("rb") as file:
         data = file.read()
         encoded = base64.b64encode(data).decode("utf-8")
-        extension = LOGO_PATH.split(".")[-1]
+        extension = LOGO_PATH.rsplit(".", maxsplit=1)[-1]
         data_url = f"data:image/{extension};base64,{encoded}"
 
     expression = f"""const logo_src = "{data_url}";\n"""

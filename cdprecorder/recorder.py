@@ -430,6 +430,11 @@ class WidgetState:
         self.start_time: Optional[float] = None
         self.stop_time: Optional[float] = None
 
+        self.top: Optional[str] = None
+        self.right: Optional[str] = None
+        self.bottom: Optional[str] = None
+        self.left: Optional[str] = None
+
     @property
     def context_id(self) -> cdp.runtime.ExecutionContextId:
         runtime_ctx = get_runtime_context()
@@ -447,9 +452,16 @@ class WidgetState:
             cdp.runtime.evaluate(f"setTimerElapsed({elapsed})", context_id=self.context_id)
         )
 
+    async def _send_state_pos(self, top: str, right: str, bottom: str, left: str) -> None:
+        # Lucky that strings are represented the same in Python and JavaScript
+        expression = f"setWidgetPos({top!r}, {right!r}, {bottom!r}, {left!r})"
+        await self.target_session.execute(cdp.runtime.evaluate(expression, context_id=self.context_id))
+
     async def send_state(self) -> None:
         if self.start_time is not None:
             await self._send_state_elapsed(self.start_time)
+        if self.top is not None and self.right is not None and self.bottom is not None and self.left is not None:
+            await self._send_state_pos(self.top, self.right, self.bottom, self.left)
 
 
 async def bind_func_to_context(
@@ -464,6 +476,7 @@ async def init_runtime_scripts(target_session: pycdp.twisted.CDPSession) -> Runt
     widget_context_name, widget_context_id = await insert_widget_extension(target_session)
     listener_context_name, listener_context_id = await insert_js_action_listener(target_session)
     await bind_func_to_context(target_session, RuntimeContext.TOGGLE_RECORD_BINDING, widget_context_name)
+    await bind_func_to_context(target_session, RuntimeContext.SEND_WIDGET_POS_BINDING, widget_context_name)
     await bind_func_to_context(target_session, RuntimeContext.EVENT_SEND_BINDING, listener_context_name)
 
     widget = WidgetState(target_session)
@@ -489,6 +502,7 @@ async def init_runtime_state(runtime: RuntimeContext) -> None:
 
 class RuntimeContext:
     TOGGLE_RECORD_BINDING = "toggleRecord"
+    SEND_WIDGET_POS_BINDING = "sendWidgetPos"
     EVENT_SEND_BINDING = "sendRecordedEvent"
 
     def __init__(
@@ -518,11 +532,16 @@ class RuntimeContext:
             self.widget.stop_time = time.time()
             await self.target_session.execute(cdp.runtime.remove_binding(self.TOGGLE_RECORD_BINDING))
 
+    async def on_send_widget_pos(self, payload: str) -> None:
+        data = json.loads(payload)
+        print(data)
+        self.widget.top = data["top"]
+        self.widget.right = data["right"]
+        self.widget.bottom = data["bottom"]
+        self.widget.left = data["left"]
+
     async def on_event_send(self, payload: str) -> None:
-        try:
-            data = json.loads(payload)
-        except json.JSONDecodeError:
-            return
+        data = json.loads(payload)
 
         if data["event"] == "input":
             action = InputAction(data["value"], data["selector"], data["timestamp"])
@@ -531,15 +550,20 @@ class RuntimeContext:
     async def on_binding_called(self, evt: cdp.runtime.BindingCalled) -> None:
         if evt.name == self.TOGGLE_RECORD_BINDING:
             await self.on_toggle_record()
-        if evt.name == self.EVENT_SEND_BINDING:
+        elif evt.name == self.SEND_WIDGET_POS_BINDING:
+            await self.on_send_widget_pos(evt.payload)
+        elif evt.name == self.EVENT_SEND_BINDING:
             await self.on_event_send(evt.payload)
 
     async def on_execution_context_created(self, evt: cdp.runtime.ExecutionContextCreated) -> None:
         if evt.context.name == self.widget_context_name:
             self.widget_context_id = evt.context.id_
+            await bind_func_to_context(self.target_session, self.TOGGLE_RECORD_BINDING, self.widget_context_name)
+            await bind_func_to_context(self.target_session, self.SEND_WIDGET_POS_BINDING, self.widget_context_name)
             await self.widget.send_state()
         elif evt.context.name == self.listener_context_name:
             self.listener_context_id = evt.context.id_
+            await bind_func_to_context(self.target_session, self.EVENT_SEND_BINDING, self.listener_context_name)
 
     @property
     def recording_running(self) -> bool:

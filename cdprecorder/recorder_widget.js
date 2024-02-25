@@ -1,8 +1,27 @@
 // logo_src is taken from python
 
-// This function is overwritten with CDP Runtime.addBinding, in the recorder
+// This functions are overwritten with CDP Runtime.addBinding, in the recorder
 // All bindings must take exactly one parameter that is a string
 function toggleRecord(message) {}
+function sendWidgetPos(message) {}
+
+// Helper function
+function _sendWidgetPos(elem) {
+    let data = {
+        top: elem.style.top,
+        right: elem.style.right,
+        bottom: elem.style.bottom,
+        left: elem.style.left,
+    };
+    sendWidgetPos(JSON.stringify(data))
+}
+
+function setWidgetPos(top, right, bottom, left) {
+    elem.style.top = top;
+    elem.style.right = right;
+    elem.style.bottom = bottom;
+    elem.style.left = left;
+}
 
 let elemLoaded = false;
 
@@ -212,6 +231,7 @@ drag_button.onmousedown = (e) => {
         // This is not the best way of doing it 
         document.onmouseup = null;
         document.onmousemove = null;
+        _sendWidgetPos(elem);
     }
     document.onmousemove = (e) => {
         let rect = elem.getBoundingClientRect();

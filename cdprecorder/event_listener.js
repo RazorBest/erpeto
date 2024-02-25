@@ -59,7 +59,7 @@ addEventListener('click', (event) => {
     const target = event.composedPath()[0];
     const selector = getSelectorToRoot(target);
 
-    sendRecordedEvent(JSON.stringify({"event": "click", timestamp, selector}))
+    sendRecordedEvent(JSON.stringify({"event": "click", timestamp, selector}));
 });
 
 addEventListener('keypress', (event) => {

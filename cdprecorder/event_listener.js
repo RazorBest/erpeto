@@ -1,4 +1,7 @@
-get_element_selector = (target) => {
+// This function will by bound to Python
+function sendRecordedEvent(message) {}
+
+getElementSelector = (target) => {
     const tag_selector = target.tagName.toLowerCase();
     const classes = target.className.split(' ');
     let cls_selector = '';
@@ -30,10 +33,11 @@ get_element_selector = (target) => {
 
     return selector;
 }
+
 getSelectorToRoot = (target) => {
     let selector = "";
 
-    selector += get_element_selector(target);
+    selector += getElementSelector(target);
     target = target.parentNode;
     while (target) {
         if (!target.tagName) {
@@ -43,7 +47,7 @@ getSelectorToRoot = (target) => {
             // If shadow root
             target = target.host;
         }
-        selector = get_element_selector(target) + '>' + selector;
+        selector = getElementSelector(target) + '>' + selector;
         target = target.parentNode;
     }
 
@@ -55,7 +59,7 @@ addEventListener('click', (event) => {
     const target = event.composedPath()[0];
     const selector = getSelectorToRoot(target);
 
-    console.log(_keystr01238 + JSON.stringify({"event": "click", timestamp, selector}))
+    sendRecordedEvent(JSON.stringify({"event": "click", timestamp, selector}))
 });
 
 addEventListener('keypress', (event) => {
@@ -65,7 +69,7 @@ addEventListener('keypress', (event) => {
     const selector = getSelectorToRoot(target);
     const value = target.value;
 
-    console.log(_keystr01238 + JSON.stringify({"event": "keypress", timestamp, selector, value, charCode}));
+    sendRecordedEvent(JSON.stringify({"event": "keypress", timestamp, selector, value, charCode}));
 });
 
 addEventListener('input', (event) => {
@@ -74,6 +78,6 @@ addEventListener('input', (event) => {
     const value = target.value;
     const timestamp = event.timeStamp;
 
-    console.log(_keystr01238 + JSON.stringify({"event": "input", timestamp, selector, value}));
+    sendRecordedEvent(JSON.stringify({"event": "input", timestamp, selector, value}));
 });
 

@@ -17,7 +17,7 @@ elem.style["position"] = "fixed";
 elem.style["z-index"] = 16777271;
 elem.style["right"] = 0;
 elem.style["top"] = 0;
-elem.style["background-color"] = "rgba(127,127,127,0.5)";
+elem.style["background-color"] = "rgba(127,127,127,0.4)";
 elem.style["border-radius"] = "5px";
 elem.style["transition"] = "background-color 0.4s";
 elem.draggable = "true";
@@ -131,17 +131,15 @@ timer_wrapper.append(logo_div);
 
 elem.append(timer_wrapper);
 
-let p1 = 0;
-let p2 = 0;
 let click_start_x = 0;
 let click_start_y = 0;
 
 let rel_x = 0;
 let rel_y = 0;
 
-
 let startTime = null;
-let stoptime = null;
+let stopTime = null;
+let requestedStartTime = false;
 
 function startTimer() {
     stopTime = null;
@@ -149,19 +147,21 @@ function startTimer() {
 }
 
 function stopTimer() {
+    requestedStartTime = false;
     if (stopTime === null) {
         stopTime = new Date();
     }
 }
 
 function startTimerIfElemLoaded() {
+    requestedStartTime = true;
     if (elemLoaded) {
         startTimer();
     }
 }
 
 function setTimerElapsed(elapsedSeconds) {
-    let lastTime = new Date()
+    let lastTime = new Date();
     if (stopTime !== null) {
         lastTime = stopTime;
     }
@@ -208,8 +208,6 @@ drag_button.onmousedown = (e) => {
     document.onmousemove = (e) => {
         let rect = elem.getBoundingClientRect();
 
-        p1 = click_start_x - e.clientX;
-        p2 = click_start_y - e.clientY;
         click_start_x = e.clientX;
         click_start_y = e.clientY;
 
@@ -241,7 +239,7 @@ drag_button.addEventListener("mouseenter", () => {
 });
 
 elem.addEventListener("mouseleave", () => {
-    elem.style["background-color"] = "rgba(127,127,127,0.5)";
+    elem.style["background-color"] = "rgba(127,127,127,0.4)";
     elem.style["pointer-events"] = "none";
 });
 
@@ -269,6 +267,9 @@ if (document.body) {
     document.addEventListener("DOMContentLoaded", () => {
         elemLoaded = true;
         document.body.append(elem);
+        if (requestedStartTime) {
+            startTimer();
+        }
     });
 }
 

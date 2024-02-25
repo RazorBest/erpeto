@@ -463,7 +463,7 @@ async def test_collect_communications(RuntimeContext,
     # Event mock acts both as an event iterator and CDP session
     # Keystr is not needed, we let it be an empty string
     # Function should exit before timeout. We just make sure it's big enough.
-    communications = await collect_communications(event_mock, event_mock, urlfilter, "", timeout=10)
+    communications = await collect_communications(event_mock, event_mock, urlfilter, timeout=10)
     set_runtime_context(None)
 
     assert len(communications) == comm_count

@@ -33,7 +33,7 @@ async def test_parse_communications_into_actions(RuntimeContext, events_file, ac
     set_runtime_context(RuntimeContext())
 
     communications = await collect_communications(event_mock, 
-        event_mock, urlfilter, "", timeout=10, collect_all=True)
+        event_mock, urlfilter, timeout=10, collect_all=True)
     
     set_runtime_context(None)
 

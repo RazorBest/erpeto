@@ -92,6 +92,14 @@ big_circle.addEventListener("mouseleave", () => {
     big_circle.style["background"] = "rgb(190, 190, 190)";
 });
 
+big_circle.addEventListener("mousedown", () => {
+    small_circle.style["background"] = "linear-gradient(135deg, rgb(230, 150, 150) 0%, rgb(210, 50, 50) 30%)";
+});
+
+big_circle.addEventListener("mouseup", () => {
+    small_circle.style["background"] = "linear-gradient(135deg, rgb(240,0,0) 0%, rgb(210,120,100) 90%)";
+});
+
 big_circle.addEventListener("click", () => {
     stopTimer();
     toggleRecord("");

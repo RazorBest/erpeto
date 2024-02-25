@@ -84,20 +84,48 @@ def is_url_ignored(url: str, origin: Optional[str] = None) -> bool:
     return False
 
 
-async def insert_js_action_listener(target_session: pycdp.twisted.CDPSession, keystr: str) -> None:
-    from importlib import resources as impresources
+async def insert_js_leech_script(
+    target_session: pycdp.twisted.CDPSession,
+    expression: str,
+) -> tuple[str, cdp.runtime.ExecutionContextId]:
+    runtime_init_timeout = 5
+    context_id = None
+    context_name = randomstr(32)
 
-    listener_file = impresources.files(__package__) / EVENT_LISTENER_PATH
+    await target_session.execute(cdp.page.runtime.enable())
+
+    try:
+        listener = target_session.listen(cdp.runtime.ExecutionContextCreated)
+        await target_session.execute(
+            cdp.page.add_script_to_evaluate_on_new_document(expression, run_immediately=True, world_name=context_name)
+        )
+
+        timed_listener = AsyncIterableWithTimeout(listener, runtime_init_timeout)
+        async for evt in timed_listener:
+            if evt.context.name == context_name:
+                context_id = evt.context.id_
+                break
+    except defer.TimeoutError as exc:
+        raise Exception from exc
+    finally:
+        target_session.close_listeners()
+
+    if context_id is None:
+        raise Exception
+
+    return context_name, context_id
+
+
+async def insert_js_action_listener(
+    target_session: pycdp.twisted.CDPSession,
+) -> tuple[str, cdp.runtime.ExecutionContextId]:
+    from importlib import resources
+
+    listener_file = resources.files(__package__) / EVENT_LISTENER_PATH
     with listener_file.open("r") as file:
         expression = file.read()
 
-    expression += f"\nvar _keystr01238 = {json.dumps(keystr)};\n"
-    await target_session.execute(
-        cdp.page.add_script_to_evaluate_on_new_document(
-            expression,
-            run_immediately=True,
-        )
-    )
+    return await insert_js_leech_script(target_session, expression)
 
 
 class HttpCommunication:
@@ -188,13 +216,11 @@ class Recorder:
         self,
         target_session: pycdp.twisted.CDPSession,
         urlfilter: filters.URLFilter,
-        keystr: str,
         collect_all: bool,
         start_origin: Optional[str],
     ):
         self.target_session = target_session
         self.urlfilter = urlfilter
-        self.keystr = keystr
         self.start_origin = start_origin
         self.collect_all = collect_all
         self.communications: list[Union[HttpCommunication, InputAction]] = []
@@ -217,31 +243,10 @@ class Recorder:
 
     async def on_binding_called(self, evt: cdp.runtime.BindingCalled) -> None:
         await self.runtime_ctx.on_binding_called(evt)
+        self.communications += self.runtime_ctx.pop_actions()
 
     async def on_execution_context_created(self, evt: cdp.runtime.ExecutionContextCreated) -> None:
-        if evt.context.name == self.runtime_ctx.context_name:
-            js_context_id = evt.context.id_
-            self.runtime_ctx.context_id = js_context_id
-            await self.runtime_ctx.send_state()
-
-    async def on_console_api_called(self, evt: cdp.runtime.ConsoleAPICalled) -> None:
-        if evt.type_ != "log" or (isinstance(evt.args[0].value, str) and not evt.args[0].value.startswith(self.keystr)):
-            return
-
-        printed_arg = evt.args[0]
-        if printed_arg.value:
-            value = printed_arg.value.removeprefix(self.keystr)
-            data = json.loads(value)
-        else:
-            if evt.args[0].object_id is not None:
-                result = await self.target_session.execute(
-                    cdp.runtime.get_properties(evt.args[0].object_id, own_properties=True)
-                )
-                data = {attr.name: attr.value.value for attr in result[0] if attr.value}
-
-        if data["event"] == "input":
-            action = InputAction(data["value"], data["selector"], data["timestamp"])
-            self.communications.append(action)
+        await self.runtime_ctx.on_execution_context_created(evt)
 
     async def on_request_will_be_sent(self, evt: cdp.network.RequestWillBeSent) -> None:
         cdp_req = evt.request
@@ -291,7 +296,6 @@ async def collect_communications(
     target_session: pycdp.twisted.CDPSession,
     listener: AsyncIterator[object],
     urlfilter: filters.URLFilter,
-    keystr: str,
     timeout: int = 120,
     collect_all: bool = False,
     start_origin: Optional[str] = None,
@@ -305,13 +309,12 @@ async def collect_communications(
     Args:
         target_session: The CDP session.
         urlfilter: Tells which URLs to ignore.
-        keystr: A unique string used to distinguish console log messages.
         timeout: When to stop listening.
 
     Returns:
         A list of communications.
     """
-    recorder = Recorder(target_session, urlfilter, keystr, collect_all, start_origin)
+    recorder = Recorder(target_session, urlfilter, collect_all, start_origin)
     runtime_context = get_runtime_context()
 
     timed_listener = AsyncIterableWithTimeout(listener, timeout)
@@ -333,8 +336,6 @@ async def collect_communications(
             await recorder.on_http_data(evt)
         if isinstance(evt, cdp.runtime.ExecutionContextCreated):
             await recorder.on_execution_context_created(evt)
-        if isinstance(evt, cdp.runtime.ConsoleAPICalled):
-            await recorder.on_console_api_called(evt)
         elif isinstance(evt, cdp.network.RequestWillBeSent):
             await recorder.on_request_will_be_sent(evt)
         elif isinstance(evt, cdp.network.RequestWillBeSentExtraInfo):
@@ -422,28 +423,17 @@ async def obtain_cdp_target_id(conn: CDPConnection) -> cdp.target.TargetID:
     return target_id
 
 
-class RuntimeContext:
-    TOGGLE_RECORD_BINDING = "toggleRecord"
-
-    def __init__(
-        self, target_session: pycdp.twisted.CDPSession, context_name: str, context_id: cdp.runtime.ExecutionContextId
-    ):
+class WidgetState:
+    def __init__(self, target_session: pycdp.twisted.CDPSession):
         self.target_session = target_session
-        self.context_name = context_name
-        self.context_id = context_id
+
         self.start_time: Optional[float] = None
         self.stop_time: Optional[float] = None
 
-    async def bind(self) -> None:
-        await self.target_session.execute(
-            cdp.runtime.add_binding(self.TOGGLE_RECORD_BINDING, execution_context_name=self.context_name)
-        )
-
-    async def on_binding_called(self, evt: cdp.runtime.BindingCalled) -> None:
-        if evt.name == self.TOGGLE_RECORD_BINDING and self.stop_time is None:
-            # Mark the time when the recording is stopped
-            self.stop_time = time.time()
-            await self.target_session.execute(cdp.runtime.remove_binding(self.TOGGLE_RECORD_BINDING))
+    @property
+    def context_id(self) -> cdp.runtime.ExecutionContextId:
+        runtime_ctx = get_runtime_context()
+        return runtime_ctx.widget_context_id
 
     async def start_timer(self) -> None:
         await self.target_session.execute(cdp.runtime.evaluate("startTimerIfElemLoaded()", context_id=self.context_id))
@@ -461,9 +451,104 @@ class RuntimeContext:
         if self.start_time is not None:
             await self._send_state_elapsed(self.start_time)
 
+
+async def bind_func_to_context(
+    target_session: pycdp.twisted.CDPSession, name: str, context_name: Optional[str]
+) -> None:
+    if context_name is None:
+        return
+    await target_session.execute(cdp.runtime.add_binding(name, execution_context_name=context_name))
+
+
+async def init_runtime_scripts(target_session: pycdp.twisted.CDPSession) -> RuntimeContext:
+    widget_context_name, widget_context_id = await insert_widget_extension(target_session)
+    listener_context_name, listener_context_id = await insert_js_action_listener(target_session)
+    await bind_func_to_context(target_session, RuntimeContext.TOGGLE_RECORD_BINDING, widget_context_name)
+    await bind_func_to_context(target_session, RuntimeContext.EVENT_SEND_BINDING, listener_context_name)
+
+    widget = WidgetState(target_session)
+
+    runtime = RuntimeContext(
+        target_session,
+        widget_context_name,
+        widget_context_id,
+        listener_context_name,
+        listener_context_id,
+        widget,
+    )
+
+    set_runtime_context(runtime)
+
+    return runtime
+
+
+async def init_runtime_state(runtime: RuntimeContext) -> None:
+    await runtime.widget.start_timer()
+    await runtime.widget.send_state()
+
+
+class RuntimeContext:
+    TOGGLE_RECORD_BINDING = "toggleRecord"
+    EVENT_SEND_BINDING = "sendRecordedEvent"
+
+    def __init__(
+        self,
+        target_session: pycdp.twisted.CDPSession,
+        widget_context_name: str,
+        widget_context_id: cdp.runtime.ExecutionContextId,
+        listener_context_name: str,
+        listener_context_id: cdp.runtime.ExecutionContextId,
+        widget: WidgetState,
+    ):
+        self.target_session = target_session
+        self.widget_context_name = widget_context_name
+        self.widget_context_id = widget_context_id
+        self.listener_context_name = listener_context_name
+        self.listener_context_id = listener_context_id
+        self.widget = widget
+
+        self.start_time: Optional[float] = None
+        self.stop_time: Optional[float] = None
+
+        self.actions: list[InputAction] = []
+
+    async def on_toggle_record(self) -> None:
+        if self.widget.stop_time is None:
+            # Mark the time when the recording is stopped
+            self.widget.stop_time = time.time()
+            await self.target_session.execute(cdp.runtime.remove_binding(self.TOGGLE_RECORD_BINDING))
+
+    async def on_event_send(self, payload: str) -> None:
+        try:
+            data = json.loads(payload)
+        except json.JSONDecodeError:
+            return
+
+        if data["event"] == "input":
+            action = InputAction(data["value"], data["selector"], data["timestamp"])
+            self.actions.append(action)
+
+    async def on_binding_called(self, evt: cdp.runtime.BindingCalled) -> None:
+        if evt.name == self.TOGGLE_RECORD_BINDING:
+            await self.on_toggle_record()
+        if evt.name == self.EVENT_SEND_BINDING:
+            await self.on_event_send(evt.payload)
+
+    async def on_execution_context_created(self, evt: cdp.runtime.ExecutionContextCreated) -> None:
+        if evt.context.name == self.widget_context_name:
+            self.widget_context_id = evt.context.id_
+            await self.widget.send_state()
+        elif evt.context.name == self.listener_context_name:
+            self.listener_context_id = evt.context.id_
+
     @property
     def recording_running(self) -> bool:
-        return self.stop_time is None
+        return self.widget.stop_time is None
+
+    def pop_actions(self) -> list[InputAction]:
+        actions = self.actions
+        self.actions = []
+        return actions
 
 
 RUNTIME_CONTEXT: Optional[RuntimeContext] = None
@@ -481,12 +566,15 @@ def set_runtime_context(runtime_context: Optional[RuntimeContext]) -> None:
     RUNTIME_CONTEXT = runtime_context
 
 
-async def insert_widget_extension(target_session: pycdp.twisted.CDPSession) -> None:
-    from importlib import resources as impresources
+async def insert_widget_extension(
+    target_session: pycdp.twisted.CDPSession,
+) -> tuple[str, cdp.runtime.ExecutionContextId]:
+    from importlib import resources
 
-    logo_file = impresources.files(__package__) / LOGO_PATH
-    widget_file = impresources.files(__package__) / RECORDER_WIDGET_PATH
+    logo_file = resources.files(__package__) / LOGO_PATH
+    widget_file = resources.files(__package__) / RECORDER_WIDGET_PATH
 
+    # Construct an inline image with a data URL
     data_url = ""
     with logo_file.open("rb") as file:
         data = file.read()
@@ -495,42 +583,10 @@ async def insert_widget_extension(target_session: pycdp.twisted.CDPSession) -> N
         data_url = f"data:image/{extension};base64,{encoded}"
 
     expression = f"""const logo_src = "{data_url}";\n"""
-
     with widget_file.open("r", encoding="utf8") as file:
         expression += file.read()
 
-    runtime_init_timeout = 5
-    js_context_id = None
-    recorder_context_name = "recorder_window_" + randomstr(16)
-
-    await target_session.execute(cdp.page.runtime.enable())
-
-    try:
-        runtime_listener = target_session.listen(cdp.runtime.ExecutionContextCreated)
-        await target_session.execute(
-            cdp.page.add_script_to_evaluate_on_new_document(
-                expression, run_immediately=True, world_name=recorder_context_name
-            )
-        )
-
-        timed_runtime_listener = AsyncIterableWithTimeout(runtime_listener, runtime_init_timeout)
-        async for evt in timed_runtime_listener:
-            if evt.context.name == recorder_context_name:
-                js_context_id = evt.context.id_
-                break
-    except defer.TimeoutError as exc:
-        raise Exception from exc
-    finally:
-        target_session.close_listeners()
-
-    if js_context_id is None:
-        raise Exception
-
-    runtime = RuntimeContext(target_session, recorder_context_name, js_context_id)
-    await runtime.bind()
-    await runtime.start_timer()
-    await runtime.send_state()
-    set_runtime_context(runtime)
+    return await insert_js_leech_script(target_session, expression)
 
 
 async def record(options: RecorderOptions) -> list[Union[HttpCommunication, InputAction]]:
@@ -567,10 +623,8 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
         # But the origin can't be changed
         start_url = info.url
 
-    await insert_widget_extension(target_session)
-
-    keystr = randomstr(32)
-    await insert_js_action_listener(target_session, keystr)
+    runtime = await init_runtime_scripts(target_session)
+    await init_runtime_state(runtime)
 
     start_origin = None
     if options.keep_only_same_origin_urls:
@@ -579,7 +633,6 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
     try:
         listener = target_session.listen(
             cdp.runtime.BindingCalled,
-            cdp.runtime.ConsoleAPICalled,
             cdp.runtime.ExecutionContextCreated,
             cdp.network.RequestWillBeSent,
             cdp.network.RequestWillBeSentExtraInfo,
@@ -588,9 +641,7 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
             cdp.network.LoadingFinished,
             buffer_size=1024,
         )
-        communications = await collect_communications(
-            target_session, listener, urlfilter, keystr, 20, False, start_origin
-        )
+        communications = await collect_communications(target_session, listener, urlfilter, 20, False, start_origin)
     finally:
         target_session.close_listeners()
         await conn.close()

@@ -132,7 +132,7 @@ timer_div.style["all"] = "initial";
 timer_div.style["pointer-events"] = "inherit";
 timer_div.style["flex"] = "60%";
 timer_div.style["display"] = "flex";
-timer_div.style["font-size"] = "x-large";
+timer_div.style["font-size"] = "1.5rem";
 timer_div.style["line-height"] = "normal";
 timer_div.style["justify-content"] = "center";
 timer_div.style["align-items"] = "center";
@@ -307,10 +307,13 @@ const max_watcher = window.matchMedia("(max-width: 1200px)");
 function set_width() {
     if (min_watcher.matches) {
         elem.style["width"] = "100px";
+        timer_div.style["font-size"] = "0.8em";
     } else if (max_watcher.matches) {
         elem.style["width"] = "200px";
+        timer_div.style["font-size"] = "1.3em";
     } else {
         elem.style["width"] = "250px";
+        timer_div.style["font-size"] = "1.5em";
     }
 }
 

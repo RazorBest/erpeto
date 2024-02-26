@@ -388,11 +388,9 @@ async def obtain_active_tab(
         session = await conn.connect_session(target.target_id)
         await session.execute(cdp.runtime.enable())
         ret, _ = await session.execute(cdp.runtime.evaluate("document.hidden"))
-        print(ret)
         if not ret.type_ == "boolean" or ret.value is not True:
             visible_targets.append(target)
         ret, _ = await session.execute(cdp.runtime.evaluate("browser.tabs"))
-        print(ret)
 
     if len(visible_targets) == 1:
         return visible_targets[0]
@@ -534,7 +532,6 @@ class RuntimeContext:
 
     async def on_send_widget_pos(self, payload: str) -> None:
         data = json.loads(payload)
-        print(data)
         self.widget.top = data["top"]
         self.widget.right = data["right"]
         self.widget.bottom = data["bottom"]

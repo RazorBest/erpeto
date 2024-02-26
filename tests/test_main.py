@@ -1,11 +1,14 @@
 import json
 import pytest
 
+from unittest.mock import patch
+
 from .mocks import EventMock, UrlfilterMock
 from .action_serializer import replace_action_body_with_length, replace_date_headers, ActionsJSONEncoder, json_actions_loads
 
+import cdprecorder
 from main import parse_communications_into_actions
-from cdprecorder.recorder import collect_communications
+from cdprecorder.recorder import collect_communications, set_runtime_context
 
 
 @pytest.mark.parametrize(
@@ -18,7 +21,8 @@ from cdprecorder.recorder import collect_communications
     ],
 )
 @pytest.mark.asyncio
-async def test_parse_communications_into_actions(events_file, actions_file):
+@patch("cdprecorder.recorder.RuntimeContext")
+async def test_parse_communications_into_actions(RuntimeContext, events_file, actions_file):
     with open(events_file, encoding="utf8") as f:
         events = json.load(f)
     with open(actions_file, encoding="utf8") as f:
@@ -26,8 +30,12 @@ async def test_parse_communications_into_actions(events_file, actions_file):
 
     event_mock = EventMock(events)
     urlfilter = UrlfilterMock()
+    set_runtime_context(RuntimeContext())
+
     communications = await collect_communications(event_mock, 
-        event_mock, urlfilter, "", timeout=10, collect_all=True)
+        event_mock, urlfilter, timeout=10, collect_all=True)
+    
+    set_runtime_context(None)
 
     actions = parse_communications_into_actions(communications)
 

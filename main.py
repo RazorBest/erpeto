@@ -624,7 +624,7 @@ async def run(options: RecorderOptions) -> None:
 
 
 async def main() -> None:
-    start_url = "https://43.pentest-tools.com:449/login"
+    start_url = "https://github.com/"
     options = RecorderOptions(start_url)
     await run(options)
 

@@ -462,6 +462,10 @@ class WidgetState:
             await self._send_state_pos(self.top, self.right, self.bottom, self.left)
 
 
+# This function isn't used for now, because it doesn't work properly
+# We use bind_func_to_context_id, instead
+# Binding to context_name works first time
+# But, it doesn't work when the recorder is restarted and the same Chrome tab is used
 async def bind_func_to_context(
     target_session: pycdp.twisted.CDPSession, name: str, context_name: Optional[str]
 ) -> None:
@@ -470,12 +474,23 @@ async def bind_func_to_context(
     await target_session.execute(cdp.runtime.add_binding(name, execution_context_name=context_name))
 
 
+async def bind_func_to_context_id(
+    target_session: pycdp.twisted.CDPSession, name: str, context_id: Optional[cdp.runtime.ExecutionContextId]
+) -> None:
+    if context_id is None:
+        return
+    # Using execution_context_id is deprecated
+    # But, adding the biding with execution_context_name doesn't work when the recorder is restarted
+    #   on an already started Chrome
+    await target_session.execute(cdp.runtime.add_binding(name, execution_context_id=context_id))
+
+
 async def init_runtime_scripts(target_session: pycdp.twisted.CDPSession) -> RuntimeContext:
     widget_context_name, widget_context_id = await insert_widget_extension(target_session)
     listener_context_name, listener_context_id = await insert_js_action_listener(target_session)
-    await bind_func_to_context(target_session, RuntimeContext.TOGGLE_RECORD_BINDING, widget_context_name)
-    await bind_func_to_context(target_session, RuntimeContext.SEND_WIDGET_POS_BINDING, widget_context_name)
-    await bind_func_to_context(target_session, RuntimeContext.EVENT_SEND_BINDING, listener_context_name)
+    await bind_func_to_context_id(target_session, RuntimeContext.TOGGLE_RECORD_BINDING, widget_context_id)
+    await bind_func_to_context_id(target_session, RuntimeContext.SEND_WIDGET_POS_BINDING, widget_context_id)
+    await bind_func_to_context_id(target_session, RuntimeContext.EVENT_SEND_BINDING, listener_context_id)
 
     widget = WidgetState(target_session)
 
@@ -555,12 +570,12 @@ class RuntimeContext:
     async def on_execution_context_created(self, evt: cdp.runtime.ExecutionContextCreated) -> None:
         if evt.context.name == self.widget_context_name:
             self.widget_context_id = evt.context.id_
-            await bind_func_to_context(self.target_session, self.TOGGLE_RECORD_BINDING, self.widget_context_name)
-            await bind_func_to_context(self.target_session, self.SEND_WIDGET_POS_BINDING, self.widget_context_name)
+            await bind_func_to_context_id(self.target_session, self.TOGGLE_RECORD_BINDING, self.widget_context_id)
+            await bind_func_to_context_id(self.target_session, self.SEND_WIDGET_POS_BINDING, self.widget_context_id)
             await self.widget.send_state()
         elif evt.context.name == self.listener_context_name:
             self.listener_context_id = evt.context.id_
-            await bind_func_to_context(self.target_session, self.EVENT_SEND_BINDING, self.listener_context_name)
+            await bind_func_to_context_id(self.target_session, self.EVENT_SEND_BINDING, self.listener_context_id)
 
     @property
     def recording_running(self) -> bool:

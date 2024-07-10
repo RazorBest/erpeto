@@ -2,8 +2,17 @@
 
 // This functions are overwritten with CDP Runtime.addBinding, in the recorder
 // All bindings must take exactly one parameter that is a string
-function toggleRecord(message) {}
-function sendWidgetPos(message) {}
+// Don't define the function if it's already defined
+// This might happen if the recorder was run previously, in the same Chrome session
+// Normally, redefining a function in javascript isn't a problem
+// But, if you add a binding from CDP, if you redefine the function, the binding seems to be removed
+if (typeof toggleRecord === "function") {
+    function toggleRecord(message) { }
+}
+
+if (typeof sendWidgetPos === "function") {
+    function sendWidgetPos(message) { }
+}
 
 // Helper function
 function _sendWidgetPos(elem) {

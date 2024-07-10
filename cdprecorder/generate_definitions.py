@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import inspect
 from typing import TYPE_CHECKING
 
@@ -90,16 +91,21 @@ LOWERCASESTR_DEFINITION = """class LowercaseStr(str):
 """
 
 
-INTERMEDIARY_DATASOURCE_DEFINITION = """class IntermediaryDataSource:
-    def __init__(self, upper_source):
-        self.upper_source = upper_source
+def get_source_code(obj, annotations=False):
+    source = inspect.getsource(obj)
+    if annotations:
+        return source
 
-    def get_value(self, prev_actions):
-        upper_source_value = self.upper_source.get_value(prev_actions)
-        return get_value_from_upper_value(self.upper_source)
+    # Remove annotations from the python code
+    ast_obj = ast.parse(source)
+    for node in ast.walk(ast_obj):
+        if "annotation" in node._fields:
+            node.annotation = []
+        if "returns" in node._fields:
+            node.returns = []
+    source = ast.unparse(ast_obj)
 
-
-"""
+    return source
 
 
 def get_module_level_classes(module: types.ModuleType) -> list[type]:
@@ -119,15 +125,15 @@ def get_module_level_classes(module: types.ModuleType) -> list[type]:
 def generate_datasource_definitions() -> str:
     content = ""
 
-    content += inspect.getsource(datasource.DataSource) + "\n\n"
-    content += inspect.getsource(datasource.IntermediaryDataSource) + "\n\n"
+    content += get_source_code(datasource.DataSource) + "\n\n"
+    content += get_source_code(datasource.IntermediaryDataSource) + "\n\n"
     for obj in get_module_level_classes(datasource):
         if not issubclass(obj, datasource.DataSource):
             continue
         if obj in (datasource.DataSource, datasource.IntermediaryDataSource):
             continue
 
-        content += inspect.getsource(obj) + "\n\n"
+        content += get_source_code(obj) + "\n\n"
 
     return content
 
@@ -135,19 +141,19 @@ def generate_datasource_definitions() -> str:
 def generate_datatarget_definitions() -> str:
     content = ""
     for obj in get_module_level_classes(datatarget):
-        content += inspect.getsource(obj) + "\n\n"
+        content += get_source_code(obj) + "\n\n"
 
     return content
 
 
 def generate_action_functions() -> str:
-    return inspect.getsource(action.response_action_from_python_response) + "\n\n"
+    return get_source_code(action.response_action_from_python_response) + "\n\n"
 
 
 def generate_util_definitions() -> str:
     content = ""
     for obj in get_module_level_classes(util):
-        content += inspect.getsource(obj) + "\n\n"
+        content += get_source_code(obj) + "\n\n"
 
     return content
 
@@ -159,7 +165,6 @@ def generate_definitions() -> str:
     content += COOKIE_DEFINITION
     content += REQUEST_ACTION_DEFINITION
     content += RESPONSE_ACTION_DEFINITION
-    content += INTERMEDIARY_DATASOURCE_DEFINITION
     content += generate_util_definitions()
     content += generate_datasource_definitions()
     content += generate_datatarget_definitions()

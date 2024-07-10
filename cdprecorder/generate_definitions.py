@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 from typing import TYPE_CHECKING
 
-from . import action, datasource, datatarget
+from . import action, datasource, datatarget, util
 
 if TYPE_CHECKING:
     import types
@@ -105,13 +105,15 @@ INTERMEDIARY_DATASOURCE_DEFINITION = """class IntermediaryDataSource:
 def get_module_level_classes(module: types.ModuleType) -> list[type]:
     module_name = module.__name__
 
-    classes: list[type] = []
+    classes: list[tuple[int, type]] = []
     for _, obj in inspect.getmembers(module):
         if not inspect.isclass(obj) or obj.__module__ != module_name:
             continue
-        classes.append(obj)
+        line_number = inspect.getsourcelines(obj)[1]
+        classes.append((line_number, obj))
+    classes.sort()
 
-    return classes
+    return [obj for _, obj in classes]
 
 
 def generate_datasource_definitions() -> str:
@@ -142,6 +144,14 @@ def generate_action_functions() -> str:
     return inspect.getsource(action.response_action_from_python_response) + "\n\n"
 
 
+def generate_util_definitions() -> str:
+    content = ""
+    for obj in get_module_level_classes(util):
+        content += inspect.getsource(obj) + "\n\n"
+
+    return content
+
+
 def generate_definitions() -> str:
     content = ""
     content += IMPORTS
@@ -150,6 +160,7 @@ def generate_definitions() -> str:
     content += REQUEST_ACTION_DEFINITION
     content += RESPONSE_ACTION_DEFINITION
     content += INTERMEDIARY_DATASOURCE_DEFINITION
+    content += generate_util_definitions()
     content += generate_datasource_definitions()
     content += generate_datatarget_definitions()
     content += generate_action_functions()

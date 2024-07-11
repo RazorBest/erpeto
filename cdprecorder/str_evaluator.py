@@ -4,9 +4,6 @@ import string
 
 def randomness_score(text: str) -> float:
     """Computes the chi squared statistic, with the frequencies of the text."""
-    if len(text) <= 3:
-        return 0
-
     n = 0
     text = text.lower()
     freq: dict[str, int] = collections.defaultdict(lambda: 0)
@@ -26,6 +23,9 @@ def randomness_score(text: str) -> float:
 
 
 def is_random(text: str) -> bool:
+    if len(text) <= 4:
+        return False
+
     chi = randomness_score(text)     
     n = 0
     for c in text.lower():

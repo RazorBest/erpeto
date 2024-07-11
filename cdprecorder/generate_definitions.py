@@ -91,18 +91,64 @@ LOWERCASESTR_DEFINITION = """class LowercaseStr(str):
 """
 
 
-def get_source_code(obj, annotations=False):
+def get_source_code(obj, annotations=False, docstrings=False):
     source = inspect.getsource(obj)
-    if annotations:
+    if annotations and docstrings:
         return source
 
-    # Remove annotations from the python code
     ast_obj = ast.parse(source)
-    for node in ast.walk(ast_obj):
-        if "annotation" in node._fields:
-            node.annotation = []
-        if "returns" in node._fields:
-            node.returns = []
+
+    # Remove annotations from the python code
+    if not annotations:
+        for node in ast.walk(ast_obj):
+            if "annotation" in node._fields:
+                node.annotation = []
+            if "returns" in node._fields:
+                node.returns = []
+
+            if "body" not in node._fields:
+                continue
+
+            for idx, child in enumerate(node.body):
+                if not isinstance(child, ast.AnnAssign):
+                    continue
+                if "value" not in child._fields:
+                    continue
+                new_node = ast.Assign([child.target], child.value)
+                ast.copy_location(new_node, child)
+                node.body[idx] = new_node
+
+    # Remove docstrings from the python code
+    if not docstrings:
+        for node in ast.walk(ast_obj):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module)):
+                continue
+
+            if len(node.body) == 0:
+                continue
+
+            # Check if the first child is a string expression
+            first_child = node.body[0]
+            if not isinstance(first_child, ast.Expr):
+                continue
+
+            if not isinstance(first_child.value, ast.Constant) or not isinstance(first_child.value.value, str):
+                continue
+
+            # The spec says that end_lineno is optional
+            # https://docs.python.org/3.11/library/ast.html#ast.AST
+            # We might handle this case in the future
+            if first_child.end_lineno is None:
+                continue
+
+            removed_lines_count = first_child.end_lineno - first_child.lineno + 1
+
+            # Remove the first child, which is the docstring
+            node.body.pop(0)
+
+            for child in node.body:
+                ast.increment_lineno(child, n=-removed_lines_count)
+
     source = ast.unparse(ast_obj)
 
     return source

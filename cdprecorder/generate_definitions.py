@@ -91,7 +91,7 @@ LOWERCASESTR_DEFINITION = """class LowercaseStr(str):
 """
 
 
-def get_source_code(obj, annotations=False, docstrings=False):
+def get_source_code(obj: object, annotations: bool = False, docstrings: bool = False) -> str:
     source = inspect.getsource(obj)
     if annotations and docstrings:
         return source

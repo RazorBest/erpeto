@@ -65,69 +65,80 @@ class ResponseAction:
         self.status = status
 
 
+class DynamicRepr:
+
+    def __repr__(self):
+        params = inspect.signature(self.__init__).parameters
+        args = []
+        for name in params:
+            if not hasattr(self, name):
+                continue
+            args.append(f'{name}={getattr(self, name)!r}')
+        args_line = ', '.join(args)
+        classname = self.__class__.__name__
+        return f'{classname}({args_line})'
+
+class DataSource(ABC, DynamicRepr):
+
+    @abstractmethod
+    def get_value(self, prev_actions):
+
 class IntermediaryDataSource:
+
     def __init__(self, upper_source):
         self.upper_source = upper_source
 
     def get_value(self, prev_actions):
-        upper_source_value = self.upper_source.get_value(prev_actions)
-        return get_value_from_upper_value(self.upper_source)
-
-
-class DataSource(ABC, DynamicRepr):
-    @abstractmethod
-    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
-        """Returns the value obtained from the actions, if available."""
-
-
-class IntermediaryDataSource:
-    def __init__(self, upper_source: DataSource) -> None:
-        self.upper_source = upper_source
-
-    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
         upper_source_value = self.upper_source.get_value(prev_actions)
         if upper_source_value is None:
             return None
         return self.get_value_from_upper_value(upper_source_value)
 
     @abstractmethod
-    def get_value_from_upper_value(self, upper_value: str) -> Optional[str]:
-        """Returns the value obtained by processing the upper value."""
-
-
-class JSONContainer(DataSource):
-    def __init__(self, schema: JSONSchema, targets: list[JSONFieldTarget]):
-        self.data = schema.data
-        self.targets: list[JSONFieldTarget] = targets
-
-    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
-        data = deepcopy(self.data)
-
-        for target in self.targets:
-            target.apply(data, prev_actions)
-
-        return json.dumps(data)
-
+    def get_value_from_upper_value(self, upper_value):
 
 class StrSource(DataSource):
-    def __init__(self, text: str) -> None:
+
+    def __init__(self, text):
         self.text = text
 
-    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
+    def get_value(self, prev_actions):
         return self.text
 
+class JSONContainer(DataSource):
 
-class BodyTarget(SingleSourcedTarget):
-    def apply_value(self, action: HttpAction, value: str) -> None:
-        action.body = value.encode()
+    def __init__(self, schema, targets):
+        self.data = schema.data
+        self.targets = targets
 
+    def get_value(self, prev_actions):
+        data = deepcopy(self.data)
+        for target in self.targets:
+            target.apply(data, prev_actions)
+        return json.dumps(data)
+
+class SingleSourcedTarget(ABC):
+
+    def __init__(self, source):
+        self.source = source
+
+    def apply(self, action, prev_actions):
+        value = self.source.get_value(prev_actions)
+        if value is None:
+            return
+        self.apply_value(action, value)
+
+    @abstractmethod
+    def apply_value(self, action, value):
+        pass
 
 class CookieTarget(SingleSourcedTarget):
-    def __init__(self, name: str, source: DataSource):
+
+    def __init__(self, name, source):
         super().__init__(source)
         self.name = name
 
-    def apply_value(self, action: HttpAction, value: str) -> None:
+    def apply_value(self, action, value):
         for cookie in action.cookies:
             if cookie.name == self.name:
                 cookie.value = value
@@ -135,49 +146,29 @@ class CookieTarget(SingleSourcedTarget):
         else:
             action.cookies.append(Cookie(self.name, value))
 
-
 class HeaderTarget(SingleSourcedTarget):
-    def __init__(self, source: DataSource, key: str, value: str):
+
+    def __init__(self, source, key, value):
         super().__init__(source)
         self.key = LowercaseStr(key)
         self.value = value
 
-    def apply_value(self, action: HttpAction, value: str) -> None:
+    def apply_value(self, action, value):
         action.headers[self.key] = value
 
+class BodyTarget(SingleSourcedTarget):
 
-class SingleSourcedTarget(ABC):
-    def __init__(self, source: DataSource):
-        self.source = source
+    def apply_value(self, action, value):
+        action.body = value.encode()
 
-    def apply(self, action: HttpAction, prev_actions: list[Optional[HttpAction]]) -> None:
-        value = self.source.get_value(prev_actions)
-        if value is None:
-            return
-        self.apply_value(action, value)
-
-    @abstractmethod
-    def apply_value(self, action: HttpAction, value: str) -> None:
-        pass
-
-
-def response_action_from_python_response(resp: requests.Response) -> ResponseAction:
-    """Converts a python response from the requests module to a ResponseAction."""
-    headers: dict[LowercaseStr, str] = {}
-    for key, val in resp.headers.items():
-        # Ignore pseudo-headers: https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2.1
-        if key.startswith(":"):
+def response_action_from_python_response(resp):
+    headers = {}
+    for (key, val) in resp.headers.items():
+        if key.startswith(':'):
             continue
         headers[LowercaseStr(key)] = val
-
     cookies = Cookie.list_from_cookiejar(resp.cookies)
-    return ResponseAction(
-        url=resp.url,
-        headers=headers,
-        cookies=cookies,
-        body=resp.raw,
-        status=resp.status_code,
-    )
+    return ResponseAction(url=resp.url, headers=headers, cookies=cookies, body=resp.raw, status=resp.status_code)
 
 
 actions = []

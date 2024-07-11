@@ -21,6 +21,7 @@ from typing import (
 )
 
 import pycdp
+import pycdp.twisted
 import twisted.internet.reactor
 from pycdp import cdp
 from pycdp.browser import ChromeLauncher
@@ -94,8 +95,14 @@ async def insert_js_leech_script(
 
     await target_session.execute(cdp.page.runtime.enable())
 
+    receiver = None
+    evt_to_listen = cdp.runtime.ExecutionContextCreated
     try:
-        listener = target_session.listen(cdp.runtime.ExecutionContextCreated)
+        # Don't call target_session.listen because we need the receiver object to close it at the end
+        receiver = pycdp.twisted.CDPEventListener(pycdp.twisted.DeferredQueue(1024))
+        target_session._listeners[evt_to_listen].add(receiver)
+        listener = aiter(receiver)
+
         await target_session.execute(
             cdp.page.add_script_to_evaluate_on_new_document(expression, run_immediately=True, world_name=context_name)
         )
@@ -108,7 +115,8 @@ async def insert_js_leech_script(
     except defer.TimeoutError as exc:
         raise Exception from exc
     finally:
-        target_session.close_listeners()
+        if receiver is not None:
+            receiver.close()
 
     if context_id is None:
         raise Exception
@@ -650,6 +658,18 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
 
     await target_session.execute(cdp.network.enable())
 
+    # Start the listener before navigating to the page
+    listener = target_session.listen(
+        cdp.runtime.BindingCalled,
+        cdp.runtime.ExecutionContextCreated,
+        cdp.network.RequestWillBeSent,
+        cdp.network.RequestWillBeSentExtraInfo,
+        cdp.network.ResponseReceived,
+        cdp.network.ResponseReceivedExtraInfo,
+        cdp.network.LoadingFinished,
+        buffer_size=4096,
+    )
+
     if options.start_url:
         start_url = options.start_url
         await target_session.execute(cdp.page.navigate(start_url))
@@ -667,16 +687,6 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
         start_origin = extract_origin(start_url)
 
     try:
-        listener = target_session.listen(
-            cdp.runtime.BindingCalled,
-            cdp.runtime.ExecutionContextCreated,
-            cdp.network.RequestWillBeSent,
-            cdp.network.RequestWillBeSentExtraInfo,
-            cdp.network.ResponseReceived,
-            cdp.network.ResponseReceivedExtraInfo,
-            cdp.network.LoadingFinished,
-            buffer_size=1024,
-        )
         communications = await collect_communications(target_session, listener, urlfilter, 20, False, start_origin)
     finally:
         target_session.close_listeners()

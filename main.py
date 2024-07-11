@@ -54,7 +54,7 @@ from cdprecorder.recorder import (
     RecorderOptions,
     record,
 )
-from cdprecorder.str_evaluator import randomness_score
+from cdprecorder.str_evaluator import is_random
 
 if TYPE_CHECKING:
     import builtins
@@ -266,8 +266,7 @@ def analyze_actions(actions: list[BrowserAction]) -> None:
             for key, value in action.headers.items():
                 if key.lower() in CONST_HEADERS:
                     continue
-                score = randomness_score(value)
-                if score > 50:
+                if is_random(value):
                     index, source = look_for_str_in_actions(value, actions[:i])
                     if source:
                         target: HttpTarget = HeaderTarget(source, key, value)
@@ -278,8 +277,7 @@ def analyze_actions(actions: list[BrowserAction]) -> None:
             for cookie in action.cookies:
                 if not cookie.value:
                     continue
-                score = randomness_score(cookie.value)
-                if score > 50:
+                if is_random(cookie.value):
                     index, source = look_for_str_in_actions(cookie.value, actions[:i])
                     if source:
                         target = CookieTarget(cookie.name, source)
@@ -307,8 +305,7 @@ def analyze_actions(actions: list[BrowserAction]) -> None:
                         print(f"Found {source_group.__class__.__name__} for BodyTarget")
                 except json.JSONDecodeError:
                     # This shouldn't be functional
-                    score = randomness_score(body)
-                    if score > 50:
+                    if is_random(body):
                         index, source = look_for_str_in_actions(body, actions[:i])
                         if source:
                             target = BodyTarget(source)

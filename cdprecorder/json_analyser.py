@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional, Union
 
 from .datasource import DataSource
-from .str_evaluator import randomness_score
+from .str_evaluator import is_random
 
 
 @dataclass(frozen=True, eq=False)
@@ -22,7 +22,7 @@ class JSONSchema:
         if token_classifier is not None:
             self.classifier = token_classifier
         else:
-            self.classifier = lambda token: randomness_score(token) >= 50
+            self.classifier = lambda token: is_random(token)
 
         self.fields: list[JSONField] = []
         self.classify_tokens()

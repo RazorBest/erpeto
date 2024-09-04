@@ -70,7 +70,7 @@ class ActionDataSource(ABC, DynamicRepr):
         """Returns the value obtained from one action, if available."""
 
 
-class IntermediaryDataSource:
+class IntermediaryDataSource(DataSource):
     def __init__(self, upper_source: DataSource) -> None:
         self.upper_source = upper_source
 
@@ -93,6 +93,21 @@ class SubstrSource(IntermediaryDataSource):
 
     def get_value_from_upper_value(self, upper_value: str) -> Optional[str]:
         return upper_value[self.start : self.end]
+
+
+class RegexSource(IntermediaryDataSource):
+    def __init__(self, upper_source: DataSource, pattern: str, default: str) -> None:
+        super().__init__(upper_source)
+        self.pattern = pattern
+        self.default = default
+
+    def get_value_from_upper_value(self, upper_value: str) -> Optional[str]:
+        groups = re.search(self.pattern, upper_value, flags=re.DOTALL|re.IGNORECASE)
+        
+        if groups is None:
+            return self.default
+
+        return groups[1]
 
 
 class StrSource(DataSource):
@@ -123,7 +138,7 @@ class CookieSource(ActionDataSource):
     def get_value_from_action(self, action: HttpAction) -> Optional[str]:
         for cookie in action.cookies:
             if cookie.name == self.name:
-                matched = re.match(self.strcontext, cookie.value)
+                matched = re.match(self.strcontext, cookie.value, flags=re.DOTALL)
                 if matched is None:
                     return None
 
@@ -210,3 +225,29 @@ class JSONContainer(DataSource):
             target.apply(data, prev_actions)
 
         return json.dumps(data)
+
+
+class QueryStringContainer(DataSource):
+    def __init__(self, qlist: list[tuple[Union[str, DataSource], Union[str, DataSource]]]):
+        self.qlist = qlist
+
+    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
+        data_pairs = []
+        for name_source, value_source in self.qlist:
+            if isinstance(value_source, str):
+                value = value_source
+            else:
+                value = value_source.get_value(prev_actions)
+                if value is None:
+                    return None
+            
+            if isinstance(name_source, str):
+                name = name_source
+            else:
+                name = name_source.get_value(prev_actions)
+                if name is None:
+                    return None
+            
+            data_pairs.append(f"{urllib.parse.quote_plus(name)}={urllib.parse.quote_plus(value)}")
+        
+        return "&".join(data_pairs)

@@ -144,11 +144,17 @@ def get_source_code(obj: object, annotations: bool = False, docstrings: bool = F
             removed_lines_count = first_child.end_lineno - first_child.lineno + 1
 
             # Remove the first child, which is the docstring
-            node.body.pop(0)
+            old_node = node.body.pop(0)
+
+            # Don't let the body be empty, because parsing won't work
+            if len(node.body) == 0:
+                new_node = ast.Pass()
+                ast.copy_location(new_node, old_node)
+                node.body.append(new_node)
 
             for child in node.body:
                 ast.increment_lineno(child, n=-removed_lines_count)
-
+    
     source = ast.unparse(ast_obj)
 
     return source
@@ -174,7 +180,7 @@ def generate_datasource_definitions() -> str:
     content += get_source_code(datasource.DataSource) + "\n\n"
     content += get_source_code(datasource.IntermediaryDataSource) + "\n\n"
     for obj in get_module_level_classes(datasource):
-        if not issubclass(obj, datasource.DataSource):
+        if not issubclass(obj, datasource.DataSource) and not issubclass(obj, datasource.ActionDataSource):
             continue
         if obj in (datasource.DataSource, datasource.IntermediaryDataSource):
             continue

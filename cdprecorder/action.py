@@ -44,8 +44,8 @@ class LowercaseStr(str):
 
 class BrowserAction:
     """Base class for all actions performed in Chrome."""
-
     def __init__(self) -> None:
+        self.ID: int = -1
         self.targets: list[HttpTarget] = []
 
 
@@ -190,6 +190,6 @@ def response_action_from_python_response(resp: requests.Response) -> ResponseAct
         url=resp.url,
         headers=headers,
         cookies=cookies,
-        body=resp.raw,
+        body=resp.text.encode(),
         status=resp.status_code,
     )

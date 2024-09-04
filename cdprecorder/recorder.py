@@ -364,7 +364,7 @@ class CDPConnection(_PyCDPConnection):
 
 
 # Default path: Windows
-CHROME_BINARY = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+CHROME_BINARY = r"C:\Users\Marius\AppData\Local\Google\Chrome\Application\chrome.exe"
 if platform.system() == "Linux":
     CHROME_BINARY = "/usr/bin/google-chrome-stable"
 if platform.system() == "Darwin":
@@ -375,6 +375,7 @@ if platform.system() == "Darwin":
 class RecorderOptions:
     start_url: str
     keep_only_same_origin_urls: bool = True
+    collect_all: bool = False
     binary: str = CHROME_BINARY
     cdp_host: str = "localhost"
     cdp_port: int = 9222
@@ -687,7 +688,14 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
         start_origin = extract_origin(start_url)
 
     try:
-        communications = await collect_communications(target_session, listener, urlfilter, 20, False, start_origin)
+        communications = await collect_communications(
+            target_session,
+            listener,
+            urlfilter,
+            20,
+            options.collect_all,
+            start_origin
+        )
     finally:
         target_session.close_listeners()
         await conn.close()

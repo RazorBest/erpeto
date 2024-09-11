@@ -55,6 +55,7 @@ class InputAction(BrowserAction):
     def __init__(self, text: str, selector: str, timestamp: float) -> None:
         super().__init__()
         self.text = text
+        # The CSS selector to the HTML element corresponding to the action
         self.selector = selector
         self.timestamp = timestamp
 

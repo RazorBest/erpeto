@@ -9,25 +9,26 @@ from bs4 import BeautifulSoup
 
 from cdprecorder.action import (
     BrowserAction,
-    InputAction,
     HttpAction,
+    InputAction,
     RequestAction,
     ResponseAction,
 )
 from cdprecorder.datasource import (
+    BodySource,
+    CookieSource,
     DataSource,
+    InputSource,
+    JSONFieldTarget,
+    JSONContainer,
     QueryStringContainer,
     RegexSource,
     SubstrSource,
-    JSONFieldTarget,
-    JSONContainer,
-    CookieSource,
-    BodySource,
 )
 from cdprecorder.datatarget import (
+    BodyTarget,
     CookieTarget,
     HeaderTarget,
-    BodyTarget,
     SingleSourcedTarget,
 )
 from cdprecorder.json_analyser import JSONSchema
@@ -379,7 +380,6 @@ class HTMLAttrValuePattern:
 
 
 def html_attr_value_pattern_from_tag(tag: bs4.Tag, attr_name: str) -> HTMLAttrValuePattern:
-
     attrs = list(tag.attrs.items())
     pos_of_attr_name = -1
     for idx, (k, v) in enumerate(attrs):
@@ -568,11 +568,7 @@ def look_for_str_in_response(text: str, action: ResponseAction, stype="") -> Opt
     text_bin = text.encode()
     
     if action.body and action.body.find(text_bin) != -1:
-        print(f"Found {text} in body")
-        context = find_context(action.body, text_bin, data_type="bytes")
         pattern = find_source_of_str_in_body(action.body.decode("utf8"), text)
-        print(f"Found pattern: {pattern}")
-        # TODO: do something with the context
         if pattern is not None:
             return RegexSource(BodySource(action.ID), pattern, default=text)
 
@@ -580,6 +576,8 @@ def look_for_str_in_response(text: str, action: ResponseAction, stype="") -> Opt
         escaped_value = value
         if key.lower() == "set-cookie":
             escaped_value = urllib.parse.unquote(value)
+        
+        source = None
 
         if text in escaped_value:
             if key.lower() == "set-cookie":
@@ -598,13 +596,8 @@ def look_for_str_in_response(text: str, action: ResponseAction, stype="") -> Opt
 
                         source = CookieSource(action.ID, cookie.name, strcontext)
                         break
-                else:
-                    # TODO: treat this case
-                    pass
 
                 return source
-
-
             else:
                 pass
                 """
@@ -622,11 +615,11 @@ def look_for_str_in_response(text: str, action: ResponseAction, stype="") -> Opt
 
 
 def look_for_str_in_input_action(text: str, action: InputAction) -> Optional[DataSource]:
-    if action.value in text:
-        start = text.find[action.value]
-        end = start + len(action.value)
+    if action.text in text:
+        start = text.find(action.text)
+        end = start + len(action.text)
 
-        src1 = InputSource(action.value)
+        src1 = InputSource(action.text)
         src2 = SubstrSource(src1, start, end)
 
         return src2
@@ -640,7 +633,7 @@ def look_for_str_in_actions(text: str, actions: list[HttpAction], stype="") -> O
         source = None
         if isinstance(action, ResponseAction):
             source = look_for_str_in_response(text, action, stype=stype)
-        elif isinstance(actions, InputAction):
+        elif isinstance(action, InputAction):
             source = look_for_str_in_input_action(text, action)
 
         if source is not None:
@@ -650,14 +643,15 @@ def look_for_str_in_actions(text: str, actions: list[HttpAction], stype="") -> O
 
 
 def look_for_str_in_last_source_actions(text: str, actions: list[HttpAction], stype="", limit=10) -> Optional[DataSource]:
-    """Takes a string and looks for it through the actions present in the actions."""
+    """Receives a string and looks for it through the last actions present in the actions, up to the
+    given limit."""
     actions_checked = 0
     for action in actions[::-1]:
         source = None
         if isinstance(action, ResponseAction):
             source = look_for_str_in_response(text, action, stype=stype)
             actions_checked += 1
-        elif isinstance(actions, InputAction):
+        elif isinstance(action, InputAction):
             source = look_for_str_in_input_action(text, action)
             actions_checked += 1
 
@@ -671,11 +665,11 @@ def look_for_str_in_last_source_actions(text: str, actions: list[HttpAction], st
 
 
 def search_for_header(actions: list, key: str, value: str) -> list[SingleSourcedTarget]:
+    """Looks for actions that might generate the given header key and value. In the case of
+    success, returns the header generator."""
     if key.lower() in CONST_HEADERS:
         return []
 
-    if key == "app-session-id":
-        print(f"app-session-id({value}) is_random: {is_random(value)}")
     if is_random(value):
         source = look_for_str_in_actions(value, actions)
         if source:
@@ -688,13 +682,12 @@ def search_for_header(actions: list, key: str, value: str) -> list[SingleSourced
 
 
 def search_for_cookie(actions: list, cookie: Cookie) -> list[SingleSourcedTarget]:
+    """Looks for actions that might generate the given cookie. In the case of
+    success, returns the cookie generator."""
     if not cookie.value:
         return []
-    if "sess" in cookie.name:
-        print(f"Cookie {cookie.name} is_random: {is_random(cookie.value)}")
     if is_random(cookie.value):
-        source = look_for_str_in_actions(cookie.value, actions)
-        if source:
+        if source := look_for_str_in_actions(cookie.value, actions):
             target = CookieTarget(cookie.name, source)
             print(f"Found {source.__class__.__name__} for {target.__class__.__name__}")
             return [target]

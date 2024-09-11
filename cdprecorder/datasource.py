@@ -53,7 +53,16 @@ class DataSource(ABC, DynamicRepr):
         """Returns the value obtained from the actions, if available."""
 
 
-class ActionDataSource(ABC, DynamicRepr):
+class InputSource(DataSource):
+    """Represents data that comes from a user"""
+    def __init__(self, text: str):
+        self.text = text
+    
+    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
+        return self.text
+
+
+class ActionDataSource(DataSource):
     def __init__(self, index: int):
         self.index = index
 

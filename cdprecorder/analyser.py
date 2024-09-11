@@ -763,7 +763,7 @@ def search_for_query_string(actions: list, query_list: list[tuple[str, str]]) ->
     return []
 
 
-def analyze_actions(actions: list[BrowserAction]) -> None:
+def analyse_actions(actions: list[BrowserAction]) -> None:
     for action_idx, action in enumerate(actions):
         if isinstance(action, RequestAction):
             for key, value in action.headers.items():

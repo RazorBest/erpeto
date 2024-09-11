@@ -327,7 +327,7 @@ async def run(options: RecorderOptions) -> None:
     communications = await record(options)
     actions = parse_communications_into_actions(communications)
     make_action_ids_consecutive_from_list(actions)
-    cdprecorder.analyser.analyze_actions(actions)
+    cdprecorder.analyser.analyse_actions(actions)
     #actions = get_only_http_actions(actions)
     #run_actions(actions)
 

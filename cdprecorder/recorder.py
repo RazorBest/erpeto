@@ -52,6 +52,48 @@ LOGO_PATH = "./logo.png"
 RECORDER_WIDGET_PATH = "./recorder_widget.js"
 EVENT_LISTENER_PATH = "./event_listener.js"
 
+NETWORK_EVENTS = [cls for method, cls in pycdp.cdp.util._event_parsers.items() if method.startswith("Network.")]
+
+class PyCDPListener:
+    def __init__(self, cdp_session: pycdp.twisted.CDPSession, *event_types: Type[T], buffer_size=100):
+        self._queue = DeferredQueue(buffer_size)
+        self._closed = False
+        self.network_events_count = 0
+
+        for event_type in event_types:
+            cdp_session._listeners[event_type].add(self)
+    
+    @property
+    def closed(self):
+        return self._closed
+
+    def put(self, elem: dict):
+        if self._closed: raise pycdp.twisted.CDPEventListenerClosed
+        if elem.__class__ in NETWORK_EVENTS:
+            self.network_events_count += 1
+        self._queue.put(elem)
+
+    def close(self):
+        self._closed = True
+        try:
+            self._queue.put(pycdp.twisted._CLOSE_SENTINEL)
+        except QueueOverflow:
+            pass
+
+    async def __aiter__(self):
+        try:
+            while not self._closed:
+                elem = await self._queue.get()
+                if elem.__class__ in NETWORK_EVENTS:
+                    self.network_events_count -= 1
+                if elem is pycdp.twisted._CLOSE_SENTINEL:
+                    return
+                yield elem
+        finally:
+            self._closed = True
+
+    def __str__(self) -> str:
+        return f'{self.__class__.__name__}(buffer={len(self._queue.pending)}/{self._queue.size}, closed={self._closed})'
 
 class AwaitableIsNotCoroutine(Exception):
     pass
@@ -302,7 +344,7 @@ class Recorder:
 
 async def collect_communications(
     target_session: pycdp.twisted.CDPSession,
-    listener: AsyncIterator[object],
+    listener: PyCDPListener,
     urlfilter: filters.URLFilter,
     timeout: int = 120,
     collect_all: bool = False,
@@ -324,8 +366,8 @@ async def collect_communications(
     """
     recorder = Recorder(target_session, urlfilter, collect_all, start_origin)
     runtime_context = get_runtime_context()
-
-    timed_listener = AsyncIterableWithTimeout(listener, timeout)
+    
+    timed_listener = AsyncIterableWithTimeout(aiter(listener), timeout)
     async for evt in timed_listener:
         if isinstance(evt, cdp.runtime.BindingCalled):
             await recorder.on_binding_called(evt)
@@ -494,7 +536,7 @@ async def bind_func_to_context_id(
     await target_session.execute(cdp.runtime.add_binding(name, execution_context_id=context_id))
 
 
-async def init_runtime_scripts(target_session: pycdp.twisted.CDPSession) -> RuntimeContext:
+async def init_runtime_scripts(target_session: pycdp.twisted.CDPSession, event_listener: PyCDPListener) -> RuntimeContext:
     widget_context_name, widget_context_id = await insert_widget_extension(target_session)
     listener_context_name, listener_context_id = await insert_js_action_listener(target_session)
     await bind_func_to_context_id(target_session, RuntimeContext.TOGGLE_RECORD_BINDING, widget_context_id)
@@ -505,6 +547,7 @@ async def init_runtime_scripts(target_session: pycdp.twisted.CDPSession) -> Runt
 
     runtime = RuntimeContext(
         target_session,
+        event_listener,
         widget_context_name,
         widget_context_id,
         listener_context_name,
@@ -530,6 +573,7 @@ class RuntimeContext:
     def __init__(
         self,
         target_session: pycdp.twisted.CDPSession,
+        event_listener: PyCDPListener,
         widget_context_name: str,
         widget_context_id: cdp.runtime.ExecutionContextId,
         listener_context_name: str,
@@ -537,6 +581,7 @@ class RuntimeContext:
         widget: WidgetState,
     ):
         self.target_session = target_session
+        self.event_listener = event_listener
         self.widget_context_name = widget_context_name
         self.widget_context_id = widget_context_id
         self.listener_context_name = listener_context_name
@@ -660,7 +705,8 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
     await target_session.execute(cdp.network.enable())
 
     # Start the listener before navigating to the page
-    listener = target_session.listen(
+    listener = PyCDPListener(
+        target_session,
         cdp.runtime.BindingCalled,
         cdp.runtime.ExecutionContextCreated,
         cdp.network.RequestWillBeSent,
@@ -668,8 +714,11 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
         cdp.network.ResponseReceived,
         cdp.network.ResponseReceivedExtraInfo,
         cdp.network.LoadingFinished,
-        buffer_size=4096,
+        buffer_size=8192,
     )
+    
+    runtime = await init_runtime_scripts(target_session, listener)
+    await init_runtime_state(runtime)
 
     if options.start_url:
         start_url = options.start_url
@@ -680,8 +729,7 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
         # But the origin can't be changed
         start_url = info.url
 
-    runtime = await init_runtime_scripts(target_session)
-    await init_runtime_state(runtime)
+    print("Done navigating")
 
     start_origin = None
     if options.keep_only_same_origin_urls:

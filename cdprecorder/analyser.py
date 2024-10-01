@@ -564,7 +564,7 @@ def find_source_of_str_in_body(body: str, text: str) -> Optional[str]:
     return None
         
     
-def look_for_str_in_response(text: str, action: ResponseAction, stype="") -> Optional[DataSource]:
+def look_for_str_in_response(text: str, action: ResponseAction) -> Optional[DataSource]:
     text_bin = text.encode()
     
     if action.body and action.body.find(text_bin) != -1:
@@ -629,12 +629,12 @@ def look_for_str_in_input_action(text: str, action: InputAction) -> Optional[Dat
     return None
     
 
-def look_for_str_in_actions(text: str, actions: list[HttpAction], stype="") -> Optional[DataSource]:
+def look_for_str_in_actions(text: str, actions: list[HttpAction]) -> Optional[DataSource]:
     """Takes a string and looks for it through the actions present in the actions."""
     for action in actions[::-1]:
         source = None
         if isinstance(action, ResponseAction):
-            source = look_for_str_in_response(text, action, stype=stype)
+            source = look_for_str_in_response(text, action)
         elif isinstance(action, InputAction):
             source = look_for_str_in_input_action(text, action)
 
@@ -644,14 +644,14 @@ def look_for_str_in_actions(text: str, actions: list[HttpAction], stype="") -> O
     return None
 
 
-def look_for_str_in_last_source_actions(text: str, actions: list[HttpAction], stype="", limit=10) -> Optional[DataSource]:
+def look_for_str_in_last_source_actions(text: str, actions: list[HttpAction], limit=10) -> Optional[DataSource]:
     """Receives a string and looks for it through the last actions present in the actions, up to the
     given limit."""
     actions_checked = 0
     for action in actions[::-1]:
         source = None
         if isinstance(action, ResponseAction):
-            source = look_for_str_in_response(text, action, stype=stype)
+            source = look_for_str_in_response(text, action)
             actions_checked += 1
         elif isinstance(action, InputAction):
             source = look_for_str_in_input_action(text, action)
@@ -724,28 +724,24 @@ def search_for_query_string(actions: list, query_list: list[tuple[str, str]]) ->
         found_value = value
 
         if is_random(value):
-            print(f"Searching qs param: {value} with name {name}")
-            source = look_for_str_in_actions(value, actions, "qs")
+            source = look_for_str_in_actions(value, actions)
             if source:
                 has_sources = True
                 found_value = source
         # look only at the previous response
         elif len(value) > 3:
-            print(f"Searching qs param in last source: {value}")
-            source = look_for_str_in_last_source_actions(value, actions, "qs")
+            source = look_for_str_in_last_source_actions(value, actions)
             if source:
                 has_sources = True
                 found_value = source
 
         if is_random(name):
-            print(f"Searching qs param name: {name}")
-            source = look_for_str_in_actions(name, actions, "qs")
+            source = look_for_str_in_actions(name, actions)
             if source:
                 has_sources = True
                 found_name = source
         elif len(name) > 3:
-            print(f"Searching qs param name in last source: {name}")
-            source = look_for_str_in_last_source_actions(name, actions, "qs")
+            source = look_for_str_in_last_source_actions(name, actions)
             if source:
                 has_sources = True
                 found_name = source

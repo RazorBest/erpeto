@@ -309,6 +309,20 @@ def parse_communications_into_actions(communications: list[Union[HttpCommunicati
 
     return actions
 
+def give_consecutive_ids_only_to_http_actions(actions: list[BrowserAction]):
+    i = 0
+    for action in actions:
+        if isinstance(action, HttpAction):
+            action.ID = i
+            i += 1
+
+
+def give_consecutive_ids_only_to_input_actions(actions: list[BrowserAction]):
+    i = 0
+    for action in actions:
+        if isinstance(action, InputAction):
+            action.ID = i
+            i += 1
 
 
 def merge_input_actions(actions: list[BrowserAction]) -> list[BrowserAction]:
@@ -339,10 +353,10 @@ def merge_input_actions(actions: list[BrowserAction]) -> list[BrowserAction]:
 async def run(options: RecorderOptions) -> None:
     communications = await record(options)
     actions = parse_communications_into_actions(communications)
-    make_action_ids_consecutive_from_list(actions)
+    give_consecutive_ids_only_to_http_actions(actions)
     actions = merge_input_actions(actions)
+    give_consecutive_ids_only_to_input_actions(actions)
     cdprecorder.analyser.analyse_actions(actions)
-    #actions = get_only_http_actions(actions)
     #run_actions(actions)
 
     generate_python.write_python_code(actions, "generated.py")

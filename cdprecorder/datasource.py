@@ -111,6 +111,14 @@ class SubstrSource(IntermediaryDataSource):
         return upper_value[self.start : self.end]
 
 
+def build_substr_source(str_source, text, upper_source):
+    start = str_source.find(text)
+    if start == -1:
+        raise ValueError("Given string is not substring of source")
+    end = len(text)
+
+    return SubstrSource(upper_source, start, end)
+
 class RegexSource(IntermediaryDataSource):
     def __init__(self, upper_source: DataSource, pattern: str, default: str) -> None:
         super().__init__(upper_source)

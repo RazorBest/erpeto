@@ -11,9 +11,11 @@ if TYPE_CHECKING:
 
 
 IMPORTS = """from __future__ import annotations
+import json
 import re
 import requests
 import urllib
+import urllib.parse
 
 from requests import Session
 from abc import ABC, abstractmethod
@@ -90,6 +92,10 @@ LOWERCASESTR_DEFINITION = """class LowercaseStr(str):
 
 """
 
+EXCLUDED_CLASSES = [
+    "JSONContainer",
+    "JSONFieldSource",
+]
 
 def get_source_code(obj: object, annotations: bool = False, docstrings: bool = False) -> str:
     source = inspect.getsource(obj)
@@ -165,7 +171,7 @@ def get_module_level_classes(module: types.ModuleType) -> list[type]:
 
     classes: list[tuple[int, type]] = []
     for _, obj in inspect.getmembers(module):
-        if not inspect.isclass(obj) or obj.__module__ != module_name:
+        if not inspect.isclass(obj) or obj.__module__ != module_name or obj.__name__ in EXCLUDED_CLASSES:
             continue
         line_number = inspect.getsourcelines(obj)[1]
         classes.append((line_number, obj))

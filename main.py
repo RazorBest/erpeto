@@ -70,8 +70,6 @@ def run_actions(actions: list[HttpAction]) -> None:
                 resp_action = response_action_from_python_response(resp)
                 new_actions.append(resp_action)
 
-                print(f"{new_action.method} {new_action.url} - {resp.status_code}")
-
         elif not isinstance(action, ResponseAction):
             new_actions.append(None)
 

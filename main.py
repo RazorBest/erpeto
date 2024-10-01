@@ -93,13 +93,9 @@ def to_cdp_event(event: CdpEvent) -> dict[str, Union[str, T_JSON_DICT]]:
     }
 
 
-
-def get_only_http_actions(actions: list[BrowserActions]) -> list[HttpActions]:
-    return [action for action in actions if isinstance(action, HttpAction)]
-
 def _generate_events_with_redirects_extracted(events: list[CdpEvent]) -> list[CdpEvent]:
     new_events = []
-    future_events: list[CdpEvents] = []
+    future_events: list[CdpEvent] = []
     wait_response_extra = False
     wait_request_extra = False
     wait_extra = False
@@ -153,7 +149,7 @@ def _generate_events_with_redirects_extracted(events: list[CdpEvent]) -> list[Cd
     return new_events
     
 
-def parse_communications_into_actions(communications: list[Union[HttpCommunication, InputActioni]]) -> list[BrowserAction]:
+def parse_communications_into_actions(communications: list[Union[HttpCommunication, InputAction]]) -> list[BrowserAction]:
     actions: list[BrowserAction] = []
 
     for comm in communications:

@@ -513,7 +513,6 @@ def build_unique_regex_attr_val(html: str, tag: bs4.Tag, attr_name: str, separat
             template.post_nodes.append(matcher)
             attr_pattern = template.build_regex(value_pattern)
             
-            print(f"Checking {attr_pattern!r}")
             found = re.findall(attr_pattern, html, flags=re.DOTALL|re.IGNORECASE)
             if len(found) == 1 and found[0] == attr_value:
                 found_unique_regex = True

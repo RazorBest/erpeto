@@ -775,9 +775,14 @@ def analyse_actions(actions: list[BrowserAction]) -> None:
                 except json.JSONDecodeError:
                     pass
                 
-                #try:
-                query_list = urllib.parse.parse_qsl(body, strict_parsing=True, keep_blank_values=True)
-                targets = search_for_query_string(actions[:action_idx], query_list)
-                action.targets.extend(targets)
-                #except ValueError:
-                #    pass
+                query_list = None
+                try:
+                    query_list = urllib.parse.parse_qsl(body, strict_parsing=True, keep_blank_values=True)
+                except ValueError:
+                    pass
+                if query_list is not None:
+                    targets = search_for_query_string(actions[:action_idx], query_list)
+                    action.targets.extend(targets)
+
+        elif isinstance(action, InputAction):
+            print(f"{action.text} : {action.selector}")

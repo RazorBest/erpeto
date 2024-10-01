@@ -216,7 +216,8 @@ def parse_communications_into_actions(communications: list[Union[HttpCommunicati
                     curr_response = None
                 """
 
-                curr_request = RequestAction()
+                type_ = evt.type_ if hasattr(evt, "type_") else None
+                curr_request = RequestAction(type_=type_)
                 curr_request.update_info(evt.request)
                 if evt.request.has_post_data and evt.request.post_data:
                     # TODO: Check if bytes in other entry

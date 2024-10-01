@@ -168,6 +168,7 @@ class RequestAction(HttpAction):
 
     def __init__(self, *args: Any, **kwargs: Any):
         self.has_response = kwargs.pop("has_response", False)
+        self.type_ = kwargs.pop("type_", None)
         super().__init__(*args, **kwargs)
 
 

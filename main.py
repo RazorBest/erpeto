@@ -388,7 +388,6 @@ async def run(options: RecorderOptions) -> None:
 async def main() -> None:
     start_url = "https://github.com"
     options = RecorderOptions(start_url)
-    #options = RecorderOptions(start_url, collect_all=True)
     await run(options)
 
 def main_error(failure: Failure) -> None:

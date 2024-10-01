@@ -426,7 +426,7 @@ async def collect_communications(
             await recorder.on_response_received_extra_info(evt)
         elif isinstance(evt, cdp.network.LoadingFinished):
             await recorder.on_loading_finished(evt)
-
+            
     return recorder.communications
 
 
@@ -661,7 +661,7 @@ class RuntimeContext:
         elif evt.context.name == self.listener_context_name:
             self.listener_context_id = evt.context.id_
             await bind_func_to_context_id(self.target_session, self.EVENT_SEND_BINDING, self.listener_context_id)
-
+    
     @property
     def recording_running(self) -> bool:
         return self.widget.stop_time is None

@@ -55,11 +55,15 @@ class DataSource(ABC, DynamicRepr):
 
 class InputSource(DataSource):
     """Represents data that comes from a user"""
-    def __init__(self, text: str):
+    def __init__(self, index: int, text: str):
+        self.index = index
         self.text = text
     
     def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
         return self.text
+    
+    def __repr__(self):
+        return f"INPUT_{self.index}"
 
 
 class ActionDataSource(DataSource):

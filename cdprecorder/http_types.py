@@ -15,9 +15,12 @@ import urllib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Union
 
+import pycdp.cdp.network
+
 if TYPE_CHECKING:
     import http.cookiejar
 
+ResourceType = pycdp.cdp.network.ResourceType
 
 @dataclass
 class Cookie:

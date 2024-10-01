@@ -619,9 +619,12 @@ def look_for_str_in_response(text: str, action: ResponseAction) -> Optional[Data
 def look_for_str_in_input_action(text: str, action: InputAction) -> Optional[DataSource]:
     if action.text in text:
         start = text.find(action.text)
-        end = start + len(action.text)
+        src1 = InputSource(action.ID, action.text)
 
-        src1 = InputSource(action.text)
+        if len(action.text) == text:
+            return src1
+
+        end = start + len(action.text)
         src2 = SubstrSource(src1, start, end)
 
         return src2

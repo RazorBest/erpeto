@@ -237,6 +237,30 @@ class JSONFieldTarget(DynamicRepr):
             data[key] = value
 
 
+class JSONObject(DataSource):
+    def __init__(self, data: object):
+        self.data = data
+    
+    @classmethod
+    def _write_value_from_sources(cls, data, prev_actions: Sequence[Optional[HttpAction]]):
+        if isinstance(data, DataSource):
+            return data.get_value(prev_actions)
+        elif isinstance(data, list):
+            new_list = []
+            for i in range(len(data)):
+                data[i] = cls._write_value_from_sources(data[i], prev_actions)
+            
+        elif isinstance(data, dict):
+            for key in data:
+                data[key] = cls._write_value_from_sources(data[key], prev_actions)
+        else:
+            return data
+
+    def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
+        self._write_value_from_sources(self.data, prev_actions)
+        return json.dumps(self.data)
+
+
 class JSONContainer(DataSource):
     def __init__(self, schema: JSONSchema, targets: list[JSONFieldTarget]):
         self.data = schema.data

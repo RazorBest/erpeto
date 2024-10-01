@@ -336,8 +336,6 @@ def merge_input_actions(actions: list[BrowserAction]) -> list[BrowserAction]:
             new_actions.append(action)
             continue
         
-        print(f"Input action: {action.text} ----- {action.selector}", )
-        
         if prev_input is not None and prev_input.selector != action.selector:
             new_actions.append(prev_input)
         prev_input = action

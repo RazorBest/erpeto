@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import cast, Optional, Union, TYPE_CHECKING
 
-import bs4
-import bs4.builder._htmlparser
 import pycdp
 import requests
 import twisted.internet.reactor
@@ -32,8 +30,6 @@ from cdprecorder.recorder import (
 import cdprecorder.analyser
 
 if TYPE_CHECKING:
-    import bs4
-
     from pycdp.cdp.util import T_JSON_DICT
     from twisted.python.failure import Failure
 

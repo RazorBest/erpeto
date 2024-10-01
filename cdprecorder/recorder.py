@@ -112,14 +112,25 @@ def url_belongs_to_origin(url: str, origin: str) -> bool:
     return extract_origin(url) == extract_origin(origin)
 
 
+IGNORED_EXTENSIONS = [
+    ".css",
+    ".jpg",
+    ".js",
+    ".png",
+    ".svg",
+    ".woff2",
+]
+
+
 def is_url_ignored(url: str, origin: Optional[str] = None) -> bool:
     # Ignore data URLs: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URLs
     if url.startswith("data:"):
         return True
     parsed = urllib.parse.urlparse(url)
     path = parsed.path
-    if path.endswith(".js") or path.endswith(".svg") or path.endswith(".css"):
-        return True
+    for extension in IGNORED_EXTENSIONS:
+        if path.endswith(extension):
+            return True
 
     if origin and not url_belongs_to_origin(url, origin):
         return True

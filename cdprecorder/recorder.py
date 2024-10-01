@@ -6,7 +6,7 @@ import platform
 import random
 import string
 import time
-import urllib
+import urllib.parse
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,

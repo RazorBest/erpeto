@@ -84,11 +84,14 @@ class ActionDataSource(DataSource):
 
 
 class IntermediaryDataSource(DataSource):
-    def __init__(self, upper_source: DataSource) -> None:
+    def __init__(self, upper_source: Union[DataSource, str]) -> None:
         self.upper_source = upper_source
 
     def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
-        upper_source_value = self.upper_source.get_value(prev_actions)
+        if isinstance(self.upper_source, DataSource):
+            upper_source_value = self.upper_source.get_value(prev_actions)
+        else:
+            upper_source_value = self.upper_source
         if upper_source_value is None:
             return None
         return self.get_value_from_upper_value(upper_source_value)

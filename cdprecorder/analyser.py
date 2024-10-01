@@ -24,6 +24,7 @@ from cdprecorder.datasource import (
     QueryStringContainer,
     RegexSource,
     SubstrSource,
+    build_substr_source,
 )
 from cdprecorder.datatarget import (
     BodyTarget,
@@ -571,6 +572,8 @@ def look_for_str_in_response(text: str, action: ResponseAction, stype="") -> Opt
         pattern = find_source_of_str_in_body(action.body.decode("utf8"), text)
         if pattern is not None:
             return RegexSource(BodySource(action.ID), pattern, default=text)
+        else:
+            return build_substr_source(action.body, text_bin, BodySource(action.ID)) 
 
     for key, value in action.headers.items():
         escaped_value = value

@@ -278,14 +278,16 @@ class Recorder:
         target_session: pycdp.twisted.CDPSession,
         urlfilter: filters.URLFilter,
         collect_all: bool,
+        adblock: bool,
         start_origin: Optional[str],
     ):
         self.target_session = target_session
         self.urlfilter = urlfilter
         self.start_origin = start_origin
         self.collect_all = collect_all
+        self.adblock = adblock
         self.communications: list[Union[HttpCommunication, InputAction]] = []
-        self.request_map: dict[pycdp.cdp.network.RequestId, HttpCommunication] = {}
+        self.request_map: dict[cdp.network.RequestId, HttpCommunication] = {}
         self.runtime_ctx = get_runtime_context()
 
     async def on_http_data(
@@ -316,7 +318,7 @@ class Recorder:
         self.request_map[request_id].add_event(evt)
 
         if not self.collect_all and (
-            is_url_ignored(cdp_req.url, self.start_origin) or self.urlfilter.should_block(evt.request.url)
+            is_url_ignored(cdp_req.url, self.start_origin) or (self.adblock and self.urlfilter.should_block(evt.request.url))
         ):
             self.request_map[request_id].ignored = True
 
@@ -346,7 +348,8 @@ class Recorder:
             else:
                 body = resulted_body.encode()
 
-        except pycdp.exceptions.CDPBrowserError:
+        except pycdp.exceptions.CDPBrowserError as exc:
+            print(exc)
             print("  --cdp-browser-error")
 
         self.request_map[request_id].add_event(evt)
@@ -359,6 +362,7 @@ async def collect_communications(
     urlfilter: filters.URLFilter,
     timeout: int = 120,
     collect_all: bool = False,
+    adblock: bool = True,
     start_origin: Optional[str] = None,
 ) -> list[Union[HttpCommunication, InputAction]]:
     """Takes a cdp session, listens for events, and generates a list of
@@ -375,7 +379,7 @@ async def collect_communications(
     Returns:
         A list of communications.
     """
-    recorder = Recorder(target_session, urlfilter, collect_all, start_origin)
+    recorder = Recorder(target_session, urlfilter, collect_all, adblock, start_origin)
     runtime_context = get_runtime_context()
     
     timed_listener = AsyncIterableWithTimeout(aiter(listener), timeout)
@@ -429,6 +433,7 @@ class RecorderOptions:
     start_url: str
     keep_only_same_origin_urls: bool = True
     collect_all: bool = False
+    adblock: bool = True
     binary: str = CHROME_BINARY
     cdp_host: str = "localhost"
     cdp_port: int = 9222
@@ -753,6 +758,7 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
             urlfilter,
             20,
             options.collect_all,
+            options.adblock,
             start_origin
         )
     finally:

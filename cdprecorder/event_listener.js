@@ -2,6 +2,9 @@
 function sendRecordedEvent(message) {}
 
 getElementSelector = (target) => {
+    // Volatile attributes are attributes whose value may change very easy, even after a user
+    // presses a key. They are not useful for providing a selector.
+    const volatile_attributes = ["value"];
     const tag_selector = target.tagName.toLowerCase();
     const classes = target.className.split(' ');
     let cls_selector = '';
@@ -17,6 +20,9 @@ getElementSelector = (target) => {
     for (let i = 0; i < target.attributes.length; i++) {
         const attr = target.attributes.item(i)
         if (attr.name == 'id' || attr.name == 'class') {
+            continue
+        }
+        if (volatile_attributes.includes(attr.name)) {
             continue
         }
         attr_selector += '[' + attr.name + '="' + attr.value + '"]';

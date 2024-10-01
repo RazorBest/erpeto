@@ -1,5 +1,5 @@
 // This function will by bound to Python
-function sendRecordedEvent(message) {}
+function sendRecordedEvent(message) { }
 
 getElementSelector = (target) => {
     // Volatile attributes are attributes whose value may change very easy, even after a user
@@ -65,7 +65,7 @@ addEventListener('click', (event) => {
     const target = event.composedPath()[0];
     const selector = getSelectorToRoot(target);
 
-    sendRecordedEvent(JSON.stringify({"event": "click", timestamp, selector}));
+    sendRecordedEvent(JSON.stringify({ "event": "click", timestamp, selector }));
 });
 
 addEventListener('keypress', (event) => {
@@ -75,7 +75,7 @@ addEventListener('keypress', (event) => {
     const selector = getSelectorToRoot(target);
     const value = target.value;
 
-    sendRecordedEvent(JSON.stringify({"event": "keypress", timestamp, selector, value, charCode}));
+    sendRecordedEvent(JSON.stringify({ "event": "keypress", timestamp, selector, value, charCode }));
 });
 
 addEventListener('input', (event) => {
@@ -84,6 +84,6 @@ addEventListener('input', (event) => {
     const value = target.value;
     const timestamp = event.timeStamp;
 
-    sendRecordedEvent(JSON.stringify({"event": "input", timestamp, selector, value}));
+    sendRecordedEvent(JSON.stringify({ "event": "input", timestamp, selector, value }));
 });
 

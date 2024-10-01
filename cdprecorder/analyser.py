@@ -679,7 +679,6 @@ def search_for_header(actions: list, key: str, value: str) -> list[SingleSourced
         source = look_for_str_in_actions(value, actions)
         if source:
             target: HttpTarget = HeaderTarget(source, key, value)
-            print(f"Found {source.__class__.__name__} for {target.__class__.__name__}")
 
             return [target]
 
@@ -694,7 +693,6 @@ def search_for_cookie(actions: list, cookie: Cookie) -> list[SingleSourcedTarget
     if is_random(cookie.value):
         if source := look_for_str_in_actions(cookie.value, actions):
             target = CookieTarget(cookie.name, source)
-            print(f"Found {source.__class__.__name__} for {target.__class__.__name__}")
             return [target]
     
     return []
@@ -713,7 +711,6 @@ def search_for_json(actions: list, schema: JSONSchema) -> list[SingleSourcedTarg
     if has_sources:
         container = JSONContainer(schema, json_targets)
         targets.append(BodyTarget(container))
-        print(f"Found {container.__class__.__name__} for BodyTarget")
     
     return targets
 
@@ -721,11 +718,10 @@ def search_for_json(actions: list, schema: JSONSchema) -> list[SingleSourcedTarg
 def search_for_query_string(actions: list, query_list: list[tuple[str, str]]) -> list[SingleSourcedTarget]:
     new_qlist: list[tuple[Union[str, DataSource], Union[str, DataSource]]] = []
     has_sources = False
-    print(f"Queriy list: {query_list}")
     for name, value in query_list:
         found_name = name
         found_value = value
-
+        
         if is_random(value):
             source = look_for_str_in_actions(value, actions)
             if source:

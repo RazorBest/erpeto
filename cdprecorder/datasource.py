@@ -266,6 +266,19 @@ class JSONContainer(DataSource):
         self.data = schema.data
         self.targets: list[JSONFieldTarget] = targets
 
+        data = deepcopy(self.data)
+        for target in self.targets:
+            if len(target.path) == 0:
+                continue
+
+            obj = get_object_at_json_path(data, target.path[:-1])
+            if obj is None:
+                continue
+
+            key = target.path[-1]
+            obj[key] = target.source
+        
+
     def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
         data = deepcopy(self.data)
 
@@ -273,6 +286,24 @@ class JSONContainer(DataSource):
             target.apply(data, prev_actions)
 
         return json.dumps(data)
+
+    def __repr__(self):
+        data = deepcopy(self.data)
+        for target in self.targets:
+            if len(target.path) == 0:
+                continue
+
+            obj = get_object_at_json_path(data, target.path[:-1])
+            if obj is None:
+                continue
+
+            key = target.path[-1]
+            if isinstance(obj, list) and isinstance(key, int) and key < len(obj):
+                obj[key] = target.source
+            elif isinstance(obj, dict) and key in obj:
+                obj[key] = target.source
+        
+        return f"{JSONObject.__name__}({data!r})"
 
 
 class QueryStringContainer(DataSource):

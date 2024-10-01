@@ -216,7 +216,7 @@ class JSONFieldSource(IntermediaryDataSource):
         return str(data)
 
 
-class JSONFieldTarget:
+class JSONFieldTarget(DynamicRepr):
     def __init__(self, source: DataSource, path: list[Union[int, str]]):
         self.source = source
         self.path = path

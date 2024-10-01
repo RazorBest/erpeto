@@ -16,17 +16,21 @@ from typing import (
     Generic,
     Optional,
     TypeVar,
+    Type,
     Union,
     cast,
 )
 
 import pycdp
+import pycdp.cdp.util
+import pycdp.exceptions
 import pycdp.twisted
 import twisted.internet.reactor
 from pycdp import cdp
 from pycdp.browser import ChromeLauncher
 from pycdp.twisted import CDPConnection as _PyCDPConnection
 from twisted.internet import defer, threads
+from twisted.internet.defer import DeferredQueue, QueueOverflow
 from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.interfaces import IReactorCore, IReactorTime
 from twisted.web.client import Agent
@@ -38,6 +42,8 @@ if TYPE_CHECKING:
     import builtins
 
     from .type_checking import CdpEvent
+
+    from pycdp.cdp.runtime import CallFrame
 
 
 class Reactor(IReactorCore, IReactorTime):  # pylint disable=too-many-ancestors
@@ -94,6 +100,15 @@ class PyCDPListener:
 
     def __str__(self) -> str:
         return f'{self.__class__.__name__}(buffer={len(self._queue.pending)}/{self._queue.size}, closed={self._closed})'
+
+
+class QueueTask(dict):
+    pass
+
+
+class ContinueBreakTask(QueueTask):
+    pass
+
 
 class AwaitableIsNotCoroutine(Exception):
     pass
@@ -658,6 +673,7 @@ class RuntimeContext:
 
 
 RUNTIME_CONTEXT: Optional[RuntimeContext] = None
+DEBUGGER_CONTEXT: Optional[DebuggerContext] = None
 
 
 def get_runtime_context() -> RuntimeContext:
@@ -671,6 +687,139 @@ def set_runtime_context(runtime_context: Optional[RuntimeContext]) -> None:
     global RUNTIME_CONTEXT
     RUNTIME_CONTEXT = runtime_context
 
+
+async def create_debugger_context(target_session, event_listener) -> None:
+    await target_session.execute(cdp.debugger.set_instrumentation_breakpoint("beforeScriptExecution"))
+    debugger_context = DebuggerContext(target_session, event_listener)
+    global DEBUGGER_CONTEXT
+    DEBUGGER_CONTEXT = debugger_context
+
+
+def get_debugger_context() -> DebuggerContext:
+    if DEBUGGER_CONTEXT is None:
+        raise RuntimeError("DEBUGGER_CONTEXT is None")
+
+    return DEBUGGER_CONTEXT
+
+
+@dataclass(frozen=True)
+class CallFrameId:
+    """Represents a callframe id that looks like `3497467689326315751.428.3`, split into three components:
+    top_id, context_id, ephemeral_id. The context_id corresponds to the context_id from the Runtime domain.
+    The other ids have unknown meaning. The naming choice was subjective."""
+    top_id: int
+    context_id: int
+    ephemeral_id: int
+
+
+def parse_call_frame_id(frame_id: str):
+    top_id, context_id, ephemeral_id = frame_id.split(".")
+    return CallFrameId(int(top_id), int(context_id), int(ephemeral_id))
+
+
+class DebuggerContext:
+    def __init__(self, target_session: pycdp.twisted.CDPSession, event_listener: PyCDPListener):
+        self.target_session = target_session
+        self.event_listener = event_listener
+        self.reload_breakpoints = []
+        self.first_line_breakpoint_ids = []
+        self.js_contexts = {}
+        self.loaded_id = None
+    
+    def js_started(self, context_id: int) -> bool:
+        if context_id not in self.js_contexts:
+            return False
+        
+        return self.js_contexts[context_id] == "STARTED"
+
+    async def on_instrumentation_breakpoint(self, call_frame: cdp.debugger.CallFrame):
+        breakpoint_id, _ = await self.target_session.execute(cdp.debugger.set_breakpoint(call_frame.location))
+        self.first_line_breakpoint_ids.append(breakpoint_id)
+        await self.target_session.execute(cdp.debugger.resume())
+        frame_id = parse_call_frame_id(call_frame.call_frame_id)
+        self.js_contexts[frame_id.context_id] = "FIRST_LINE_BREAK"
+        print(f"JS context {frame_id.context_id} = FIRST_LINE_BREAK")
+    
+    async def on_first_line_breakpoint(self, call_frame_id: cdp.debugger.CallFrameId):
+        target_session = self.target_session
+
+        reload_object, _ = await target_session.execute(cdp.debugger.evaluate_on_call_frame(call_frame_id, "window.location.reload"))
+        assign_object, _ = await target_session.execute(cdp.debugger.evaluate_on_call_frame(call_frame_id, "window.location.assign"))
+        replace_object, _ = await target_session.execute(cdp.debugger.evaluate_on_call_frame(call_frame_id, "window.location.replace"))
+
+        location_reload_object_id = reload_object.object_id
+        location_assign_object_id = assign_object.object_id
+        location_replace_object_id = replace_object.object_id
+        print(f"Got window location reload id: {location_reload_object_id}")
+        if location_reload_object_id is None or location_assign_object_id is None or location_replace_object_id is None:
+            raise Exception("Couldn't find object id of location functions")
+    
+        try:
+            breakpoint_id = await target_session.execute(cdp.debugger.set_breakpoint_on_function_call(location_reload_object_id))
+            self.reload_breakpoints.append(breakpoint_id)
+            breakpoint_id = await target_session.execute(cdp.debugger.set_breakpoint_on_function_call(location_assign_object_id))
+            self.reload_breakpoints.append(breakpoint_id)
+            breakpoint_id = await target_session.execute(cdp.debugger.set_breakpoint_on_function_call(location_replace_object_id))
+            self.reload_breakpoints.append(breakpoint_id)
+        except pycdp.exceptions.CDPBrowserError as exc:
+            if "Breakpoint at specified location already exists." in str(exc):
+                pass
+            else:
+                raise exc
+
+        await self.target_session.execute(cdp.debugger.resume())
+
+        parsed_frame_id = parse_call_frame_id(call_frame_id)
+        self.js_contexts[parsed_frame_id.context_id] = "STARTED"
+        print(f"JS context {parsed_frame_id.context_id} = STARTED")
+    
+    async def on_reload_breakpoint(self):
+        self.event_listener.put(ContinueBreakTask())
+        response_getter = defer.ensureDeferred(self.target_session.execute(cdp.network.get_response_body(self.loaded_id)))
+        def on_response_body(result):
+            print(f"Body (debug): {result}")
+        response_getter.addCallback(on_response_body)
+    
+    async def on_continue_break_task(self):
+        if self.event_listener.network_events_count > 0:
+            self.event_listener.put(ContinueBreakTask())
+        else:
+            await self.target_session.execute(cdp.debugger.resume())
+    
+    async def on_debugger_paused(self, evt: cdp.debugger.Paused):
+        target_session = self.target_session
+
+        call_frame = evt.call_frames[0]
+
+        if evt.reason == "instrumentation":
+            return await self.on_instrumentation_breakpoint(call_frame)
+
+        if evt.hit_breakpoints is None:
+            return
+
+        is_first_line_breakpoint = False
+        for hit_breakpoint in evt.hit_breakpoints:
+            if hit_breakpoint in self.first_line_breakpoint_ids:
+                self.first_line_breakpoint_ids.remove(hit_breakpoint)
+                is_first_line_breakpoint = True
+                
+                breakpoint_id = cdp.debugger.BreakpointId(hit_breakpoint)
+                await target_session.execute(cdp.debugger.remove_breakpoint(breakpoint_id))
+
+        if is_first_line_breakpoint:
+            return await self.on_first_line_breakpoint(call_frame.call_frame_id)
+
+        is_reload_breakpoint = False
+        for hit_breakpoint in evt.hit_breakpoints:
+            if hit_breakpoint in self.reload_breakpoints:
+                is_reload_breakpoint = True
+                break
+        
+        if is_reload_breakpoint:
+            parsed_frame_id = parse_call_frame_id(call_frame.call_frame_id)
+            print(f"JS context {parsed_frame_id.context_id} = PAUSED")
+            return await self.on_reload_breakpoint()
+    
 
 async def insert_widget_extension(
     target_session: pycdp.twisted.CDPSession,

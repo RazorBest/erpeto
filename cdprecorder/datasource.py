@@ -15,7 +15,7 @@ Classes:
     - CookieSource: Represents data from an HTTP cookie.
     - BodySource: Represents data from an HTTP body.
     - JSONFieldSource: Represents data extracted from a JSON string.
-    - JSONFieldTarget: Represents a JSON field (see datatargets.py).
+    - JSONFieldTarget: Represents a JSON field (see datatarget.py).
     - JSONContainer: Represents a JSON string that can dinamically be updated.
 
 Functions:
@@ -201,7 +201,7 @@ class JSONFieldSource(IntermediaryDataSource):
         return str(data)
 
 
-class JSONFieldTarget:
+class JSONFieldTarget(DynamicRepr):
     def __init__(self, source: DataSource, path: list[Union[int, str]]):
         self.source = source
         self.path = path

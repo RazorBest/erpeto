@@ -6,6 +6,7 @@ import bs4
 import bs4.builder._htmlparser
 import pycdp
 import requests
+import sys
 import twisted.internet.reactor
 
 from twisted.python.log import err
@@ -13,6 +14,7 @@ from twisted.internet import defer, threads
 from twisted.internet.interfaces import IReactorCore
 from pycdp import cdp
 
+import cdprecorder
 from cdprecorder import generate_python
 from cdprecorder.action import (
     BrowserAction,
@@ -44,14 +46,16 @@ if TYPE_CHECKING:
 reactor = cast(IReactorCore, twisted.internet.reactor)
 
 
-def generate_action(action: HttpAction, prev_new_actions: list[Optional[HttpAction]]) -> RequestAction:
+def generate_action(
+    action: HttpAction, prev_new_actions: list[Optional[HttpAction]]
+) -> RequestAction:
     new_action = RequestAction()
     new_action.shallow_copy_from_action(action)
     for target in action.targets:
         target.apply(new_action, prev_new_actions)
 
     return new_action
-    
+
 
 def run_actions(actions: list[HttpAction]) -> None:
     new_actions: list[Optional[HttpAction]] = []
@@ -97,9 +101,9 @@ def to_cdp_event(event: CdpEvent) -> dict[str, Union[str, T_JSON_DICT]]:
     }
 
 
-
 def get_only_http_actions(actions: list[BrowserActions]) -> list[HttpActions]:
     return [action for action in actions if isinstance(action, HttpAction)]
+
 
 def _generate_events_with_redirects_extracted(events: list[CdpEvent]) -> list[CdpEvent]:
     new_events = []
@@ -109,9 +113,13 @@ def _generate_events_with_redirects_extracted(events: list[CdpEvent]) -> list[Cd
     wait_extra = False
     for evt in events:
         if wait_extra:
-            if isinstance(evt, cdp.network.RequestWillBeSentExtraInfo) and not wait_request_extra \
-                    or isinstance(evt, cdp.network.ResponseReceivedExtraInfo) and not wait_response_extra:
-                wait_extra = False 
+            if (
+                isinstance(evt, cdp.network.RequestWillBeSentExtraInfo)
+                and not wait_request_extra
+                or isinstance(evt, cdp.network.ResponseReceivedExtraInfo)
+                and not wait_response_extra
+            ):
+                wait_extra = False
                 new_events += future_events
                 future_events = []
 
@@ -155,12 +163,18 @@ def _generate_events_with_redirects_extracted(events: list[CdpEvent]) -> list[Cd
     new_events += future_events
 
     return new_events
-    
 
-def parse_communications_into_actions(communications: list[Union[HttpCommunication, InputActioni]]) -> list[BrowserAction]:
+
+def parse_communications_into_actions(
+    communications: list[Union[HttpCommunication, InputActioni]]
+) -> list[BrowserAction]:
+    from cdprecorder import logger
+
     actions: list[BrowserAction] = []
 
     for comm in communications:
+        logger.debug("Comm: %s", repr(comm))
+
         if not isinstance(comm, HttpCommunication):
             actions.append(comm)
             continue
@@ -176,13 +190,8 @@ def parse_communications_into_actions(communications: list[Union[HttpCommunicati
         response_extra: Optional[ResponseAction] = None
         events = _generate_events_with_redirects_extracted(comm.events)
         print("--------------------------------------------------------")
+        # Append to actions the requests/responses from each event
         for evt in events:
-            info_str = f"{evt.__class__.__name__} "
-            #info_str += str(getattr(evt, "headers", getattr(getattr(evt, "request", None), "headers", None))))
-            info_str += str(getattr(evt, "method", getattr(getattr(evt, "request", None), "method", None))) + " "
-            info_str += str(getattr(getattr(evt, "request", None), "url", None)) + " "
-            
-            print(info_str)
             if isinstance(evt, cdp.network.RequestWillBeSent):
                 if curr_request is not None:
                     if all((curr_request, request_extra, curr_response)):
@@ -305,7 +314,6 @@ def parse_communications_into_actions(communications: list[Union[HttpCommunicati
                     actions.append(response_extra)
                     response_extra = None
 
-
         if curr_request is not None:
             if curr_response is not None:
                 curr_request.has_response = True
@@ -323,13 +331,14 @@ def make_action_ids_consecutive_from_list(actions: list[BrowserAction]):
     for i, action in enumerate(actions):
         action.ID = i
 
+
 async def run(options: RecorderOptions) -> None:
     communications = await record(options)
     actions = parse_communications_into_actions(communications)
     make_action_ids_consecutive_from_list(actions)
     cdprecorder.analyser.analyse_actions(actions)
-    #actions = get_only_http_actions(actions)
-    #run_actions(actions)
+    # actions = get_only_http_actions(actions)
+    # run_actions(actions)
 
     generate_python.write_python_code(actions, "generated.py")
 
@@ -343,7 +352,7 @@ async def run(options: RecorderOptions) -> None:
                     result = await target_session.execute(cdp.runtime.get_properties(obj.object_id))
                     pointer_evt_props = result[0]
                     break
-        
+
     for prop in pointer_evt_props:
         if prop.name == "srcElement":
             print(prop)
@@ -351,20 +360,21 @@ async def run(options: RecorderOptions) -> None:
             print(result)
     """
 
-
     """
     await threads.deferToThread(chrome.kill)
     """
 
 
 async def main() -> None:
+    cdprecorder.enable_logger()
+    cdprecorder.configure_root_logger(stream=sys.stdout)
     start_url = "https://github.com"
     options = RecorderOptions(start_url)
-    #options = RecorderOptions(start_url, collect_all=True)
     await run(options)
 
+
 def main_error(failure: Failure) -> None:
-    err(failure) # type: ignore[no-untyped-call]
+    err(failure)  # type: ignore[no-untyped-call]
     reactor.stop()
 
 

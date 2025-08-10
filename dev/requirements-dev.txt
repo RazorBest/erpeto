@@ -3,7 +3,7 @@ pybadges
 pytest
 pytest-cov==4.*
 pytest-asyncio==0.23.5
-mypy==1.8.*
+mypy==1.17.*
 pylint==3.*
 isort==5.*
 black==24.*
@@ -12,3 +12,4 @@ pre-commit==4.*
 
 # Mypy stubs
 types-requests
+types-beautifulsoup4==4.*

@@ -180,8 +180,6 @@ def generate_datasource_definitions() -> str:
     content += get_source_code(datasource.DataSource) + "\n\n"
     content += get_source_code(datasource.IntermediaryDataSource) + "\n\n"
     for obj in get_module_level_classes(datasource):
-        if not issubclass(obj, datasource.DataSource) and not issubclass(obj, datasource.ActionDataSource):
-            continue
         if obj in (datasource.DataSource, datasource.IntermediaryDataSource):
             continue
 

@@ -5,7 +5,7 @@ import string
 LOWER_ALPHA_DIGIT = string.ascii_lowercase + string.digits
 
 
-def chi_squared_score(text: str, alphabet=LOWER_ALPHA_DIGIT) -> float:
+def chi_squared_score(text: str, alphabet: str = LOWER_ALPHA_DIGIT) -> float:
     """Computes the chi squared statistic, relative to the unfiform distribution of the given alphabet.
     Ignores characters in text that are not present in the alphabet.
     """
@@ -30,7 +30,7 @@ def chi_squared_score(text: str, alphabet=LOWER_ALPHA_DIGIT) -> float:
     return chi
 
 
-def chi_critical_value(n, alpha=0.05):
+def chi_critical_value(n: float, alpha: float = 0.05) -> float:
     # https://pdfs.semanticscholar.org/c385/f52a3b4e3ae24939b3256f876048624f8b1b.pdf
     # Hoaglin's approximation of Chi squared critical value for p = 0.05
     # Verify with https://www.chisquaretable.net/

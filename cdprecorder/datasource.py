@@ -253,16 +253,18 @@ class QueryStringContainer(DataSource):
             if isinstance(value_source, str):
                 value = value_source
             else:
-                value = value_source.get_value(prev_actions)
-                if value is None:
+                value_from_source = value_source.get_value(prev_actions)
+                if value_from_source is None:
                     return None
+                value = value_from_source
 
             if isinstance(name_source, str):
                 name = name_source
             else:
-                name = name_source.get_value(prev_actions)
-                if name is None:
+                name_from_source = name_source.get_value(prev_actions)
+                if name_from_source is None:
                     return None
+                name = name_from_source
 
             data_pairs.append(
                 f"{urllib.parse.quote_plus(name)}={urllib.parse.quote_plus(value)}"

@@ -1,8 +1,24 @@
+from __future__ import annotations
+
 import cheap_repr
 import dataclasses
 import logging
+from typing import TYPE_CHECKING
 
 from pycdp import cdp
+
+if TYPE_CHECKING:
+    from typing import Any, Callable, Type, TypeVar, ParamSpec
+
+    from _typeshed import DataclassInstance
+
+    T = TypeVar("T")
+    U = TypeVar("U")
+    P = ParamSpec("P")
+    P2 = ParamSpec("P2")
+
+    from typing import TypeAlias
+
 
 __all__ = ["logger", "configure_root_logger", "enable_loggger"]
 
@@ -21,19 +37,24 @@ class PreparedReprStr:
     def __init__(self, s: str):
         self.s = s
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Returns the actual string, instead of the quoted string."""
         return self.s
 
 
-def register_custom_repr(cls, full_names, first_names, maxparts=4):
+def register_custom_repr(
+    cls: Type[DataclassInstance],
+    full_names: list[str],
+    first_names: list[str],
+    maxparts: int = 4,
+) -> None:
     full_names = list(full_names)
     first_names = list(first_names)
     custom_names = full_names + first_names
 
     @cheap_repr.register_repr(cls)
     @cheap_repr.maxparts(maxparts)
-    def custom_repr(obj: cls, helper):
+    def custom_repr(obj: DataclassInstance, helper: cheap_repr.ReprHelper) -> str:
         clsname = obj.__class__.__name__
 
         full_fields = [f"{name}={repr(getattr(obj, name))}" for name in full_names]
@@ -73,22 +94,19 @@ register_custom_repr(
 )
 
 
-@cheap_repr.register_repr(dataclasses.Field)
-def custom_repr_dataclass(obj: dataclasses.Field, helper):
-    return f"{obj.name}={cheap_repr.cheap_repr(obj.value)}"
-
-
 # cheap_repr.register_repr(cdp.network.ResponseReceived)(cheap_repr.normal_repr)
 # cheap_repr.register_repr(cdp.network.ResponseReceivedExtraInfo)(cheap_repr.normal_repr)
 
 
 @cheap_repr.register_repr(str)
 @cheap_repr.maxparts(50)
-def custom_repr_str(obj, helper):
+def custom_repr_str(obj: str, helper: cheap_repr.ReprHelper) -> str:
     return helper.truncate(obj)
 
 
-def configure_root_logger(**kwargs) -> None:
+# for fixing the kwargs problem, check https://github.com/python/mypy/issues/10574
+# or explicitly specify the signature
+def configure_root_logger(**kwargs) -> None:  # type: ignore[no-untyped-def]
     kwargs.setdefault("level", logging.DEBUG)
     kwargs.setdefault("encoding", "utf-8")
     kwargs.setdefault(
@@ -106,5 +124,5 @@ def configure_root_logger(**kwargs) -> None:
     logging.getLogger("pycdp").setLevel(logging.WARNING)
 
 
-def enable_logger():
+def enable_logger() -> None:
     logger.setLevel(logging.DEBUG)

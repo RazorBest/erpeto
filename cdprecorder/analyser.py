@@ -64,8 +64,8 @@ def search_str_in_soup(
     def tag_contains_str(tag: bs4.Tag) -> bool:
         for key, val in tag.attrs.items():
             # Multi-valued attrs: https://beautiful-soup-4.readthedocs.io/en/latest/#multi-valued-attributes
-            if isinstance(val, list):  # type: ignore[unreachable]
-                for elem in val:  # type: ignore[unreachable]
+            if isinstance(val, list):
+                for elem in val:
                     if text in elem:
                         return True
 
@@ -80,15 +80,10 @@ def search_str_in_soup(
     return soup.find(tag_contains_str)
 
 
-def get_selector_from_tag(tag: bs4.Tag) -> str:
-    # TODO: implement
-    return ""
-
-
 def find_context_html(data: str, text: str):
     soup = BeautifulSoup(data)
     tag = search_str_in_soup(soup, text)
-    # TODO: return something
+    raise NotImplementedError
 
 
 def find_context_bytes(data: bytes, text_to_find: bytes) -> Optional[bytes]:
@@ -223,7 +218,7 @@ def build_regex_based_on_selected_attributes(
     after_attrs: list,
     attr_name: str,
     value_pattern: str,
-):
+) -> str:
     prev_attr_pattern = ""
     for name, _, is_used in prev_attrs:
         if not is_used:
@@ -373,7 +368,7 @@ class HTMLAttrValuePattern:
 
         return matched_nodes
 
-    def build_regex(self, value_pattern: str):
+    def build_regex(self, value_pattern: str) -> str:
         prev_attr_pattern = ""
         for attr in self.pre_attrs:
             if not attr.active:
@@ -491,11 +486,6 @@ def build_unique_regex_attr_val(
     if len(found) == 1:
         return attr_pattern
 
-    if len(found) == 0:
-        import pdb
-
-        pdb.set_trace()
-
     attr_names = [attr.name for attr in template.pre_attrs + template.post_attrs]
 
     found_unique_regex = False
@@ -604,7 +594,8 @@ def find_source_of_str_in_body(body: str, text: str) -> Optional[str]:
 
 
 def look_for_str_in_response(
-    text: str, action: ResponseAction, stype=""
+    text: str,
+    action: ResponseAction,
 ) -> Optional[DataSource]:
     text_bin = text.encode()
 
@@ -673,13 +664,14 @@ def look_for_str_in_input_action(
 
 
 def look_for_str_in_actions(
-    text: str, actions: list[HttpAction], stype=""
+    text: str,
+    actions: list[HttpAction],
 ) -> Optional[DataSource]:
     """Takes a string and looks for it through the actions present in the actions."""
     for action in actions[::-1]:
         source = None
         if isinstance(action, ResponseAction):
-            source = look_for_str_in_response(text, action, stype=stype)
+            source = look_for_str_in_response(text, action)
         elif isinstance(action, InputAction):
             source = look_for_str_in_input_action(text, action)
 
@@ -690,7 +682,7 @@ def look_for_str_in_actions(
 
 
 def look_for_str_in_last_source_actions(
-    text: str, actions: list[HttpAction], stype="", limit=10
+    text: str, actions: list[HttpAction], limit: int = 10
 ) -> Optional[DataSource]:
     """Receives a string and looks for it through the last actions present in the actions, up to the
     given limit."""
@@ -698,7 +690,7 @@ def look_for_str_in_last_source_actions(
     for action in actions[::-1]:
         source = None
         if isinstance(action, ResponseAction):
-            source = look_for_str_in_response(text, action, stype=stype)
+            source = look_for_str_in_response(text, action)
             actions_checked += 1
         elif isinstance(action, InputAction):
             source = look_for_str_in_input_action(text, action)
@@ -753,7 +745,7 @@ def search_for_json(actions: list, schema: JSONSchema) -> list[SingleSourcedTarg
             json_targets.append(JSONFieldTarget(source, field.path))
             has_sources = True
 
-    targets = []
+    targets: list[SingleSourcedTarget] = []
     if has_sources:
         container = JSONContainer(schema, json_targets)
         targets.append(BodyTarget(container))
@@ -769,32 +761,32 @@ def search_for_query_string(
     has_sources = False
     print(f"Queriy list: {query_list}")
     for name, value in query_list:
-        found_name = name
-        found_value = value
+        found_name: Union[str, DataSource] = name
+        found_value: Union[str, DataSource] = value
 
         if is_random(value):
             print(f"Searching qs param: {value} with name {name}")
-            source = look_for_str_in_actions(value, actions, "qs")
+            source = look_for_str_in_actions(value, actions)
             if source:
                 has_sources = True
                 found_value = source
         # look only at the previous response
         elif len(value) > 3:
             print(f"Searching qs param in last source: {value}")
-            source = look_for_str_in_last_source_actions(value, actions, "qs")
+            source = look_for_str_in_last_source_actions(value, actions)
             if source:
                 has_sources = True
                 found_value = source
 
         if is_random(name):
             print(f"Searching qs param name: {name}")
-            source = look_for_str_in_actions(name, actions, "qs")
+            source = look_for_str_in_actions(name, actions)
             if source:
                 has_sources = True
                 found_name = source
         elif len(name) > 3:
             print(f"Searching qs param name in last source: {name}")
-            source = look_for_str_in_last_source_actions(name, actions, "qs")
+            source = look_for_str_in_last_source_actions(name, actions)
             if source:
                 has_sources = True
                 found_name = source

@@ -1,5 +1,5 @@
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 plugins = ["mypy_zope:plugin"]
 mypy_path = "./dev/external_stubs/"
 warn_return_any = true
@@ -10,6 +10,7 @@ disallow_any_decorated = true
 #disallow_any_generics = true
 disallow_subclassing_any = true
 disallow_untyped_calls = true
+no_implicit_optional = false
 
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
@@ -39,13 +40,13 @@ disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
 [tool.pylint.main]
-fail-under = 9
+fail_under = 9
 
 [tool.pylint."messages control"]
 disable = ["missing-function-docstring", "missing-class-docstring"]
 
 [tool.pylint.format]
-max-line-length = 120
+max_line_length = 120
 
 [tool.isort]
 profile = "black"

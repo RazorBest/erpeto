@@ -16,7 +16,7 @@ for var in $args; do
     if [ "${var}" = "isort" ]; then
         python3 -m isort -c cdprecorder/
     elif [ "${var}" = "black" ]; then
-        python3 -m black --line-length 120 --check cdprecorder/
+        python3 -m black --check cdprecorder/
     elif [ "${var}" = "pylint" ]; then
         python3 -m pylint --output-format=colorized cdprecorder/
     elif [ "${var}" = "mypy" ]; then

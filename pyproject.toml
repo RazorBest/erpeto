@@ -40,13 +40,16 @@ disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
 [tool.pylint.main]
-fail_under = 9
+fail-under = 9
 
 [tool.pylint."messages control"]
 disable = ["missing-function-docstring", "missing-class-docstring"]
 
 [tool.pylint.format]
-max_line_length = 120
+max-line-length = 120
 
 [tool.isort]
 profile = "black"
+
+[tool.black]
+line-length = 120

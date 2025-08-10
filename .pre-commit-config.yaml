@@ -13,10 +13,12 @@ repos:
     -   id: black
         name: black
         entry: black
-        language: python
+        language: system
+        types: [python]
 -   repo: local
     hooks:
     -   id: mypy
         name: mypy
         entry: mypy
-        language: python
+        language: system
+        types: [python]

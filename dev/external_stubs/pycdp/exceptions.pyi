@@ -3,8 +3,8 @@ from _typeshed import Incomplete
 class CDPError(Exception): ...
 
 class CDPBrowserError(CDPError):
-    code: Incomplete
-    message: Incomplete
+    code: int
+    message: str
     detail: Incomplete
     def __init__(self, obj) -> None: ...
 

@@ -1,8 +1,7 @@
-import typing as t
 from pycdp.utils import LoggerMixin as LoggerMixin
 
 class BrowserLauncher(LoggerMixin):
-    def __init__(self, *, binary: str, profile: t.Optional[str] = None, keep_profile: bool = True, headless: bool = False, locale: t.Optional[str] = None, timezone: t.Optional[str] = None, proxy: t.Optional[str] = None, window_width: t.Optional[int] = None, window_height: t.Optional[int] = None, initial_url: t.Optional[str] = None, extensions: t.List[str] = [], args: t.Optional[t.List[str]] = None, log: bool = True) -> None: ...
+    def __init__(self, *, binary: str, profile: str = None, keep_profile: bool = True, headless: bool = False, locale: str = None, timezone: str = None, proxy: str = None, window_width: int = None, window_height: int = None, initial_url: str = None, extensions: list[str] = [], args: list[str] = None, log: bool = True) -> None: ...
     @property
     def pid(self) -> int: ...
     @property

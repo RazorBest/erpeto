@@ -1,4 +1,3 @@
-import typing
 from _typeshed import Incomplete
 from dataclasses import dataclass
 from enum import Enum
@@ -15,18 +14,18 @@ BACKTICK_RE: Incomplete
 def indent(s: str, n: int): ...
 def escape_backticks(docstr: str) -> str: ...
 def inline_doc(description) -> str: ...
-def docstring(description: typing.Optional[str]) -> str: ...
+def docstring(description: str | None) -> str: ...
 def is_builtin(name: str) -> bool: ...
 def snake_case(name: str) -> str: ...
 def ref_to_python(ref: str) -> str: ...
 def ref_to_python_domain(ref: str, domain: str) -> str: ...
 
 class CdpPrimitiveType(Enum):
-    boolean: str
-    integer: str
-    number: str
-    object: str
-    string: str
+    boolean = 'bool'
+    integer = 'int'
+    number = 'float'
+    object = 'dict'
+    string = 'str'
     @classmethod
     def get_annotation(cls, cdp_type): ...
     @classmethod
@@ -38,16 +37,15 @@ class CdpItems:
     ref: str
     @classmethod
     def from_json(cls, type) -> CdpItems: ...
-    def __init__(self, type, ref) -> None: ...
 
 @dataclass
 class CdpProperty:
     name: str
-    description: typing.Optional[str]
-    type: typing.Optional[str]
-    ref: typing.Optional[str]
-    enum: typing.List[str]
-    items: typing.Optional[CdpItems]
+    description: str | None
+    type: str | None
+    ref: str | None
+    enum: list[str]
+    items: CdpItems | None
     optional: bool
     experimental: bool
     deprecated: bool
@@ -61,16 +59,15 @@ class CdpProperty:
     def generate_decl(self) -> str: ...
     def generate_to_json(self, dict_: str, use_self: bool = True) -> str: ...
     def generate_from_json(self, dict_) -> str: ...
-    def __init__(self, name, description, type, ref, enum, items, optional, experimental, deprecated, domain) -> None: ...
 
 @dataclass
 class CdpType:
     id: str
-    description: typing.Optional[str]
+    description: str | None
     type: str
-    items: typing.Optional[CdpItems]
-    enum: typing.List[str]
-    properties: typing.List[CdpProperty]
+    items: CdpItems | None
+    enum: list[str]
+    properties: list[CdpProperty]
     @classmethod
     def from_json(cls, type_, domain: str) -> CdpType: ...
     def generate_code(self) -> str: ...
@@ -78,7 +75,6 @@ class CdpType:
     def generate_enum_code(self) -> str: ...
     def generate_class_code(self) -> str: ...
     def get_refs(self): ...
-    def __init__(self, id, description, type, items, enum, properties) -> None: ...
 
 class CdpParameter(CdpProperty):
     def generate_code(self) -> str: ...
@@ -98,8 +94,8 @@ class CdpCommand:
     description: str
     experimental: bool
     deprecated: bool
-    parameters: typing.List[CdpParameter]
-    returns: typing.List[CdpReturn]
+    parameters: list[CdpParameter]
+    returns: list[CdpReturn]
     domain: str
     @property
     def py_name(self): ...
@@ -107,15 +103,14 @@ class CdpCommand:
     def from_json(cls, command, domain) -> CdpCommand: ...
     def generate_code(self) -> str: ...
     def get_refs(self): ...
-    def __init__(self, name, description, experimental, deprecated, parameters, returns, domain) -> None: ...
 
 @dataclass
 class CdpEvent:
     name: str
-    description: typing.Optional[str]
+    description: str | None
     deprecated: bool
     experimental: bool
-    parameters: typing.List[CdpParameter]
+    parameters: list[CdpParameter]
     domain: str
     @property
     def py_name(self): ...
@@ -123,17 +118,16 @@ class CdpEvent:
     def from_json(cls, json: dict, domain: str): ...
     def generate_code(self) -> str: ...
     def get_refs(self): ...
-    def __init__(self, name, description, deprecated, experimental, parameters, domain) -> None: ...
 
 @dataclass
 class CdpDomain:
     domain: str
-    description: typing.Optional[str]
+    description: str | None
     experimental: bool
-    dependencies: typing.List[str]
-    types: typing.List[CdpType]
-    commands: typing.List[CdpCommand]
-    events: typing.List[CdpEvent]
+    dependencies: list[str]
+    types: list[CdpType]
+    commands: list[CdpCommand]
+    events: list[CdpEvent]
     @property
     def module(self): ...
     @classmethod
@@ -141,7 +135,6 @@ class CdpDomain:
     def generate_code(self) -> str: ...
     def generate_imports(self): ...
     def generate_sphinx(self) -> str: ...
-    def __init__(self, domain, description, experimental, dependencies, types, commands, events) -> None: ...
 
 def parse(json_path, output_path): ...
 def generate_init(init_path, domains) -> None: ...

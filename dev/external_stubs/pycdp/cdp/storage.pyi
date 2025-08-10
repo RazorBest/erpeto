@@ -1,6 +1,6 @@
 import enum
 import typing
-from . import browser as browser, network as network, page as page
+from . import browser as browser, network as network, page as page, target as target
 from .util import T_JSON_DICT as T_JSON_DICT, event_class as event_class
 from dataclasses import dataclass
 
@@ -10,20 +10,19 @@ class SerializedStorageKey(str):
     def from_json(cls, json: str) -> SerializedStorageKey: ...
 
 class StorageType(enum.Enum):
-    APPCACHE: str
-    COOKIES: str
-    FILE_SYSTEMS: str
-    INDEXEDDB: str
-    LOCAL_STORAGE: str
-    SHADER_CACHE: str
-    WEBSQL: str
-    SERVICE_WORKERS: str
-    CACHE_STORAGE: str
-    INTEREST_GROUPS: str
-    SHARED_STORAGE: str
-    STORAGE_BUCKETS: str
-    ALL_: str
-    OTHER: str
+    COOKIES = 'cookies'
+    FILE_SYSTEMS = 'file_systems'
+    INDEXEDDB = 'indexeddb'
+    LOCAL_STORAGE = 'local_storage'
+    SHADER_CACHE = 'shader_cache'
+    WEBSQL = 'websql'
+    SERVICE_WORKERS = 'service_workers'
+    CACHE_STORAGE = 'cache_storage'
+    INTEREST_GROUPS = 'interest_groups'
+    SHARED_STORAGE = 'shared_storage'
+    STORAGE_BUCKETS = 'storage_buckets'
+    ALL_ = 'all'
+    OTHER = 'other'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> StorageType: ...
@@ -35,7 +34,6 @@ class UsageForType:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> UsageForType: ...
-    def __init__(self, storage_type, usage) -> None: ...
 
 @dataclass
 class TrustTokens:
@@ -44,70 +42,73 @@ class TrustTokens:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> TrustTokens: ...
-    def __init__(self, issuer_origin, count) -> None: ...
+
+class InterestGroupAuctionId(str):
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> InterestGroupAuctionId: ...
 
 class InterestGroupAccessType(enum.Enum):
-    JOIN: str
-    LEAVE: str
-    UPDATE: str
-    LOADED: str
-    BID: str
-    WIN: str
-    ADDITIONAL_BID: str
-    ADDITIONAL_BID_WIN: str
-    CLEAR: str
+    JOIN = 'join'
+    LEAVE = 'leave'
+    UPDATE = 'update'
+    LOADED = 'loaded'
+    BID = 'bid'
+    WIN = 'win'
+    ADDITIONAL_BID = 'additionalBid'
+    ADDITIONAL_BID_WIN = 'additionalBidWin'
+    TOP_LEVEL_BID = 'topLevelBid'
+    TOP_LEVEL_ADDITIONAL_BID = 'topLevelAdditionalBid'
+    CLEAR = 'clear'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> InterestGroupAccessType: ...
 
-@dataclass
-class InterestGroupAd:
-    render_url: str
-    metadata: typing.Optional[str] = ...
-    def to_json(self) -> T_JSON_DICT: ...
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> InterestGroupAd: ...
-    def __init__(self, render_url, metadata) -> None: ...
-
-@dataclass
-class InterestGroupDetails:
-    owner_origin: str
-    name: str
-    expiration_time: network.TimeSinceEpoch
-    joining_origin: str
-    trusted_bidding_signals_keys: typing.List[str]
-    ads: typing.List[InterestGroupAd]
-    ad_components: typing.List[InterestGroupAd]
-    bidding_logic_url: typing.Optional[str] = ...
-    bidding_wasm_helper_url: typing.Optional[str] = ...
-    update_url: typing.Optional[str] = ...
-    trusted_bidding_signals_url: typing.Optional[str] = ...
-    user_bidding_signals: typing.Optional[str] = ...
-    def to_json(self) -> T_JSON_DICT: ...
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> InterestGroupDetails: ...
-    def __init__(self, owner_origin, name, expiration_time, joining_origin, trusted_bidding_signals_keys, ads, ad_components, bidding_logic_url, bidding_wasm_helper_url, update_url, trusted_bidding_signals_url, user_bidding_signals) -> None: ...
-
-class SharedStorageAccessType(enum.Enum):
-    DOCUMENT_ADD_MODULE: str
-    DOCUMENT_SELECT_URL: str
-    DOCUMENT_RUN: str
-    DOCUMENT_SET: str
-    DOCUMENT_APPEND: str
-    DOCUMENT_DELETE: str
-    DOCUMENT_CLEAR: str
-    WORKLET_SET: str
-    WORKLET_APPEND: str
-    WORKLET_DELETE: str
-    WORKLET_CLEAR: str
-    WORKLET_GET: str
-    WORKLET_KEYS: str
-    WORKLET_ENTRIES: str
-    WORKLET_LENGTH: str
-    WORKLET_REMAINING_BUDGET: str
+class InterestGroupAuctionEventType(enum.Enum):
+    STARTED = 'started'
+    CONFIG_RESOLVED = 'configResolved'
     def to_json(self) -> str: ...
     @classmethod
-    def from_json(cls, json: str) -> SharedStorageAccessType: ...
+    def from_json(cls, json: str) -> InterestGroupAuctionEventType: ...
+
+class InterestGroupAuctionFetchType(enum.Enum):
+    BIDDER_JS = 'bidderJs'
+    BIDDER_WASM = 'bidderWasm'
+    SELLER_JS = 'sellerJs'
+    BIDDER_TRUSTED_SIGNALS = 'bidderTrustedSignals'
+    SELLER_TRUSTED_SIGNALS = 'sellerTrustedSignals'
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> InterestGroupAuctionFetchType: ...
+
+class SharedStorageAccessScope(enum.Enum):
+    WINDOW = 'window'
+    SHARED_STORAGE_WORKLET = 'sharedStorageWorklet'
+    PROTECTED_AUDIENCE_WORKLET = 'protectedAudienceWorklet'
+    HEADER = 'header'
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> SharedStorageAccessScope: ...
+
+class SharedStorageAccessMethod(enum.Enum):
+    ADD_MODULE = 'addModule'
+    CREATE_WORKLET = 'createWorklet'
+    SELECT_URL = 'selectURL'
+    RUN = 'run'
+    BATCH_UPDATE = 'batchUpdate'
+    SET_ = 'set'
+    APPEND = 'append'
+    DELETE = 'delete'
+    CLEAR = 'clear'
+    GET = 'get'
+    KEYS = 'keys'
+    VALUES = 'values'
+    ENTRIES = 'entries'
+    LENGTH = 'length'
+    REMAINING_BUDGET = 'remainingBudget'
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> SharedStorageAccessMethod: ...
 
 @dataclass
 class SharedStorageEntry:
@@ -116,17 +117,26 @@ class SharedStorageEntry:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> SharedStorageEntry: ...
-    def __init__(self, key, value) -> None: ...
 
 @dataclass
 class SharedStorageMetadata:
     creation_time: network.TimeSinceEpoch
     length: int
     remaining_budget: float
+    bytes_used: int
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> SharedStorageMetadata: ...
-    def __init__(self, creation_time, length, remaining_budget) -> None: ...
+
+@dataclass
+class SharedStoragePrivateAggregationConfig:
+    filtering_id_max_bytes: int
+    aggregation_coordinator_origin: str | None = ...
+    context_id: str | None = ...
+    max_contributions: int | None = ...
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> SharedStoragePrivateAggregationConfig: ...
 
 @dataclass
 class SharedStorageReportingMetadata:
@@ -135,34 +145,41 @@ class SharedStorageReportingMetadata:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> SharedStorageReportingMetadata: ...
-    def __init__(self, event_type, reporting_url) -> None: ...
 
 @dataclass
 class SharedStorageUrlWithMetadata:
     url: str
-    reporting_metadata: typing.List[SharedStorageReportingMetadata]
+    reporting_metadata: list[SharedStorageReportingMetadata]
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> SharedStorageUrlWithMetadata: ...
-    def __init__(self, url, reporting_metadata) -> None: ...
 
 @dataclass
 class SharedStorageAccessParams:
-    script_source_url: typing.Optional[str] = ...
-    operation_name: typing.Optional[str] = ...
-    serialized_data: typing.Optional[str] = ...
-    urls_with_metadata: typing.Optional[typing.List[SharedStorageUrlWithMetadata]] = ...
-    key: typing.Optional[str] = ...
-    value: typing.Optional[str] = ...
-    ignore_if_present: typing.Optional[bool] = ...
+    script_source_url: str | None = ...
+    data_origin: str | None = ...
+    operation_name: str | None = ...
+    operation_id: str | None = ...
+    keep_alive: bool | None = ...
+    private_aggregation_config: SharedStoragePrivateAggregationConfig | None = ...
+    serialized_data: str | None = ...
+    urls_with_metadata: list[SharedStorageUrlWithMetadata] | None = ...
+    urn_uuid: str | None = ...
+    key: str | None = ...
+    value: str | None = ...
+    ignore_if_present: bool | None = ...
+    worklet_ordinal: int | None = ...
+    worklet_target_id: target.TargetID | None = ...
+    with_lock: str | None = ...
+    batch_update_id: str | None = ...
+    batch_size: int | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> SharedStorageAccessParams: ...
-    def __init__(self, script_source_url, operation_name, serialized_data, urls_with_metadata, key, value, ignore_if_present) -> None: ...
 
 class StorageBucketsDurability(enum.Enum):
-    RELAXED: str
-    STRICT: str
+    RELAXED = 'relaxed'
+    STRICT = 'strict'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> StorageBucketsDurability: ...
@@ -170,11 +187,10 @@ class StorageBucketsDurability(enum.Enum):
 @dataclass
 class StorageBucket:
     storage_key: SerializedStorageKey
-    name: typing.Optional[str] = ...
+    name: str | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> StorageBucket: ...
-    def __init__(self, storage_key, name) -> None: ...
 
 @dataclass
 class StorageBucketInfo:
@@ -187,11 +203,10 @@ class StorageBucketInfo:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> StorageBucketInfo: ...
-    def __init__(self, bucket, id_, expiration, quota, persistent, durability) -> None: ...
 
 class AttributionReportingSourceType(enum.Enum):
-    NAVIGATION: str
-    EVENT: str
+    NAVIGATION = 'navigation'
+    EVENT = 'event'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> AttributionReportingSourceType: ...
@@ -214,29 +229,26 @@ class SignedInt64AsBase10(str):
 @dataclass
 class AttributionReportingFilterDataEntry:
     key: str
-    values: typing.List[str]
+    values: list[str]
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingFilterDataEntry: ...
-    def __init__(self, key, values) -> None: ...
 
 @dataclass
 class AttributionReportingFilterConfig:
-    filter_values: typing.List[AttributionReportingFilterDataEntry]
-    lookback_window: typing.Optional[int] = ...
+    filter_values: list[AttributionReportingFilterDataEntry]
+    lookback_window: int | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingFilterConfig: ...
-    def __init__(self, filter_values, lookback_window) -> None: ...
 
 @dataclass
 class AttributionReportingFilterPair:
-    filters: typing.List[AttributionReportingFilterConfig]
-    not_filters: typing.List[AttributionReportingFilterConfig]
+    filters: list[AttributionReportingFilterConfig]
+    not_filters: list[AttributionReportingFilterConfig]
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingFilterPair: ...
-    def __init__(self, filters, not_filters) -> None: ...
 
 @dataclass
 class AttributionReportingAggregationKeysEntry:
@@ -245,185 +257,256 @@ class AttributionReportingAggregationKeysEntry:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingAggregationKeysEntry: ...
-    def __init__(self, key, value) -> None: ...
 
 @dataclass
 class AttributionReportingEventReportWindows:
     start: int
-    ends: typing.List[int]
+    ends: list[int]
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingEventReportWindows: ...
-    def __init__(self, start, ends) -> None: ...
-
-@dataclass
-class AttributionReportingTriggerSpec:
-    trigger_data: typing.List[float]
-    event_report_windows: AttributionReportingEventReportWindows
-    def to_json(self) -> T_JSON_DICT: ...
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> AttributionReportingTriggerSpec: ...
-    def __init__(self, trigger_data, event_report_windows) -> None: ...
 
 class AttributionReportingTriggerDataMatching(enum.Enum):
-    EXACT: str
-    MODULUS: str
+    EXACT = 'exact'
+    MODULUS = 'modulus'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> AttributionReportingTriggerDataMatching: ...
 
 @dataclass
+class AttributionReportingAggregatableDebugReportingData:
+    key_piece: UnsignedInt128AsBase16
+    value: float
+    types: list[str]
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AttributionReportingAggregatableDebugReportingData: ...
+
+@dataclass
+class AttributionReportingAggregatableDebugReportingConfig:
+    key_piece: UnsignedInt128AsBase16
+    debug_data: list[AttributionReportingAggregatableDebugReportingData]
+    budget: float | None = ...
+    aggregation_coordinator_origin: str | None = ...
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AttributionReportingAggregatableDebugReportingConfig: ...
+
+@dataclass
+class AttributionScopesData:
+    values: list[str]
+    limit: float
+    max_event_states: float
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AttributionScopesData: ...
+
+@dataclass
+class AttributionReportingNamedBudgetDef:
+    name: str
+    budget: int
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AttributionReportingNamedBudgetDef: ...
+
+@dataclass
 class AttributionReportingSourceRegistration:
     time: network.TimeSinceEpoch
     expiry: int
-    trigger_specs: typing.List[AttributionReportingTriggerSpec]
+    trigger_data: list[float]
+    event_report_windows: AttributionReportingEventReportWindows
     aggregatable_report_window: int
     type_: AttributionReportingSourceType
     source_origin: str
     reporting_origin: str
-    destination_sites: typing.List[str]
+    destination_sites: list[str]
     event_id: UnsignedInt64AsBase10
     priority: SignedInt64AsBase10
-    filter_data: typing.List[AttributionReportingFilterDataEntry]
-    aggregation_keys: typing.List[AttributionReportingAggregationKeysEntry]
+    filter_data: list[AttributionReportingFilterDataEntry]
+    aggregation_keys: list[AttributionReportingAggregationKeysEntry]
     trigger_data_matching: AttributionReportingTriggerDataMatching
-    debug_key: typing.Optional[UnsignedInt64AsBase10] = ...
+    destination_limit_priority: SignedInt64AsBase10
+    aggregatable_debug_reporting_config: AttributionReportingAggregatableDebugReportingConfig
+    max_event_level_reports: int
+    named_budgets: list[AttributionReportingNamedBudgetDef]
+    debug_reporting: bool
+    event_level_epsilon: float
+    debug_key: UnsignedInt64AsBase10 | None = ...
+    scopes_data: AttributionScopesData | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingSourceRegistration: ...
-    def __init__(self, time, expiry, trigger_specs, aggregatable_report_window, type_, source_origin, reporting_origin, destination_sites, event_id, priority, filter_data, aggregation_keys, trigger_data_matching, debug_key) -> None: ...
 
 class AttributionReportingSourceRegistrationResult(enum.Enum):
-    SUCCESS: str
-    INTERNAL_ERROR: str
-    INSUFFICIENT_SOURCE_CAPACITY: str
-    INSUFFICIENT_UNIQUE_DESTINATION_CAPACITY: str
-    EXCESSIVE_REPORTING_ORIGINS: str
-    PROHIBITED_BY_BROWSER_POLICY: str
-    SUCCESS_NOISED: str
-    DESTINATION_REPORTING_LIMIT_REACHED: str
-    DESTINATION_GLOBAL_LIMIT_REACHED: str
-    DESTINATION_BOTH_LIMITS_REACHED: str
-    REPORTING_ORIGINS_PER_SITE_LIMIT_REACHED: str
-    EXCEEDS_MAX_CHANNEL_CAPACITY: str
+    SUCCESS = 'success'
+    INTERNAL_ERROR = 'internalError'
+    INSUFFICIENT_SOURCE_CAPACITY = 'insufficientSourceCapacity'
+    INSUFFICIENT_UNIQUE_DESTINATION_CAPACITY = 'insufficientUniqueDestinationCapacity'
+    EXCESSIVE_REPORTING_ORIGINS = 'excessiveReportingOrigins'
+    PROHIBITED_BY_BROWSER_POLICY = 'prohibitedByBrowserPolicy'
+    SUCCESS_NOISED = 'successNoised'
+    DESTINATION_REPORTING_LIMIT_REACHED = 'destinationReportingLimitReached'
+    DESTINATION_GLOBAL_LIMIT_REACHED = 'destinationGlobalLimitReached'
+    DESTINATION_BOTH_LIMITS_REACHED = 'destinationBothLimitsReached'
+    REPORTING_ORIGINS_PER_SITE_LIMIT_REACHED = 'reportingOriginsPerSiteLimitReached'
+    EXCEEDS_MAX_CHANNEL_CAPACITY = 'exceedsMaxChannelCapacity'
+    EXCEEDS_MAX_SCOPES_CHANNEL_CAPACITY = 'exceedsMaxScopesChannelCapacity'
+    EXCEEDS_MAX_TRIGGER_STATE_CARDINALITY = 'exceedsMaxTriggerStateCardinality'
+    EXCEEDS_MAX_EVENT_STATES_LIMIT = 'exceedsMaxEventStatesLimit'
+    DESTINATION_PER_DAY_REPORTING_LIMIT_REACHED = 'destinationPerDayReportingLimitReached'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> AttributionReportingSourceRegistrationResult: ...
 
 class AttributionReportingSourceRegistrationTimeConfig(enum.Enum):
-    INCLUDE: str
-    EXCLUDE: str
+    INCLUDE = 'include'
+    EXCLUDE = 'exclude'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> AttributionReportingSourceRegistrationTimeConfig: ...
 
 @dataclass
-class AttributionReportingAggregatableValueEntry:
+class AttributionReportingAggregatableValueDictEntry:
     key: str
     value: float
+    filtering_id: UnsignedInt64AsBase10
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AttributionReportingAggregatableValueDictEntry: ...
+
+@dataclass
+class AttributionReportingAggregatableValueEntry:
+    values: list[AttributionReportingAggregatableValueDictEntry]
+    filters: AttributionReportingFilterPair
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingAggregatableValueEntry: ...
-    def __init__(self, key, value) -> None: ...
 
 @dataclass
 class AttributionReportingEventTriggerData:
     data: UnsignedInt64AsBase10
     priority: SignedInt64AsBase10
     filters: AttributionReportingFilterPair
-    dedup_key: typing.Optional[UnsignedInt64AsBase10] = ...
+    dedup_key: UnsignedInt64AsBase10 | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingEventTriggerData: ...
-    def __init__(self, data, priority, filters, dedup_key) -> None: ...
 
 @dataclass
 class AttributionReportingAggregatableTriggerData:
     key_piece: UnsignedInt128AsBase16
-    source_keys: typing.List[str]
+    source_keys: list[str]
     filters: AttributionReportingFilterPair
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingAggregatableTriggerData: ...
-    def __init__(self, key_piece, source_keys, filters) -> None: ...
 
 @dataclass
 class AttributionReportingAggregatableDedupKey:
     filters: AttributionReportingFilterPair
-    dedup_key: typing.Optional[UnsignedInt64AsBase10] = ...
+    dedup_key: UnsignedInt64AsBase10 | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingAggregatableDedupKey: ...
-    def __init__(self, filters, dedup_key) -> None: ...
+
+@dataclass
+class AttributionReportingNamedBudgetCandidate:
+    filters: AttributionReportingFilterPair
+    name: str | None = ...
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AttributionReportingNamedBudgetCandidate: ...
 
 @dataclass
 class AttributionReportingTriggerRegistration:
     filters: AttributionReportingFilterPair
-    aggregatable_dedup_keys: typing.List[AttributionReportingAggregatableDedupKey]
-    event_trigger_data: typing.List[AttributionReportingEventTriggerData]
-    aggregatable_trigger_data: typing.List[AttributionReportingAggregatableTriggerData]
-    aggregatable_values: typing.List[AttributionReportingAggregatableValueEntry]
+    aggregatable_dedup_keys: list[AttributionReportingAggregatableDedupKey]
+    event_trigger_data: list[AttributionReportingEventTriggerData]
+    aggregatable_trigger_data: list[AttributionReportingAggregatableTriggerData]
+    aggregatable_values: list[AttributionReportingAggregatableValueEntry]
+    aggregatable_filtering_id_max_bytes: int
     debug_reporting: bool
     source_registration_time_config: AttributionReportingSourceRegistrationTimeConfig
-    debug_key: typing.Optional[UnsignedInt64AsBase10] = ...
-    aggregation_coordinator_origin: typing.Optional[str] = ...
-    trigger_context_id: typing.Optional[str] = ...
+    aggregatable_debug_reporting_config: AttributionReportingAggregatableDebugReportingConfig
+    scopes: list[str]
+    named_budgets: list[AttributionReportingNamedBudgetCandidate]
+    debug_key: UnsignedInt64AsBase10 | None = ...
+    aggregation_coordinator_origin: str | None = ...
+    trigger_context_id: str | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingTriggerRegistration: ...
-    def __init__(self, filters, aggregatable_dedup_keys, event_trigger_data, aggregatable_trigger_data, aggregatable_values, debug_reporting, source_registration_time_config, debug_key, aggregation_coordinator_origin, trigger_context_id) -> None: ...
 
 class AttributionReportingEventLevelResult(enum.Enum):
-    SUCCESS: str
-    SUCCESS_DROPPED_LOWER_PRIORITY: str
-    INTERNAL_ERROR: str
-    NO_CAPACITY_FOR_ATTRIBUTION_DESTINATION: str
-    NO_MATCHING_SOURCES: str
-    DEDUPLICATED: str
-    EXCESSIVE_ATTRIBUTIONS: str
-    PRIORITY_TOO_LOW: str
-    NEVER_ATTRIBUTED_SOURCE: str
-    EXCESSIVE_REPORTING_ORIGINS: str
-    NO_MATCHING_SOURCE_FILTER_DATA: str
-    PROHIBITED_BY_BROWSER_POLICY: str
-    NO_MATCHING_CONFIGURATIONS: str
-    EXCESSIVE_REPORTS: str
-    FALSELY_ATTRIBUTED_SOURCE: str
-    REPORT_WINDOW_PASSED: str
-    NOT_REGISTERED: str
-    REPORT_WINDOW_NOT_STARTED: str
-    NO_MATCHING_TRIGGER_DATA: str
+    SUCCESS = 'success'
+    SUCCESS_DROPPED_LOWER_PRIORITY = 'successDroppedLowerPriority'
+    INTERNAL_ERROR = 'internalError'
+    NO_CAPACITY_FOR_ATTRIBUTION_DESTINATION = 'noCapacityForAttributionDestination'
+    NO_MATCHING_SOURCES = 'noMatchingSources'
+    DEDUPLICATED = 'deduplicated'
+    EXCESSIVE_ATTRIBUTIONS = 'excessiveAttributions'
+    PRIORITY_TOO_LOW = 'priorityTooLow'
+    NEVER_ATTRIBUTED_SOURCE = 'neverAttributedSource'
+    EXCESSIVE_REPORTING_ORIGINS = 'excessiveReportingOrigins'
+    NO_MATCHING_SOURCE_FILTER_DATA = 'noMatchingSourceFilterData'
+    PROHIBITED_BY_BROWSER_POLICY = 'prohibitedByBrowserPolicy'
+    NO_MATCHING_CONFIGURATIONS = 'noMatchingConfigurations'
+    EXCESSIVE_REPORTS = 'excessiveReports'
+    FALSELY_ATTRIBUTED_SOURCE = 'falselyAttributedSource'
+    REPORT_WINDOW_PASSED = 'reportWindowPassed'
+    NOT_REGISTERED = 'notRegistered'
+    REPORT_WINDOW_NOT_STARTED = 'reportWindowNotStarted'
+    NO_MATCHING_TRIGGER_DATA = 'noMatchingTriggerData'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> AttributionReportingEventLevelResult: ...
 
 class AttributionReportingAggregatableResult(enum.Enum):
-    SUCCESS: str
-    INTERNAL_ERROR: str
-    NO_CAPACITY_FOR_ATTRIBUTION_DESTINATION: str
-    NO_MATCHING_SOURCES: str
-    EXCESSIVE_ATTRIBUTIONS: str
-    EXCESSIVE_REPORTING_ORIGINS: str
-    NO_HISTOGRAMS: str
-    INSUFFICIENT_BUDGET: str
-    NO_MATCHING_SOURCE_FILTER_DATA: str
-    NOT_REGISTERED: str
-    PROHIBITED_BY_BROWSER_POLICY: str
-    DEDUPLICATED: str
-    REPORT_WINDOW_PASSED: str
-    EXCESSIVE_REPORTS: str
+    SUCCESS = 'success'
+    INTERNAL_ERROR = 'internalError'
+    NO_CAPACITY_FOR_ATTRIBUTION_DESTINATION = 'noCapacityForAttributionDestination'
+    NO_MATCHING_SOURCES = 'noMatchingSources'
+    EXCESSIVE_ATTRIBUTIONS = 'excessiveAttributions'
+    EXCESSIVE_REPORTING_ORIGINS = 'excessiveReportingOrigins'
+    NO_HISTOGRAMS = 'noHistograms'
+    INSUFFICIENT_BUDGET = 'insufficientBudget'
+    INSUFFICIENT_NAMED_BUDGET = 'insufficientNamedBudget'
+    NO_MATCHING_SOURCE_FILTER_DATA = 'noMatchingSourceFilterData'
+    NOT_REGISTERED = 'notRegistered'
+    PROHIBITED_BY_BROWSER_POLICY = 'prohibitedByBrowserPolicy'
+    DEDUPLICATED = 'deduplicated'
+    REPORT_WINDOW_PASSED = 'reportWindowPassed'
+    EXCESSIVE_REPORTS = 'excessiveReports'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> AttributionReportingAggregatableResult: ...
 
+class AttributionReportingReportResult(enum.Enum):
+    SENT = 'sent'
+    PROHIBITED = 'prohibited'
+    FAILED_TO_ASSEMBLE = 'failedToAssemble'
+    EXPIRED = 'expired'
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> AttributionReportingReportResult: ...
+
+@dataclass
+class RelatedWebsiteSet:
+    primary_sites: list[str]
+    associated_sites: list[str]
+    service_sites: list[str]
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> RelatedWebsiteSet: ...
+
 def get_storage_key_for_frame(frame_id: page.FrameId) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, SerializedStorageKey]: ...
 def clear_data_for_origin(origin: str, storage_types: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def clear_data_for_storage_key(storage_key: str, storage_types: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def get_cookies(browser_context_id: typing.Optional[browser.BrowserContextID] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.List[network.Cookie]]: ...
-def set_cookies(cookies: typing.List[network.CookieParam], browser_context_id: typing.Optional[browser.BrowserContextID] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def clear_cookies(browser_context_id: typing.Optional[browser.BrowserContextID] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def get_usage_and_quota(origin: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.Tuple[float, float, bool, typing.List[UsageForType]]]: ...
-def override_quota_for_origin(origin: str, quota_size: typing.Optional[float] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def get_cookies(browser_context_id: browser.BrowserContextID | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[network.Cookie]]: ...
+def set_cookies(cookies: list[network.CookieParam], browser_context_id: browser.BrowserContextID | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def clear_cookies(browser_context_id: browser.BrowserContextID | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def get_usage_and_quota(origin: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[float, float, bool, list[UsageForType]]]: ...
+def override_quota_for_origin(origin: str, quota_size: float | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def track_cache_storage_for_origin(origin: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def track_cache_storage_for_storage_key(storage_key: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def track_indexed_db_for_origin(origin: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
@@ -432,22 +515,27 @@ def untrack_cache_storage_for_origin(origin: str) -> typing.Generator[T_JSON_DIC
 def untrack_cache_storage_for_storage_key(storage_key: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def untrack_indexed_db_for_origin(origin: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def untrack_indexed_db_for_storage_key(storage_key: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def get_trust_tokens() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.List[TrustTokens]]: ...
+def get_trust_tokens() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[TrustTokens]]: ...
 def clear_trust_tokens(issuer_origin: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, bool]: ...
-def get_interest_group_details(owner_origin: str, name: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, InterestGroupDetails]: ...
+def get_interest_group_details(owner_origin: str, name: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, dict]: ...
 def set_interest_group_tracking(enable: bool) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def set_interest_group_auction_tracking(enable: bool) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def get_shared_storage_metadata(owner_origin: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, SharedStorageMetadata]: ...
-def get_shared_storage_entries(owner_origin: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.List[SharedStorageEntry]]: ...
-def set_shared_storage_entry(owner_origin: str, key: str, value: str, ignore_if_present: typing.Optional[bool] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def get_shared_storage_entries(owner_origin: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[SharedStorageEntry]]: ...
+def set_shared_storage_entry(owner_origin: str, key: str, value: str, ignore_if_present: bool | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def delete_shared_storage_entry(owner_origin: str, key: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def clear_shared_storage_entries(owner_origin: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def reset_shared_storage_budget(owner_origin: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def set_shared_storage_tracking(enable: bool) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def set_storage_bucket_tracking(storage_key: str, enable: bool) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def delete_storage_bucket(bucket: StorageBucket) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def run_bounce_tracking_mitigations() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.List[str]]: ...
+def run_bounce_tracking_mitigations() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[str]]: ...
 def set_attribution_reporting_local_testing_mode(enabled: bool) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def set_attribution_reporting_tracking(enable: bool) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def send_pending_attribution_reports() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, int]: ...
+def get_related_website_sets() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[RelatedWebsiteSet]]: ...
+def get_affected_urls_for_third_party_cookie_metadata(first_party_url: str, third_party_urls: list[str]) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[str]]: ...
+def set_protected_audience_k_anonymity(owner: str, name: str, hashes: list[str]) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 
 @dataclass
 class CacheStorageContentUpdated:
@@ -457,8 +545,6 @@ class CacheStorageContentUpdated:
     cache_name: str
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> CacheStorageContentUpdated: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, origin, storage_key, bucket_id, cache_name) -> None: ...
 
 @dataclass
 class CacheStorageListUpdated:
@@ -467,8 +553,6 @@ class CacheStorageListUpdated:
     bucket_id: str
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> CacheStorageListUpdated: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, origin, storage_key, bucket_id) -> None: ...
 
 @dataclass
 class IndexedDBContentUpdated:
@@ -479,8 +563,6 @@ class IndexedDBContentUpdated:
     object_store_name: str
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> IndexedDBContentUpdated: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, origin, storage_key, bucket_id, database_name, object_store_name) -> None: ...
 
 @dataclass
 class IndexedDBListUpdated:
@@ -489,8 +571,6 @@ class IndexedDBListUpdated:
     bucket_id: str
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> IndexedDBListUpdated: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, origin, storage_key, bucket_id) -> None: ...
 
 @dataclass
 class InterestGroupAccessed:
@@ -498,38 +578,66 @@ class InterestGroupAccessed:
     type_: InterestGroupAccessType
     owner_origin: str
     name: str
+    component_seller_origin: str | None
+    bid: float | None
+    bid_currency: str | None
+    unique_auction_id: InterestGroupAuctionId | None
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> InterestGroupAccessed: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, access_time, type_, owner_origin, name) -> None: ...
+
+@dataclass
+class InterestGroupAuctionEventOccurred:
+    event_time: network.TimeSinceEpoch
+    type_: InterestGroupAuctionEventType
+    unique_auction_id: InterestGroupAuctionId
+    parent_auction_id: InterestGroupAuctionId | None
+    auction_config: dict | None
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> InterestGroupAuctionEventOccurred: ...
+
+@dataclass
+class InterestGroupAuctionNetworkRequestCreated:
+    type_: InterestGroupAuctionFetchType
+    request_id: network.RequestId
+    auctions: list[InterestGroupAuctionId]
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> InterestGroupAuctionNetworkRequestCreated: ...
 
 @dataclass
 class SharedStorageAccessed:
     access_time: network.TimeSinceEpoch
-    type_: SharedStorageAccessType
+    scope: SharedStorageAccessScope
+    method: SharedStorageAccessMethod
     main_frame_id: page.FrameId
     owner_origin: str
+    owner_site: str
     params: SharedStorageAccessParams
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> SharedStorageAccessed: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, access_time, type_, main_frame_id, owner_origin, params) -> None: ...
+
+@dataclass
+class SharedStorageWorkletOperationExecutionFinished:
+    finished_time: network.TimeSinceEpoch
+    execution_time: int
+    method: SharedStorageAccessMethod
+    operation_id: str
+    worklet_target_id: target.TargetID
+    main_frame_id: page.FrameId
+    owner_origin: str
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> SharedStorageWorkletOperationExecutionFinished: ...
 
 @dataclass
 class StorageBucketCreatedOrUpdated:
     bucket_info: StorageBucketInfo
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> StorageBucketCreatedOrUpdated: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, bucket_info) -> None: ...
 
 @dataclass
 class StorageBucketDeleted:
     bucket_id: str
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> StorageBucketDeleted: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, bucket_id) -> None: ...
 
 @dataclass
 class AttributionReportingSourceRegistered:
@@ -537,8 +645,6 @@ class AttributionReportingSourceRegistered:
     result: AttributionReportingSourceRegistrationResult
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingSourceRegistered: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, registration, result) -> None: ...
 
 @dataclass
 class AttributionReportingTriggerRegistered:
@@ -547,5 +653,24 @@ class AttributionReportingTriggerRegistered:
     aggregatable: AttributionReportingAggregatableResult
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingTriggerRegistered: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, registration, event_level, aggregatable) -> None: ...
+
+@dataclass
+class AttributionReportingReportSent:
+    url: str
+    body: dict
+    result: AttributionReportingReportResult
+    net_error: int | None
+    net_error_name: str | None
+    http_status_code: int | None
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AttributionReportingReportSent: ...
+
+@dataclass
+class AttributionReportingVerboseDebugReportSent:
+    url: str
+    body: list[dict] | None
+    net_error: int | None
+    net_error_name: str | None
+    http_status_code: int | None
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AttributionReportingVerboseDebugReportSent: ...

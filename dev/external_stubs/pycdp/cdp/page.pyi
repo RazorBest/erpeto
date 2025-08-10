@@ -10,17 +10,17 @@ class FrameId(str):
     def from_json(cls, json: str) -> FrameId: ...
 
 class AdFrameType(enum.Enum):
-    NONE: str
-    CHILD: str
-    ROOT: str
+    NONE = 'none'
+    CHILD = 'child'
+    ROOT = 'root'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> AdFrameType: ...
 
 class AdFrameExplanation(enum.Enum):
-    PARENT_IS_AD: str
-    CREATED_BY_AD_SCRIPT: str
-    MATCHED_BLOCKING_RULE: str
+    PARENT_IS_AD = 'ParentIsAd'
+    CREATED_BY_AD_SCRIPT = 'CreatedByAdScript'
+    MATCHED_BLOCKING_RULE = 'MatchedBlockingRule'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> AdFrameExplanation: ...
@@ -28,11 +28,10 @@ class AdFrameExplanation(enum.Enum):
 @dataclass
 class AdFrameStatus:
     ad_frame_type: AdFrameType
-    explanations: typing.Optional[typing.List[AdFrameExplanation]] = ...
+    explanations: list[AdFrameExplanation] | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AdFrameStatus: ...
-    def __init__(self, ad_frame_type, explanations) -> None: ...
 
 @dataclass
 class AdScriptId:
@@ -41,128 +40,157 @@ class AdScriptId:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AdScriptId: ...
-    def __init__(self, script_id, debugger_id) -> None: ...
+
+@dataclass
+class AdScriptAncestry:
+    ancestry_chain: list[AdScriptId]
+    root_script_filterlist_rule: str | None = ...
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AdScriptAncestry: ...
 
 class SecureContextType(enum.Enum):
-    SECURE: str
-    SECURE_LOCALHOST: str
-    INSECURE_SCHEME: str
-    INSECURE_ANCESTOR: str
+    SECURE = 'Secure'
+    SECURE_LOCALHOST = 'SecureLocalhost'
+    INSECURE_SCHEME = 'InsecureScheme'
+    INSECURE_ANCESTOR = 'InsecureAncestor'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> SecureContextType: ...
 
 class CrossOriginIsolatedContextType(enum.Enum):
-    ISOLATED: str
-    NOT_ISOLATED: str
-    NOT_ISOLATED_FEATURE_DISABLED: str
+    ISOLATED = 'Isolated'
+    NOT_ISOLATED = 'NotIsolated'
+    NOT_ISOLATED_FEATURE_DISABLED = 'NotIsolatedFeatureDisabled'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> CrossOriginIsolatedContextType: ...
 
 class GatedAPIFeatures(enum.Enum):
-    SHARED_ARRAY_BUFFERS: str
-    SHARED_ARRAY_BUFFERS_TRANSFER_ALLOWED: str
-    PERFORMANCE_MEASURE_MEMORY: str
-    PERFORMANCE_PROFILE: str
+    SHARED_ARRAY_BUFFERS = 'SharedArrayBuffers'
+    SHARED_ARRAY_BUFFERS_TRANSFER_ALLOWED = 'SharedArrayBuffersTransferAllowed'
+    PERFORMANCE_MEASURE_MEMORY = 'PerformanceMeasureMemory'
+    PERFORMANCE_PROFILE = 'PerformanceProfile'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> GatedAPIFeatures: ...
 
 class PermissionsPolicyFeature(enum.Enum):
-    ACCELEROMETER: str
-    AMBIENT_LIGHT_SENSOR: str
-    ATTRIBUTION_REPORTING: str
-    AUTOPLAY: str
-    BLUETOOTH: str
-    BROWSING_TOPICS: str
-    CAMERA: str
-    CAPTURED_SURFACE_CONTROL: str
-    CH_DPR: str
-    CH_DEVICE_MEMORY: str
-    CH_DOWNLINK: str
-    CH_ECT: str
-    CH_PREFERS_COLOR_SCHEME: str
-    CH_PREFERS_REDUCED_MOTION: str
-    CH_PREFERS_REDUCED_TRANSPARENCY: str
-    CH_RTT: str
-    CH_SAVE_DATA: str
-    CH_UA: str
-    CH_UA_ARCH: str
-    CH_UA_BITNESS: str
-    CH_UA_PLATFORM: str
-    CH_UA_MODEL: str
-    CH_UA_MOBILE: str
-    CH_UA_FORM_FACTOR: str
-    CH_UA_FULL_VERSION: str
-    CH_UA_FULL_VERSION_LIST: str
-    CH_UA_PLATFORM_VERSION: str
-    CH_UA_WOW64: str
-    CH_VIEWPORT_HEIGHT: str
-    CH_VIEWPORT_WIDTH: str
-    CH_WIDTH: str
-    CLIPBOARD_READ: str
-    CLIPBOARD_WRITE: str
-    COMPUTE_PRESSURE: str
-    CROSS_ORIGIN_ISOLATED: str
-    DIRECT_SOCKETS: str
-    DISPLAY_CAPTURE: str
-    DOCUMENT_DOMAIN: str
-    ENCRYPTED_MEDIA: str
-    EXECUTION_WHILE_OUT_OF_VIEWPORT: str
-    EXECUTION_WHILE_NOT_RENDERED: str
-    FOCUS_WITHOUT_USER_ACTIVATION: str
-    FULLSCREEN: str
-    FROBULATE: str
-    GAMEPAD: str
-    GEOLOCATION: str
-    GYROSCOPE: str
-    HID: str
-    IDENTITY_CREDENTIALS_GET: str
-    IDLE_DETECTION: str
-    INTEREST_COHORT: str
-    JOIN_AD_INTEREST_GROUP: str
-    KEYBOARD_MAP: str
-    LOCAL_FONTS: str
-    MAGNETOMETER: str
-    MICROPHONE: str
-    MIDI: str
-    OTP_CREDENTIALS: str
-    PAYMENT: str
-    PICTURE_IN_PICTURE: str
-    PRIVATE_AGGREGATION: str
-    PRIVATE_STATE_TOKEN_ISSUANCE: str
-    PRIVATE_STATE_TOKEN_REDEMPTION: str
-    PUBLICKEY_CREDENTIALS_CREATE: str
-    PUBLICKEY_CREDENTIALS_GET: str
-    RUN_AD_AUCTION: str
-    SCREEN_WAKE_LOCK: str
-    SERIAL: str
-    SHARED_AUTOFILL: str
-    SHARED_STORAGE: str
-    SHARED_STORAGE_SELECT_URL: str
-    SMART_CARD: str
-    STORAGE_ACCESS: str
-    SUB_APPS: str
-    SYNC_XHR: str
-    UNLOAD: str
-    USB: str
-    USB_UNRESTRICTED: str
-    VERTICAL_SCROLL: str
-    WEB_PRINTING: str
-    WEB_SHARE: str
-    WINDOW_MANAGEMENT: str
-    WINDOW_PLACEMENT: str
-    XR_SPATIAL_TRACKING: str
+    ACCELEROMETER = 'accelerometer'
+    ALL_SCREENS_CAPTURE = 'all-screens-capture'
+    AMBIENT_LIGHT_SENSOR = 'ambient-light-sensor'
+    ARIA_NOTIFY = 'aria-notify'
+    ATTRIBUTION_REPORTING = 'attribution-reporting'
+    AUTOPLAY = 'autoplay'
+    BLUETOOTH = 'bluetooth'
+    BROWSING_TOPICS = 'browsing-topics'
+    CAMERA = 'camera'
+    CAPTURED_SURFACE_CONTROL = 'captured-surface-control'
+    CH_DPR = 'ch-dpr'
+    CH_DEVICE_MEMORY = 'ch-device-memory'
+    CH_DOWNLINK = 'ch-downlink'
+    CH_ECT = 'ch-ect'
+    CH_PREFERS_COLOR_SCHEME = 'ch-prefers-color-scheme'
+    CH_PREFERS_REDUCED_MOTION = 'ch-prefers-reduced-motion'
+    CH_PREFERS_REDUCED_TRANSPARENCY = 'ch-prefers-reduced-transparency'
+    CH_RTT = 'ch-rtt'
+    CH_SAVE_DATA = 'ch-save-data'
+    CH_UA = 'ch-ua'
+    CH_UA_ARCH = 'ch-ua-arch'
+    CH_UA_BITNESS = 'ch-ua-bitness'
+    CH_UA_HIGH_ENTROPY_VALUES = 'ch-ua-high-entropy-values'
+    CH_UA_PLATFORM = 'ch-ua-platform'
+    CH_UA_MODEL = 'ch-ua-model'
+    CH_UA_MOBILE = 'ch-ua-mobile'
+    CH_UA_FORM_FACTORS = 'ch-ua-form-factors'
+    CH_UA_FULL_VERSION = 'ch-ua-full-version'
+    CH_UA_FULL_VERSION_LIST = 'ch-ua-full-version-list'
+    CH_UA_PLATFORM_VERSION = 'ch-ua-platform-version'
+    CH_UA_WOW64 = 'ch-ua-wow64'
+    CH_VIEWPORT_HEIGHT = 'ch-viewport-height'
+    CH_VIEWPORT_WIDTH = 'ch-viewport-width'
+    CH_WIDTH = 'ch-width'
+    CLIPBOARD_READ = 'clipboard-read'
+    CLIPBOARD_WRITE = 'clipboard-write'
+    COMPUTE_PRESSURE = 'compute-pressure'
+    CONTROLLED_FRAME = 'controlled-frame'
+    CROSS_ORIGIN_ISOLATED = 'cross-origin-isolated'
+    DEFERRED_FETCH = 'deferred-fetch'
+    DEFERRED_FETCH_MINIMAL = 'deferred-fetch-minimal'
+    DEVICE_ATTRIBUTES = 'device-attributes'
+    DIGITAL_CREDENTIALS_GET = 'digital-credentials-get'
+    DIRECT_SOCKETS = 'direct-sockets'
+    DIRECT_SOCKETS_PRIVATE = 'direct-sockets-private'
+    DISPLAY_CAPTURE = 'display-capture'
+    DOCUMENT_DOMAIN = 'document-domain'
+    ENCRYPTED_MEDIA = 'encrypted-media'
+    EXECUTION_WHILE_OUT_OF_VIEWPORT = 'execution-while-out-of-viewport'
+    EXECUTION_WHILE_NOT_RENDERED = 'execution-while-not-rendered'
+    FENCED_UNPARTITIONED_STORAGE_READ = 'fenced-unpartitioned-storage-read'
+    FOCUS_WITHOUT_USER_ACTIVATION = 'focus-without-user-activation'
+    FULLSCREEN = 'fullscreen'
+    FROBULATE = 'frobulate'
+    GAMEPAD = 'gamepad'
+    GEOLOCATION = 'geolocation'
+    GYROSCOPE = 'gyroscope'
+    HID = 'hid'
+    IDENTITY_CREDENTIALS_GET = 'identity-credentials-get'
+    IDLE_DETECTION = 'idle-detection'
+    INTEREST_COHORT = 'interest-cohort'
+    JOIN_AD_INTEREST_GROUP = 'join-ad-interest-group'
+    KEYBOARD_MAP = 'keyboard-map'
+    LANGUAGE_DETECTOR = 'language-detector'
+    LANGUAGE_MODEL = 'language-model'
+    LOCAL_FONTS = 'local-fonts'
+    LOCAL_NETWORK_ACCESS = 'local-network-access'
+    MAGNETOMETER = 'magnetometer'
+    MEDIA_PLAYBACK_WHILE_NOT_VISIBLE = 'media-playback-while-not-visible'
+    MICROPHONE = 'microphone'
+    MIDI = 'midi'
+    ON_DEVICE_SPEECH_RECOGNITION = 'on-device-speech-recognition'
+    OTP_CREDENTIALS = 'otp-credentials'
+    PAYMENT = 'payment'
+    PICTURE_IN_PICTURE = 'picture-in-picture'
+    POPINS = 'popins'
+    PRIVATE_AGGREGATION = 'private-aggregation'
+    PRIVATE_STATE_TOKEN_ISSUANCE = 'private-state-token-issuance'
+    PRIVATE_STATE_TOKEN_REDEMPTION = 'private-state-token-redemption'
+    PUBLICKEY_CREDENTIALS_CREATE = 'publickey-credentials-create'
+    PUBLICKEY_CREDENTIALS_GET = 'publickey-credentials-get'
+    RECORD_AD_AUCTION_EVENTS = 'record-ad-auction-events'
+    REWRITER = 'rewriter'
+    RUN_AD_AUCTION = 'run-ad-auction'
+    SCREEN_WAKE_LOCK = 'screen-wake-lock'
+    SERIAL = 'serial'
+    SHARED_AUTOFILL = 'shared-autofill'
+    SHARED_STORAGE = 'shared-storage'
+    SHARED_STORAGE_SELECT_URL = 'shared-storage-select-url'
+    SMART_CARD = 'smart-card'
+    SPEAKER_SELECTION = 'speaker-selection'
+    STORAGE_ACCESS = 'storage-access'
+    SUB_APPS = 'sub-apps'
+    SUMMARIZER = 'summarizer'
+    SYNC_XHR = 'sync-xhr'
+    TRANSLATOR = 'translator'
+    UNLOAD = 'unload'
+    USB = 'usb'
+    USB_UNRESTRICTED = 'usb-unrestricted'
+    VERTICAL_SCROLL = 'vertical-scroll'
+    WEB_APP_INSTALLATION = 'web-app-installation'
+    WEB_PRINTING = 'web-printing'
+    WEB_SHARE = 'web-share'
+    WINDOW_MANAGEMENT = 'window-management'
+    WRITER = 'writer'
+    XR_SPATIAL_TRACKING = 'xr-spatial-tracking'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> PermissionsPolicyFeature: ...
 
 class PermissionsPolicyBlockReason(enum.Enum):
-    HEADER: str
-    IFRAME_ATTRIBUTE: str
-    IN_FENCED_FRAME_TREE: str
-    IN_ISOLATED_APP: str
+    HEADER = 'Header'
+    IFRAME_ATTRIBUTE = 'IframeAttribute'
+    IN_FENCED_FRAME_TREE = 'InFencedFrameTree'
+    IN_ISOLATED_APP = 'InIsolatedApp'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> PermissionsPolicyBlockReason: ...
@@ -174,47 +202,45 @@ class PermissionsPolicyBlockLocator:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> PermissionsPolicyBlockLocator: ...
-    def __init__(self, frame_id, block_reason) -> None: ...
 
 @dataclass
 class PermissionsPolicyFeatureState:
     feature: PermissionsPolicyFeature
     allowed: bool
-    locator: typing.Optional[PermissionsPolicyBlockLocator] = ...
+    locator: PermissionsPolicyBlockLocator | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> PermissionsPolicyFeatureState: ...
-    def __init__(self, feature, allowed, locator) -> None: ...
 
 class OriginTrialTokenStatus(enum.Enum):
-    SUCCESS: str
-    NOT_SUPPORTED: str
-    INSECURE: str
-    EXPIRED: str
-    WRONG_ORIGIN: str
-    INVALID_SIGNATURE: str
-    MALFORMED: str
-    WRONG_VERSION: str
-    FEATURE_DISABLED: str
-    TOKEN_DISABLED: str
-    FEATURE_DISABLED_FOR_USER: str
-    UNKNOWN_TRIAL: str
+    SUCCESS = 'Success'
+    NOT_SUPPORTED = 'NotSupported'
+    INSECURE = 'Insecure'
+    EXPIRED = 'Expired'
+    WRONG_ORIGIN = 'WrongOrigin'
+    INVALID_SIGNATURE = 'InvalidSignature'
+    MALFORMED = 'Malformed'
+    WRONG_VERSION = 'WrongVersion'
+    FEATURE_DISABLED = 'FeatureDisabled'
+    TOKEN_DISABLED = 'TokenDisabled'
+    FEATURE_DISABLED_FOR_USER = 'FeatureDisabledForUser'
+    UNKNOWN_TRIAL = 'UnknownTrial'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> OriginTrialTokenStatus: ...
 
 class OriginTrialStatus(enum.Enum):
-    ENABLED: str
-    VALID_TOKEN_NOT_PROVIDED: str
-    OS_NOT_SUPPORTED: str
-    TRIAL_NOT_ALLOWED: str
+    ENABLED = 'Enabled'
+    VALID_TOKEN_NOT_PROVIDED = 'ValidTokenNotProvided'
+    OS_NOT_SUPPORTED = 'OSNotSupported'
+    TRIAL_NOT_ALLOWED = 'TrialNotAllowed'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> OriginTrialStatus: ...
 
 class OriginTrialUsageRestriction(enum.Enum):
-    NONE: str
-    SUBSET: str
+    NONE = 'None'
+    SUBSET = 'Subset'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> OriginTrialUsageRestriction: ...
@@ -230,27 +256,31 @@ class OriginTrialToken:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> OriginTrialToken: ...
-    def __init__(self, origin, match_sub_domains, trial_name, expiry_time, is_third_party, usage_restriction) -> None: ...
 
 @dataclass
 class OriginTrialTokenWithStatus:
     raw_token_text: str
     status: OriginTrialTokenStatus
-    parsed_token: typing.Optional[OriginTrialToken] = ...
+    parsed_token: OriginTrialToken | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> OriginTrialTokenWithStatus: ...
-    def __init__(self, raw_token_text, status, parsed_token) -> None: ...
 
 @dataclass
 class OriginTrial:
     trial_name: str
     status: OriginTrialStatus
-    tokens_with_status: typing.List[OriginTrialTokenWithStatus]
+    tokens_with_status: list[OriginTrialTokenWithStatus]
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> OriginTrial: ...
-    def __init__(self, trial_name, status, tokens_with_status) -> None: ...
+
+@dataclass
+class SecurityOriginDetails:
+    is_localhost: bool
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> SecurityOriginDetails: ...
 
 @dataclass
 class Frame:
@@ -262,49 +292,46 @@ class Frame:
     mime_type: str
     secure_context_type: SecureContextType
     cross_origin_isolated_context_type: CrossOriginIsolatedContextType
-    gated_api_features: typing.List[GatedAPIFeatures]
-    parent_id: typing.Optional[FrameId] = ...
-    name: typing.Optional[str] = ...
-    url_fragment: typing.Optional[str] = ...
-    unreachable_url: typing.Optional[str] = ...
-    ad_frame_status: typing.Optional[AdFrameStatus] = ...
+    gated_api_features: list[GatedAPIFeatures]
+    parent_id: FrameId | None = ...
+    name: str | None = ...
+    url_fragment: str | None = ...
+    security_origin_details: SecurityOriginDetails | None = ...
+    unreachable_url: str | None = ...
+    ad_frame_status: AdFrameStatus | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> Frame: ...
-    def __init__(self, id_, loader_id, url, domain_and_registry, security_origin, mime_type, secure_context_type, cross_origin_isolated_context_type, gated_api_features, parent_id, name, url_fragment, unreachable_url, ad_frame_status) -> None: ...
 
 @dataclass
 class FrameResource:
     url: str
     type_: network.ResourceType
     mime_type: str
-    last_modified: typing.Optional[network.TimeSinceEpoch] = ...
-    content_size: typing.Optional[float] = ...
-    failed: typing.Optional[bool] = ...
-    canceled: typing.Optional[bool] = ...
+    last_modified: network.TimeSinceEpoch | None = ...
+    content_size: float | None = ...
+    failed: bool | None = ...
+    canceled: bool | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FrameResource: ...
-    def __init__(self, url, type_, mime_type, last_modified, content_size, failed, canceled) -> None: ...
 
 @dataclass
 class FrameResourceTree:
     frame: Frame
-    resources: typing.List[FrameResource]
-    child_frames: typing.Optional[typing.List[FrameResourceTree]] = ...
+    resources: list[FrameResource]
+    child_frames: list[FrameResourceTree] | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FrameResourceTree: ...
-    def __init__(self, frame, resources, child_frames) -> None: ...
 
 @dataclass
 class FrameTree:
     frame: Frame
-    child_frames: typing.Optional[typing.List[FrameTree]] = ...
+    child_frames: list[FrameTree] | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FrameTree: ...
-    def __init__(self, frame, child_frames) -> None: ...
 
 class ScriptIdentifier(str):
     def to_json(self) -> str: ...
@@ -312,19 +339,19 @@ class ScriptIdentifier(str):
     def from_json(cls, json: str) -> ScriptIdentifier: ...
 
 class TransitionType(enum.Enum):
-    LINK: str
-    TYPED: str
-    ADDRESS_BAR: str
-    AUTO_BOOKMARK: str
-    AUTO_SUBFRAME: str
-    MANUAL_SUBFRAME: str
-    GENERATED: str
-    AUTO_TOPLEVEL: str
-    FORM_SUBMIT: str
-    RELOAD: str
-    KEYWORD: str
-    KEYWORD_GENERATED: str
-    OTHER: str
+    LINK = 'link'
+    TYPED = 'typed'
+    ADDRESS_BAR = 'address_bar'
+    AUTO_BOOKMARK = 'auto_bookmark'
+    AUTO_SUBFRAME = 'auto_subframe'
+    MANUAL_SUBFRAME = 'manual_subframe'
+    GENERATED = 'generated'
+    AUTO_TOPLEVEL = 'auto_toplevel'
+    FORM_SUBMIT = 'form_submit'
+    RELOAD = 'reload'
+    KEYWORD = 'keyword'
+    KEYWORD_GENERATED = 'keyword_generated'
+    OTHER = 'other'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> TransitionType: ...
@@ -339,7 +366,6 @@ class NavigationEntry:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> NavigationEntry: ...
-    def __init__(self, id_, url, user_typed_url, title, transition_type) -> None: ...
 
 @dataclass
 class ScreencastFrameMetadata:
@@ -349,17 +375,16 @@ class ScreencastFrameMetadata:
     device_height: float
     scroll_offset_x: float
     scroll_offset_y: float
-    timestamp: typing.Optional[network.TimeSinceEpoch] = ...
+    timestamp: network.TimeSinceEpoch | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> ScreencastFrameMetadata: ...
-    def __init__(self, offset_top, page_scale_factor, device_width, device_height, scroll_offset_x, scroll_offset_y, timestamp) -> None: ...
 
 class DialogType(enum.Enum):
-    ALERT: str
-    CONFIRM: str
-    PROMPT: str
-    BEFOREUNLOAD: str
+    ALERT = 'alert'
+    CONFIRM = 'confirm'
+    PROMPT = 'prompt'
+    BEFOREUNLOAD = 'beforeunload'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> DialogType: ...
@@ -373,7 +398,6 @@ class AppManifestError:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AppManifestError: ...
-    def __init__(self, message, critical, line, column) -> None: ...
 
 @dataclass
 class AppManifestParsedProperties:
@@ -381,7 +405,6 @@ class AppManifestParsedProperties:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AppManifestParsedProperties: ...
-    def __init__(self, scope) -> None: ...
 
 @dataclass
 class LayoutViewport:
@@ -392,7 +415,6 @@ class LayoutViewport:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> LayoutViewport: ...
-    def __init__(self, page_x, page_y, client_width, client_height) -> None: ...
 
 @dataclass
 class VisualViewport:
@@ -403,11 +425,10 @@ class VisualViewport:
     client_width: float
     client_height: float
     scale: float
-    zoom: typing.Optional[float] = ...
+    zoom: float | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> VisualViewport: ...
-    def __init__(self, offset_x, offset_y, page_x, page_y, client_width, client_height, scale, zoom) -> None: ...
 
 @dataclass
 class Viewport:
@@ -419,21 +440,19 @@ class Viewport:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> Viewport: ...
-    def __init__(self, x, y, width, height, scale) -> None: ...
 
 @dataclass
 class FontFamilies:
-    standard: typing.Optional[str] = ...
-    fixed: typing.Optional[str] = ...
-    serif: typing.Optional[str] = ...
-    sans_serif: typing.Optional[str] = ...
-    cursive: typing.Optional[str] = ...
-    fantasy: typing.Optional[str] = ...
-    math: typing.Optional[str] = ...
+    standard: str | None = ...
+    fixed: str | None = ...
+    serif: str | None = ...
+    sans_serif: str | None = ...
+    cursive: str | None = ...
+    fantasy: str | None = ...
+    math: str | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FontFamilies: ...
-    def __init__(self, standard, fixed, serif, sans_serif, cursive, fantasy, math) -> None: ...
 
 @dataclass
 class ScriptFontFamilies:
@@ -442,35 +461,35 @@ class ScriptFontFamilies:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> ScriptFontFamilies: ...
-    def __init__(self, script, font_families) -> None: ...
 
 @dataclass
 class FontSizes:
-    standard: typing.Optional[int] = ...
-    fixed: typing.Optional[int] = ...
+    standard: int | None = ...
+    fixed: int | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FontSizes: ...
-    def __init__(self, standard, fixed) -> None: ...
 
 class ClientNavigationReason(enum.Enum):
-    FORM_SUBMISSION_GET: str
-    FORM_SUBMISSION_POST: str
-    HTTP_HEADER_REFRESH: str
-    SCRIPT_INITIATED: str
-    META_TAG_REFRESH: str
-    PAGE_BLOCK_INTERSTITIAL: str
-    RELOAD: str
-    ANCHOR_CLICK: str
+    ANCHOR_CLICK = 'anchorClick'
+    FORM_SUBMISSION_GET = 'formSubmissionGet'
+    FORM_SUBMISSION_POST = 'formSubmissionPost'
+    HTTP_HEADER_REFRESH = 'httpHeaderRefresh'
+    INITIAL_FRAME_NAVIGATION = 'initialFrameNavigation'
+    META_TAG_REFRESH = 'metaTagRefresh'
+    OTHER = 'other'
+    PAGE_BLOCK_INTERSTITIAL = 'pageBlockInterstitial'
+    RELOAD = 'reload'
+    SCRIPT_INITIATED = 'scriptInitiated'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> ClientNavigationReason: ...
 
 class ClientNavigationDisposition(enum.Enum):
-    CURRENT_TAB: str
-    NEW_TAB: str
-    NEW_WINDOW: str
-    DOWNLOAD: str
+    CURRENT_TAB = 'currentTab'
+    NEW_TAB = 'newTab'
+    NEW_WINDOW = 'newWindow'
+    DOWNLOAD = 'download'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> ClientNavigationDisposition: ...
@@ -482,26 +501,24 @@ class InstallabilityErrorArgument:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> InstallabilityErrorArgument: ...
-    def __init__(self, name, value) -> None: ...
 
 @dataclass
 class InstallabilityError:
     error_id: str
-    error_arguments: typing.List[InstallabilityErrorArgument]
+    error_arguments: list[InstallabilityErrorArgument]
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> InstallabilityError: ...
-    def __init__(self, error_id, error_arguments) -> None: ...
 
 class ReferrerPolicy(enum.Enum):
-    NO_REFERRER: str
-    NO_REFERRER_WHEN_DOWNGRADE: str
-    ORIGIN: str
-    ORIGIN_WHEN_CROSS_ORIGIN: str
-    SAME_ORIGIN: str
-    STRICT_ORIGIN: str
-    STRICT_ORIGIN_WHEN_CROSS_ORIGIN: str
-    UNSAFE_URL: str
+    NO_REFERRER = 'noReferrer'
+    NO_REFERRER_WHEN_DOWNGRADE = 'noReferrerWhenDowngrade'
+    ORIGIN = 'origin'
+    ORIGIN_WHEN_CROSS_ORIGIN = 'originWhenCrossOrigin'
+    SAME_ORIGIN = 'sameOrigin'
+    STRICT_ORIGIN = 'strictOrigin'
+    STRICT_ORIGIN_WHEN_CROSS_ORIGIN = 'strictOriginWhenCrossOrigin'
+    UNSAFE_URL = 'unsafeUrl'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> ReferrerPolicy: ...
@@ -509,167 +526,288 @@ class ReferrerPolicy(enum.Enum):
 @dataclass
 class CompilationCacheParams:
     url: str
-    eager: typing.Optional[bool] = ...
+    eager: bool | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> CompilationCacheParams: ...
-    def __init__(self, url, eager) -> None: ...
 
-class AutoResponseMode(enum.Enum):
-    NONE: str
-    AUTO_ACCEPT: str
-    AUTO_REJECT: str
-    AUTO_OPT_OUT: str
-    def to_json(self) -> str: ...
+@dataclass
+class FileFilter:
+    name: str | None = ...
+    accepts: list[str] | None = ...
+    def to_json(self) -> T_JSON_DICT: ...
     @classmethod
-    def from_json(cls, json: str) -> AutoResponseMode: ...
+    def from_json(cls, json: T_JSON_DICT) -> FileFilter: ...
+
+@dataclass
+class FileHandler:
+    action: str
+    name: str
+    launch_type: str
+    icons: list[ImageResource] | None = ...
+    accepts: list[FileFilter] | None = ...
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> FileHandler: ...
+
+@dataclass
+class ImageResource:
+    url: str
+    sizes: str | None = ...
+    type_: str | None = ...
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> ImageResource: ...
+
+@dataclass
+class LaunchHandler:
+    client_mode: str
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> LaunchHandler: ...
+
+@dataclass
+class ProtocolHandler:
+    protocol: str
+    url: str
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> ProtocolHandler: ...
+
+@dataclass
+class RelatedApplication:
+    url: str
+    id_: str | None = ...
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> RelatedApplication: ...
+
+@dataclass
+class ScopeExtension:
+    origin: str
+    has_origin_wildcard: bool
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> ScopeExtension: ...
+
+@dataclass
+class Screenshot:
+    image: ImageResource
+    form_factor: str
+    label: str | None = ...
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> Screenshot: ...
+
+@dataclass
+class ShareTarget:
+    action: str
+    method: str
+    enctype: str
+    title: str | None = ...
+    text: str | None = ...
+    url: str | None = ...
+    files: list[FileFilter] | None = ...
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> ShareTarget: ...
+
+@dataclass
+class Shortcut:
+    name: str
+    url: str
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> Shortcut: ...
+
+@dataclass
+class WebAppManifest:
+    background_color: str | None = ...
+    description: str | None = ...
+    dir_: str | None = ...
+    display: str | None = ...
+    display_overrides: list[str] | None = ...
+    file_handlers: list[FileHandler] | None = ...
+    icons: list[ImageResource] | None = ...
+    id_: str | None = ...
+    lang: str | None = ...
+    launch_handler: LaunchHandler | None = ...
+    name: str | None = ...
+    orientation: str | None = ...
+    prefer_related_applications: bool | None = ...
+    protocol_handlers: list[ProtocolHandler] | None = ...
+    related_applications: list[RelatedApplication] | None = ...
+    scope: str | None = ...
+    scope_extensions: list[ScopeExtension] | None = ...
+    screenshots: list[Screenshot] | None = ...
+    share_target: ShareTarget | None = ...
+    short_name: str | None = ...
+    shortcuts: list[Shortcut] | None = ...
+    start_url: str | None = ...
+    theme_color: str | None = ...
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> WebAppManifest: ...
 
 class NavigationType(enum.Enum):
-    NAVIGATION: str
-    BACK_FORWARD_CACHE_RESTORE: str
+    NAVIGATION = 'Navigation'
+    BACK_FORWARD_CACHE_RESTORE = 'BackForwardCacheRestore'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> NavigationType: ...
 
 class BackForwardCacheNotRestoredReason(enum.Enum):
-    NOT_PRIMARY_MAIN_FRAME: str
-    BACK_FORWARD_CACHE_DISABLED: str
-    RELATED_ACTIVE_CONTENTS_EXIST: str
-    HTTP_STATUS_NOT_OK: str
-    SCHEME_NOT_HTTP_OR_HTTPS: str
-    LOADING: str
-    WAS_GRANTED_MEDIA_ACCESS: str
-    DISABLE_FOR_RENDER_FRAME_HOST_CALLED: str
-    DOMAIN_NOT_ALLOWED: str
-    HTTP_METHOD_NOT_GET: str
-    SUBFRAME_IS_NAVIGATING: str
-    TIMEOUT: str
-    CACHE_LIMIT: str
-    JAVA_SCRIPT_EXECUTION: str
-    RENDERER_PROCESS_KILLED: str
-    RENDERER_PROCESS_CRASHED: str
-    SCHEDULER_TRACKED_FEATURE_USED: str
-    CONFLICTING_BROWSING_INSTANCE: str
-    CACHE_FLUSHED: str
-    SERVICE_WORKER_VERSION_ACTIVATION: str
-    SESSION_RESTORED: str
-    SERVICE_WORKER_POST_MESSAGE: str
-    ENTERED_BACK_FORWARD_CACHE_BEFORE_SERVICE_WORKER_HOST_ADDED: str
-    RENDER_FRAME_HOST_REUSED_SAME_SITE: str
-    RENDER_FRAME_HOST_REUSED_CROSS_SITE: str
-    SERVICE_WORKER_CLAIM: str
-    IGNORE_EVENT_AND_EVICT: str
-    HAVE_INNER_CONTENTS: str
-    TIMEOUT_PUTTING_IN_CACHE: str
-    BACK_FORWARD_CACHE_DISABLED_BY_LOW_MEMORY: str
-    BACK_FORWARD_CACHE_DISABLED_BY_COMMAND_LINE: str
-    NETWORK_REQUEST_DATAPIPE_DRAINED_AS_BYTES_CONSUMER: str
-    NETWORK_REQUEST_REDIRECTED: str
-    NETWORK_REQUEST_TIMEOUT: str
-    NETWORK_EXCEEDS_BUFFER_LIMIT: str
-    NAVIGATION_CANCELLED_WHILE_RESTORING: str
-    NOT_MOST_RECENT_NAVIGATION_ENTRY: str
-    BACK_FORWARD_CACHE_DISABLED_FOR_PRERENDER: str
-    USER_AGENT_OVERRIDE_DIFFERS: str
-    FOREGROUND_CACHE_LIMIT: str
-    BROWSING_INSTANCE_NOT_SWAPPED: str
-    BACK_FORWARD_CACHE_DISABLED_FOR_DELEGATE: str
-    UNLOAD_HANDLER_EXISTS_IN_MAIN_FRAME: str
-    UNLOAD_HANDLER_EXISTS_IN_SUB_FRAME: str
-    SERVICE_WORKER_UNREGISTRATION: str
-    CACHE_CONTROL_NO_STORE: str
-    CACHE_CONTROL_NO_STORE_COOKIE_MODIFIED: str
-    CACHE_CONTROL_NO_STORE_HTTP_ONLY_COOKIE_MODIFIED: str
-    NO_RESPONSE_HEAD: str
-    UNKNOWN: str
-    ACTIVATION_NAVIGATIONS_DISALLOWED_FOR_BUG1234857: str
-    ERROR_DOCUMENT: str
-    FENCED_FRAMES_EMBEDDER: str
-    COOKIE_DISABLED: str
-    HTTP_AUTH_REQUIRED: str
-    COOKIE_FLUSHED: str
-    WEB_SOCKET: str
-    WEB_TRANSPORT: str
-    WEB_RTC: str
-    MAIN_RESOURCE_HAS_CACHE_CONTROL_NO_STORE: str
-    MAIN_RESOURCE_HAS_CACHE_CONTROL_NO_CACHE: str
-    SUBRESOURCE_HAS_CACHE_CONTROL_NO_STORE: str
-    SUBRESOURCE_HAS_CACHE_CONTROL_NO_CACHE: str
-    CONTAINS_PLUGINS: str
-    DOCUMENT_LOADED: str
-    DEDICATED_WORKER_OR_WORKLET: str
-    OUTSTANDING_NETWORK_REQUEST_OTHERS: str
-    REQUESTED_MIDI_PERMISSION: str
-    REQUESTED_AUDIO_CAPTURE_PERMISSION: str
-    REQUESTED_VIDEO_CAPTURE_PERMISSION: str
-    REQUESTED_BACK_FORWARD_CACHE_BLOCKED_SENSORS: str
-    REQUESTED_BACKGROUND_WORK_PERMISSION: str
-    BROADCAST_CHANNEL: str
-    WEB_XR: str
-    SHARED_WORKER: str
-    WEB_LOCKS: str
-    WEB_HID: str
-    WEB_SHARE: str
-    REQUESTED_STORAGE_ACCESS_GRANT: str
-    WEB_NFC: str
-    OUTSTANDING_NETWORK_REQUEST_FETCH: str
-    OUTSTANDING_NETWORK_REQUEST_XHR: str
-    APP_BANNER: str
-    PRINTING: str
-    WEB_DATABASE: str
-    PICTURE_IN_PICTURE: str
-    PORTAL: str
-    SPEECH_RECOGNIZER: str
-    IDLE_MANAGER: str
-    PAYMENT_MANAGER: str
-    SPEECH_SYNTHESIS: str
-    KEYBOARD_LOCK: str
-    WEB_OTP_SERVICE: str
-    OUTSTANDING_NETWORK_REQUEST_DIRECT_SOCKET: str
-    INJECTED_JAVASCRIPT: str
-    INJECTED_STYLE_SHEET: str
-    KEEPALIVE_REQUEST: str
-    INDEXED_DB_EVENT: str
-    DUMMY: str
-    JS_NETWORK_REQUEST_RECEIVED_CACHE_CONTROL_NO_STORE_RESOURCE: str
-    WEB_RTC_STICKY: str
-    WEB_TRANSPORT_STICKY: str
-    WEB_SOCKET_STICKY: str
-    SMART_CARD: str
-    LIVE_MEDIA_STREAM_TRACK: str
-    CONTENT_SECURITY_HANDLER: str
-    CONTENT_WEB_AUTHENTICATION_API: str
-    CONTENT_FILE_CHOOSER: str
-    CONTENT_SERIAL: str
-    CONTENT_FILE_SYSTEM_ACCESS: str
-    CONTENT_MEDIA_DEVICES_DISPATCHER_HOST: str
-    CONTENT_WEB_BLUETOOTH: str
-    CONTENT_WEB_USB: str
-    CONTENT_MEDIA_SESSION_SERVICE: str
-    CONTENT_SCREEN_READER: str
-    EMBEDDER_POPUP_BLOCKER_TAB_HELPER: str
-    EMBEDDER_SAFE_BROWSING_TRIGGERED_POPUP_BLOCKER: str
-    EMBEDDER_SAFE_BROWSING_THREAT_DETAILS: str
-    EMBEDDER_APP_BANNER_MANAGER: str
-    EMBEDDER_DOM_DISTILLER_VIEWER_SOURCE: str
-    EMBEDDER_DOM_DISTILLER_SELF_DELETING_REQUEST_DELEGATE: str
-    EMBEDDER_OOM_INTERVENTION_TAB_HELPER: str
-    EMBEDDER_OFFLINE_PAGE: str
-    EMBEDDER_CHROME_PASSWORD_MANAGER_CLIENT_BIND_CREDENTIAL_MANAGER: str
-    EMBEDDER_PERMISSION_REQUEST_MANAGER: str
-    EMBEDDER_MODAL_DIALOG: str
-    EMBEDDER_EXTENSIONS: str
-    EMBEDDER_EXTENSION_MESSAGING: str
-    EMBEDDER_EXTENSION_MESSAGING_FOR_OPEN_PORT: str
-    EMBEDDER_EXTENSION_SENT_MESSAGE_TO_CACHED_FRAME: str
+    NOT_PRIMARY_MAIN_FRAME = 'NotPrimaryMainFrame'
+    BACK_FORWARD_CACHE_DISABLED = 'BackForwardCacheDisabled'
+    RELATED_ACTIVE_CONTENTS_EXIST = 'RelatedActiveContentsExist'
+    HTTP_STATUS_NOT_OK = 'HTTPStatusNotOK'
+    SCHEME_NOT_HTTP_OR_HTTPS = 'SchemeNotHTTPOrHTTPS'
+    LOADING = 'Loading'
+    WAS_GRANTED_MEDIA_ACCESS = 'WasGrantedMediaAccess'
+    DISABLE_FOR_RENDER_FRAME_HOST_CALLED = 'DisableForRenderFrameHostCalled'
+    DOMAIN_NOT_ALLOWED = 'DomainNotAllowed'
+    HTTP_METHOD_NOT_GET = 'HTTPMethodNotGET'
+    SUBFRAME_IS_NAVIGATING = 'SubframeIsNavigating'
+    TIMEOUT = 'Timeout'
+    CACHE_LIMIT = 'CacheLimit'
+    JAVA_SCRIPT_EXECUTION = 'JavaScriptExecution'
+    RENDERER_PROCESS_KILLED = 'RendererProcessKilled'
+    RENDERER_PROCESS_CRASHED = 'RendererProcessCrashed'
+    SCHEDULER_TRACKED_FEATURE_USED = 'SchedulerTrackedFeatureUsed'
+    CONFLICTING_BROWSING_INSTANCE = 'ConflictingBrowsingInstance'
+    CACHE_FLUSHED = 'CacheFlushed'
+    SERVICE_WORKER_VERSION_ACTIVATION = 'ServiceWorkerVersionActivation'
+    SESSION_RESTORED = 'SessionRestored'
+    SERVICE_WORKER_POST_MESSAGE = 'ServiceWorkerPostMessage'
+    ENTERED_BACK_FORWARD_CACHE_BEFORE_SERVICE_WORKER_HOST_ADDED = 'EnteredBackForwardCacheBeforeServiceWorkerHostAdded'
+    RENDER_FRAME_HOST_REUSED_SAME_SITE = 'RenderFrameHostReused_SameSite'
+    RENDER_FRAME_HOST_REUSED_CROSS_SITE = 'RenderFrameHostReused_CrossSite'
+    SERVICE_WORKER_CLAIM = 'ServiceWorkerClaim'
+    IGNORE_EVENT_AND_EVICT = 'IgnoreEventAndEvict'
+    HAVE_INNER_CONTENTS = 'HaveInnerContents'
+    TIMEOUT_PUTTING_IN_CACHE = 'TimeoutPuttingInCache'
+    BACK_FORWARD_CACHE_DISABLED_BY_LOW_MEMORY = 'BackForwardCacheDisabledByLowMemory'
+    BACK_FORWARD_CACHE_DISABLED_BY_COMMAND_LINE = 'BackForwardCacheDisabledByCommandLine'
+    NETWORK_REQUEST_DATAPIPE_DRAINED_AS_BYTES_CONSUMER = 'NetworkRequestDatapipeDrainedAsBytesConsumer'
+    NETWORK_REQUEST_REDIRECTED = 'NetworkRequestRedirected'
+    NETWORK_REQUEST_TIMEOUT = 'NetworkRequestTimeout'
+    NETWORK_EXCEEDS_BUFFER_LIMIT = 'NetworkExceedsBufferLimit'
+    NAVIGATION_CANCELLED_WHILE_RESTORING = 'NavigationCancelledWhileRestoring'
+    NOT_MOST_RECENT_NAVIGATION_ENTRY = 'NotMostRecentNavigationEntry'
+    BACK_FORWARD_CACHE_DISABLED_FOR_PRERENDER = 'BackForwardCacheDisabledForPrerender'
+    USER_AGENT_OVERRIDE_DIFFERS = 'UserAgentOverrideDiffers'
+    FOREGROUND_CACHE_LIMIT = 'ForegroundCacheLimit'
+    BROWSING_INSTANCE_NOT_SWAPPED = 'BrowsingInstanceNotSwapped'
+    BACK_FORWARD_CACHE_DISABLED_FOR_DELEGATE = 'BackForwardCacheDisabledForDelegate'
+    UNLOAD_HANDLER_EXISTS_IN_MAIN_FRAME = 'UnloadHandlerExistsInMainFrame'
+    UNLOAD_HANDLER_EXISTS_IN_SUB_FRAME = 'UnloadHandlerExistsInSubFrame'
+    SERVICE_WORKER_UNREGISTRATION = 'ServiceWorkerUnregistration'
+    CACHE_CONTROL_NO_STORE = 'CacheControlNoStore'
+    CACHE_CONTROL_NO_STORE_COOKIE_MODIFIED = 'CacheControlNoStoreCookieModified'
+    CACHE_CONTROL_NO_STORE_HTTP_ONLY_COOKIE_MODIFIED = 'CacheControlNoStoreHTTPOnlyCookieModified'
+    NO_RESPONSE_HEAD = 'NoResponseHead'
+    UNKNOWN = 'Unknown'
+    ACTIVATION_NAVIGATIONS_DISALLOWED_FOR_BUG1234857 = 'ActivationNavigationsDisallowedForBug1234857'
+    ERROR_DOCUMENT = 'ErrorDocument'
+    FENCED_FRAMES_EMBEDDER = 'FencedFramesEmbedder'
+    COOKIE_DISABLED = 'CookieDisabled'
+    HTTP_AUTH_REQUIRED = 'HTTPAuthRequired'
+    COOKIE_FLUSHED = 'CookieFlushed'
+    BROADCAST_CHANNEL_ON_MESSAGE = 'BroadcastChannelOnMessage'
+    WEB_VIEW_SETTINGS_CHANGED = 'WebViewSettingsChanged'
+    WEB_VIEW_JAVA_SCRIPT_OBJECT_CHANGED = 'WebViewJavaScriptObjectChanged'
+    WEB_VIEW_MESSAGE_LISTENER_INJECTED = 'WebViewMessageListenerInjected'
+    WEB_VIEW_SAFE_BROWSING_ALLOWLIST_CHANGED = 'WebViewSafeBrowsingAllowlistChanged'
+    WEB_VIEW_DOCUMENT_START_JAVASCRIPT_CHANGED = 'WebViewDocumentStartJavascriptChanged'
+    WEB_SOCKET = 'WebSocket'
+    WEB_TRANSPORT = 'WebTransport'
+    WEB_RTC = 'WebRTC'
+    MAIN_RESOURCE_HAS_CACHE_CONTROL_NO_STORE = 'MainResourceHasCacheControlNoStore'
+    MAIN_RESOURCE_HAS_CACHE_CONTROL_NO_CACHE = 'MainResourceHasCacheControlNoCache'
+    SUBRESOURCE_HAS_CACHE_CONTROL_NO_STORE = 'SubresourceHasCacheControlNoStore'
+    SUBRESOURCE_HAS_CACHE_CONTROL_NO_CACHE = 'SubresourceHasCacheControlNoCache'
+    CONTAINS_PLUGINS = 'ContainsPlugins'
+    DOCUMENT_LOADED = 'DocumentLoaded'
+    OUTSTANDING_NETWORK_REQUEST_OTHERS = 'OutstandingNetworkRequestOthers'
+    REQUESTED_MIDI_PERMISSION = 'RequestedMIDIPermission'
+    REQUESTED_AUDIO_CAPTURE_PERMISSION = 'RequestedAudioCapturePermission'
+    REQUESTED_VIDEO_CAPTURE_PERMISSION = 'RequestedVideoCapturePermission'
+    REQUESTED_BACK_FORWARD_CACHE_BLOCKED_SENSORS = 'RequestedBackForwardCacheBlockedSensors'
+    REQUESTED_BACKGROUND_WORK_PERMISSION = 'RequestedBackgroundWorkPermission'
+    BROADCAST_CHANNEL = 'BroadcastChannel'
+    WEB_XR = 'WebXR'
+    SHARED_WORKER = 'SharedWorker'
+    SHARED_WORKER_MESSAGE = 'SharedWorkerMessage'
+    WEB_LOCKS = 'WebLocks'
+    WEB_HID = 'WebHID'
+    WEB_SHARE = 'WebShare'
+    REQUESTED_STORAGE_ACCESS_GRANT = 'RequestedStorageAccessGrant'
+    WEB_NFC = 'WebNfc'
+    OUTSTANDING_NETWORK_REQUEST_FETCH = 'OutstandingNetworkRequestFetch'
+    OUTSTANDING_NETWORK_REQUEST_XHR = 'OutstandingNetworkRequestXHR'
+    APP_BANNER = 'AppBanner'
+    PRINTING = 'Printing'
+    WEB_DATABASE = 'WebDatabase'
+    PICTURE_IN_PICTURE = 'PictureInPicture'
+    SPEECH_RECOGNIZER = 'SpeechRecognizer'
+    IDLE_MANAGER = 'IdleManager'
+    PAYMENT_MANAGER = 'PaymentManager'
+    SPEECH_SYNTHESIS = 'SpeechSynthesis'
+    KEYBOARD_LOCK = 'KeyboardLock'
+    WEB_OTP_SERVICE = 'WebOTPService'
+    OUTSTANDING_NETWORK_REQUEST_DIRECT_SOCKET = 'OutstandingNetworkRequestDirectSocket'
+    INJECTED_JAVASCRIPT = 'InjectedJavascript'
+    INJECTED_STYLE_SHEET = 'InjectedStyleSheet'
+    KEEPALIVE_REQUEST = 'KeepaliveRequest'
+    INDEXED_DB_EVENT = 'IndexedDBEvent'
+    DUMMY = 'Dummy'
+    JS_NETWORK_REQUEST_RECEIVED_CACHE_CONTROL_NO_STORE_RESOURCE = 'JsNetworkRequestReceivedCacheControlNoStoreResource'
+    WEB_RTC_STICKY = 'WebRTCSticky'
+    WEB_TRANSPORT_STICKY = 'WebTransportSticky'
+    WEB_SOCKET_STICKY = 'WebSocketSticky'
+    SMART_CARD = 'SmartCard'
+    LIVE_MEDIA_STREAM_TRACK = 'LiveMediaStreamTrack'
+    UNLOAD_HANDLER = 'UnloadHandler'
+    PARSER_ABORTED = 'ParserAborted'
+    CONTENT_SECURITY_HANDLER = 'ContentSecurityHandler'
+    CONTENT_WEB_AUTHENTICATION_API = 'ContentWebAuthenticationAPI'
+    CONTENT_FILE_CHOOSER = 'ContentFileChooser'
+    CONTENT_SERIAL = 'ContentSerial'
+    CONTENT_FILE_SYSTEM_ACCESS = 'ContentFileSystemAccess'
+    CONTENT_MEDIA_DEVICES_DISPATCHER_HOST = 'ContentMediaDevicesDispatcherHost'
+    CONTENT_WEB_BLUETOOTH = 'ContentWebBluetooth'
+    CONTENT_WEB_USB = 'ContentWebUSB'
+    CONTENT_MEDIA_SESSION_SERVICE = 'ContentMediaSessionService'
+    CONTENT_SCREEN_READER = 'ContentScreenReader'
+    CONTENT_DISCARDED = 'ContentDiscarded'
+    EMBEDDER_POPUP_BLOCKER_TAB_HELPER = 'EmbedderPopupBlockerTabHelper'
+    EMBEDDER_SAFE_BROWSING_TRIGGERED_POPUP_BLOCKER = 'EmbedderSafeBrowsingTriggeredPopupBlocker'
+    EMBEDDER_SAFE_BROWSING_THREAT_DETAILS = 'EmbedderSafeBrowsingThreatDetails'
+    EMBEDDER_APP_BANNER_MANAGER = 'EmbedderAppBannerManager'
+    EMBEDDER_DOM_DISTILLER_VIEWER_SOURCE = 'EmbedderDomDistillerViewerSource'
+    EMBEDDER_DOM_DISTILLER_SELF_DELETING_REQUEST_DELEGATE = 'EmbedderDomDistillerSelfDeletingRequestDelegate'
+    EMBEDDER_OOM_INTERVENTION_TAB_HELPER = 'EmbedderOomInterventionTabHelper'
+    EMBEDDER_OFFLINE_PAGE = 'EmbedderOfflinePage'
+    EMBEDDER_CHROME_PASSWORD_MANAGER_CLIENT_BIND_CREDENTIAL_MANAGER = 'EmbedderChromePasswordManagerClientBindCredentialManager'
+    EMBEDDER_PERMISSION_REQUEST_MANAGER = 'EmbedderPermissionRequestManager'
+    EMBEDDER_MODAL_DIALOG = 'EmbedderModalDialog'
+    EMBEDDER_EXTENSIONS = 'EmbedderExtensions'
+    EMBEDDER_EXTENSION_MESSAGING = 'EmbedderExtensionMessaging'
+    EMBEDDER_EXTENSION_MESSAGING_FOR_OPEN_PORT = 'EmbedderExtensionMessagingForOpenPort'
+    EMBEDDER_EXTENSION_SENT_MESSAGE_TO_CACHED_FRAME = 'EmbedderExtensionSentMessageToCachedFrame'
+    REQUESTED_BY_WEB_VIEW_CLIENT = 'RequestedByWebViewClient'
+    POST_MESSAGE_BY_WEB_VIEW_CLIENT = 'PostMessageByWebViewClient'
+    CACHE_CONTROL_NO_STORE_DEVICE_BOUND_SESSION_TERMINATED = 'CacheControlNoStoreDeviceBoundSessionTerminated'
+    CACHE_LIMIT_PRUNED_ON_MODERATE_MEMORY_PRESSURE = 'CacheLimitPrunedOnModerateMemoryPressure'
+    CACHE_LIMIT_PRUNED_ON_CRITICAL_MEMORY_PRESSURE = 'CacheLimitPrunedOnCriticalMemoryPressure'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> BackForwardCacheNotRestoredReason: ...
 
 class BackForwardCacheNotRestoredReasonType(enum.Enum):
-    SUPPORT_PENDING: str
-    PAGE_SUPPORT_NEEDED: str
-    CIRCUMSTANTIAL: str
+    SUPPORT_PENDING = 'SupportPending'
+    PAGE_SUPPORT_NEEDED = 'PageSupportNeeded'
+    CIRCUMSTANTIAL = 'Circumstantial'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> BackForwardCacheNotRestoredReasonType: ...
@@ -678,93 +816,90 @@ class BackForwardCacheNotRestoredReasonType(enum.Enum):
 class BackForwardCacheBlockingDetails:
     line_number: int
     column_number: int
-    url: typing.Optional[str] = ...
-    function: typing.Optional[str] = ...
+    url: str | None = ...
+    function: str | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> BackForwardCacheBlockingDetails: ...
-    def __init__(self, line_number, column_number, url, function) -> None: ...
 
 @dataclass
 class BackForwardCacheNotRestoredExplanation:
     type_: BackForwardCacheNotRestoredReasonType
     reason: BackForwardCacheNotRestoredReason
-    context: typing.Optional[str] = ...
-    details: typing.Optional[typing.List[BackForwardCacheBlockingDetails]] = ...
+    context: str | None = ...
+    details: list[BackForwardCacheBlockingDetails] | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> BackForwardCacheNotRestoredExplanation: ...
-    def __init__(self, type_, reason, context, details) -> None: ...
 
 @dataclass
 class BackForwardCacheNotRestoredExplanationTree:
     url: str
-    explanations: typing.List[BackForwardCacheNotRestoredExplanation]
-    children: typing.List[BackForwardCacheNotRestoredExplanationTree]
+    explanations: list[BackForwardCacheNotRestoredExplanation]
+    children: list[BackForwardCacheNotRestoredExplanationTree]
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> BackForwardCacheNotRestoredExplanationTree: ...
-    def __init__(self, url, explanations, children) -> None: ...
 
 def add_script_to_evaluate_on_load(script_source: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, ScriptIdentifier]: ...
-def add_script_to_evaluate_on_new_document(source: str, world_name: typing.Optional[str] = None, include_command_line_api: typing.Optional[bool] = None, run_immediately: typing.Optional[bool] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, ScriptIdentifier]: ...
+def add_script_to_evaluate_on_new_document(source: str, world_name: str | None = None, include_command_line_api: bool | None = None, run_immediately: bool | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, ScriptIdentifier]: ...
 def bring_to_front() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def capture_screenshot(format_: typing.Optional[str] = None, quality: typing.Optional[int] = None, clip: typing.Optional[Viewport] = None, from_surface: typing.Optional[bool] = None, capture_beyond_viewport: typing.Optional[bool] = None, optimize_for_speed: typing.Optional[bool] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, str]: ...
-def capture_snapshot(format_: typing.Optional[str] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, str]: ...
+def capture_screenshot(format_: str | None = None, quality: int | None = None, clip: Viewport | None = None, from_surface: bool | None = None, capture_beyond_viewport: bool | None = None, optimize_for_speed: bool | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, str]: ...
+def capture_snapshot(format_: str | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, str]: ...
 def clear_device_metrics_override() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def clear_device_orientation_override() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def clear_geolocation_override() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def create_isolated_world(frame_id: FrameId, world_name: typing.Optional[str] = None, grant_univeral_access: typing.Optional[bool] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, runtime.ExecutionContextId]: ...
+def create_isolated_world(frame_id: FrameId, world_name: str | None = None, grant_univeral_access: bool | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, runtime.ExecutionContextId]: ...
 def delete_cookie(cookie_name: str, url: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def disable() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def enable() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def get_app_manifest() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.Tuple[str, typing.List[AppManifestError], typing.Optional[str], typing.Optional[AppManifestParsedProperties]]]: ...
-def get_installability_errors() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.List[InstallabilityError]]: ...
-def get_manifest_icons() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.Optional[str]]: ...
-def get_app_id() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.Tuple[typing.Optional[str], typing.Optional[str]]]: ...
-def get_ad_script_id(frame_id: FrameId) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.Optional[AdScriptId]]: ...
+def enable(enable_file_chooser_opened_event: bool | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def get_app_manifest(manifest_id: str | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[str, list[AppManifestError], str | None, AppManifestParsedProperties | None, WebAppManifest]]: ...
+def get_installability_errors() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[InstallabilityError]]: ...
+def get_manifest_icons() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, str | None]: ...
+def get_app_id() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[str | None, str | None]]: ...
+def get_ad_script_ancestry(frame_id: FrameId) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, AdScriptAncestry | None]: ...
 def get_frame_tree() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, FrameTree]: ...
-def get_layout_metrics() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.Tuple[LayoutViewport, VisualViewport, dom.Rect, LayoutViewport, VisualViewport, dom.Rect]]: ...
-def get_navigation_history() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.Tuple[int, typing.List[NavigationEntry]]]: ...
+def get_layout_metrics() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[LayoutViewport, VisualViewport, dom.Rect, LayoutViewport, VisualViewport, dom.Rect]]: ...
+def get_navigation_history() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[int, list[NavigationEntry]]]: ...
 def reset_navigation_history() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def get_resource_content(frame_id: FrameId, url: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.Tuple[str, bool]]: ...
+def get_resource_content(frame_id: FrameId, url: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[str, bool]]: ...
 def get_resource_tree() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, FrameResourceTree]: ...
-def handle_java_script_dialog(accept: bool, prompt_text: typing.Optional[str] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def navigate(url: str, referrer: typing.Optional[str] = None, transition_type: typing.Optional[TransitionType] = None, frame_id: typing.Optional[FrameId] = None, referrer_policy: typing.Optional[ReferrerPolicy] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.Tuple[FrameId, typing.Optional[network.LoaderId], typing.Optional[str]]]: ...
+def handle_java_script_dialog(accept: bool, prompt_text: str | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def navigate(url: str, referrer: str | None = None, transition_type: TransitionType | None = None, frame_id: FrameId | None = None, referrer_policy: ReferrerPolicy | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[FrameId, network.LoaderId | None, str | None, bool | None]]: ...
 def navigate_to_history_entry(entry_id: int) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def print_to_pdf(landscape: typing.Optional[bool] = None, display_header_footer: typing.Optional[bool] = None, print_background: typing.Optional[bool] = None, scale: typing.Optional[float] = None, paper_width: typing.Optional[float] = None, paper_height: typing.Optional[float] = None, margin_top: typing.Optional[float] = None, margin_bottom: typing.Optional[float] = None, margin_left: typing.Optional[float] = None, margin_right: typing.Optional[float] = None, page_ranges: typing.Optional[str] = None, header_template: typing.Optional[str] = None, footer_template: typing.Optional[str] = None, prefer_css_page_size: typing.Optional[bool] = None, transfer_mode: typing.Optional[str] = None, generate_tagged_pdf: typing.Optional[bool] = None, generate_document_outline: typing.Optional[bool] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.Tuple[str, typing.Optional[io.StreamHandle]]]: ...
-def reload(ignore_cache: typing.Optional[bool] = None, script_to_evaluate_on_load: typing.Optional[str] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def print_to_pdf(landscape: bool | None = None, display_header_footer: bool | None = None, print_background: bool | None = None, scale: float | None = None, paper_width: float | None = None, paper_height: float | None = None, margin_top: float | None = None, margin_bottom: float | None = None, margin_left: float | None = None, margin_right: float | None = None, page_ranges: str | None = None, header_template: str | None = None, footer_template: str | None = None, prefer_css_page_size: bool | None = None, transfer_mode: str | None = None, generate_tagged_pdf: bool | None = None, generate_document_outline: bool | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[str, io.StreamHandle | None]]: ...
+def reload(ignore_cache: bool | None = None, script_to_evaluate_on_load: str | None = None, loader_id: network.LoaderId | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def remove_script_to_evaluate_on_load(identifier: ScriptIdentifier) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def remove_script_to_evaluate_on_new_document(identifier: ScriptIdentifier) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def screencast_frame_ack(session_id: int) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def search_in_resource(frame_id: FrameId, url: str, query: str, case_sensitive: typing.Optional[bool] = None, is_regex: typing.Optional[bool] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.List[debugger.SearchMatch]]: ...
+def search_in_resource(frame_id: FrameId, url: str, query: str, case_sensitive: bool | None = None, is_regex: bool | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[debugger.SearchMatch]]: ...
 def set_ad_blocking_enabled(enabled: bool) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def set_bypass_csp(enabled: bool) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def get_permissions_policy_state(frame_id: FrameId) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.List[PermissionsPolicyFeatureState]]: ...
-def get_origin_trials(frame_id: FrameId) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.List[OriginTrial]]: ...
-def set_device_metrics_override(width: int, height: int, device_scale_factor: float, mobile: bool, scale: typing.Optional[float] = None, screen_width: typing.Optional[int] = None, screen_height: typing.Optional[int] = None, position_x: typing.Optional[int] = None, position_y: typing.Optional[int] = None, dont_set_visible_size: typing.Optional[bool] = None, screen_orientation: typing.Optional[emulation.ScreenOrientation] = None, viewport: typing.Optional[Viewport] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def get_permissions_policy_state(frame_id: FrameId) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[PermissionsPolicyFeatureState]]: ...
+def get_origin_trials(frame_id: FrameId) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[OriginTrial]]: ...
+def set_device_metrics_override(width: int, height: int, device_scale_factor: float, mobile: bool, scale: float | None = None, screen_width: int | None = None, screen_height: int | None = None, position_x: int | None = None, position_y: int | None = None, dont_set_visible_size: bool | None = None, screen_orientation: emulation.ScreenOrientation | None = None, viewport: Viewport | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def set_device_orientation_override(alpha: float, beta: float, gamma: float) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def set_font_families(font_families: FontFamilies, for_scripts: typing.Optional[typing.List[ScriptFontFamilies]] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def set_font_families(font_families: FontFamilies, for_scripts: list[ScriptFontFamilies] | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def set_font_sizes(font_sizes: FontSizes) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def set_document_content(frame_id: FrameId, html: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def set_download_behavior(behavior: str, download_path: typing.Optional[str] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def set_geolocation_override(latitude: typing.Optional[float] = None, longitude: typing.Optional[float] = None, accuracy: typing.Optional[float] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def set_download_behavior(behavior: str, download_path: str | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def set_geolocation_override(latitude: float | None = None, longitude: float | None = None, accuracy: float | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def set_lifecycle_events_enabled(enabled: bool) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def set_touch_emulation_enabled(enabled: bool, configuration: typing.Optional[str] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def start_screencast(format_: typing.Optional[str] = None, quality: typing.Optional[int] = None, max_width: typing.Optional[int] = None, max_height: typing.Optional[int] = None, every_nth_frame: typing.Optional[int] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def set_touch_emulation_enabled(enabled: bool, configuration: str | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def start_screencast(format_: str | None = None, quality: int | None = None, max_width: int | None = None, max_height: int | None = None, every_nth_frame: int | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def stop_loading() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def crash() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def close() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def set_web_lifecycle_state(state: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def stop_screencast() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def produce_compilation_cache(scripts: typing.List[CompilationCacheParams]) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def produce_compilation_cache(scripts: list[CompilationCacheParams]) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def add_compilation_cache(url: str, data: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def clear_compilation_cache() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def set_spc_transaction_mode(mode: AutoResponseMode) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def set_rph_registration_mode(mode: AutoResponseMode) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def generate_test_report(message: str, group: typing.Optional[str] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def set_spc_transaction_mode(mode: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def set_rph_registration_mode(mode: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def generate_test_report(message: str, group: str | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def wait_for_debugger() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def set_intercept_file_chooser_dialog(enabled: bool) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def set_intercept_file_chooser_dialog(enabled: bool, cancel: bool | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def set_prerendering_allowed(is_allowed: bool) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 
 @dataclass
@@ -772,36 +907,28 @@ class DomContentEventFired:
     timestamp: network.MonotonicTime
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> DomContentEventFired: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, timestamp) -> None: ...
 
 @dataclass
 class FileChooserOpened:
     frame_id: FrameId
     mode: str
-    backend_node_id: typing.Optional[dom.BackendNodeId]
+    backend_node_id: dom.BackendNodeId | None
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FileChooserOpened: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, frame_id, mode, backend_node_id) -> None: ...
 
 @dataclass
 class FrameAttached:
     frame_id: FrameId
     parent_frame_id: FrameId
-    stack: typing.Optional[runtime.StackTrace]
+    stack: runtime.StackTrace | None
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FrameAttached: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, frame_id, parent_frame_id, stack) -> None: ...
 
 @dataclass
 class FrameClearedScheduledNavigation:
     frame_id: FrameId
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FrameClearedScheduledNavigation: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, frame_id) -> None: ...
 
 @dataclass
 class FrameDetached:
@@ -809,8 +936,12 @@ class FrameDetached:
     reason: str
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FrameDetached: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, frame_id, reason) -> None: ...
+
+@dataclass
+class FrameSubtreeWillBeDetached:
+    frame_id: FrameId
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> FrameSubtreeWillBeDetached: ...
 
 @dataclass
 class FrameNavigated:
@@ -818,22 +949,26 @@ class FrameNavigated:
     type_: NavigationType
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FrameNavigated: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, frame, type_) -> None: ...
 
 @dataclass
 class DocumentOpened:
     frame: Frame
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> DocumentOpened: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, frame) -> None: ...
 
 @dataclass
 class FrameResized:
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FrameResized: ...
-    def to_json(self) -> T_JSON_DICT: ...
+
+@dataclass
+class FrameStartedNavigating:
+    frame_id: FrameId
+    url: str
+    loader_id: network.LoaderId
+    navigation_type: str
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> FrameStartedNavigating: ...
 
 @dataclass
 class FrameRequestedNavigation:
@@ -843,8 +978,6 @@ class FrameRequestedNavigation:
     disposition: ClientNavigationDisposition
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FrameRequestedNavigation: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, frame_id, reason, url, disposition) -> None: ...
 
 @dataclass
 class FrameScheduledNavigation:
@@ -854,24 +987,18 @@ class FrameScheduledNavigation:
     url: str
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FrameScheduledNavigation: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, frame_id, delay, reason, url) -> None: ...
 
 @dataclass
 class FrameStartedLoading:
     frame_id: FrameId
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FrameStartedLoading: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, frame_id) -> None: ...
 
 @dataclass
 class FrameStoppedLoading:
     frame_id: FrameId
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FrameStoppedLoading: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, frame_id) -> None: ...
 
 @dataclass
 class DownloadWillBegin:
@@ -881,8 +1008,6 @@ class DownloadWillBegin:
     suggested_filename: str
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> DownloadWillBegin: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, frame_id, guid, url, suggested_filename) -> None: ...
 
 @dataclass
 class DownloadProgress:
@@ -892,41 +1017,35 @@ class DownloadProgress:
     state: str
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> DownloadProgress: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, guid, total_bytes, received_bytes, state) -> None: ...
 
 @dataclass
 class InterstitialHidden:
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> InterstitialHidden: ...
-    def to_json(self) -> T_JSON_DICT: ...
 
 @dataclass
 class InterstitialShown:
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> InterstitialShown: ...
-    def to_json(self) -> T_JSON_DICT: ...
 
 @dataclass
 class JavascriptDialogClosed:
+    frame_id: FrameId
     result: bool
     user_input: str
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> JavascriptDialogClosed: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, result, user_input) -> None: ...
 
 @dataclass
 class JavascriptDialogOpening:
     url: str
+    frame_id: FrameId
     message: str
     type_: DialogType
     has_browser_handler: bool
-    default_prompt: typing.Optional[str]
+    default_prompt: str | None
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> JavascriptDialogOpening: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, url, message, type_, has_browser_handler, default_prompt) -> None: ...
 
 @dataclass
 class LifecycleEvent:
@@ -936,36 +1055,29 @@ class LifecycleEvent:
     timestamp: network.MonotonicTime
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> LifecycleEvent: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, frame_id, loader_id, name, timestamp) -> None: ...
 
 @dataclass
 class BackForwardCacheNotUsed:
     loader_id: network.LoaderId
     frame_id: FrameId
-    not_restored_explanations: typing.List[BackForwardCacheNotRestoredExplanation]
-    not_restored_explanations_tree: typing.Optional[BackForwardCacheNotRestoredExplanationTree]
+    not_restored_explanations: list[BackForwardCacheNotRestoredExplanation]
+    not_restored_explanations_tree: BackForwardCacheNotRestoredExplanationTree | None
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> BackForwardCacheNotUsed: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, loader_id, frame_id, not_restored_explanations, not_restored_explanations_tree) -> None: ...
 
 @dataclass
 class LoadEventFired:
     timestamp: network.MonotonicTime
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> LoadEventFired: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, timestamp) -> None: ...
 
 @dataclass
 class NavigatedWithinDocument:
     frame_id: FrameId
     url: str
+    navigation_type: str
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> NavigatedWithinDocument: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, frame_id, url) -> None: ...
 
 @dataclass
 class ScreencastFrame:
@@ -974,27 +1086,21 @@ class ScreencastFrame:
     session_id: int
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> ScreencastFrame: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, data, metadata, session_id) -> None: ...
 
 @dataclass
 class ScreencastVisibilityChanged:
     visible: bool
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> ScreencastVisibilityChanged: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, visible) -> None: ...
 
 @dataclass
 class WindowOpen:
     url: str
     window_name: str
-    window_features: typing.List[str]
+    window_features: list[str]
     user_gesture: bool
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> WindowOpen: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, url, window_name, window_features, user_gesture) -> None: ...
 
 @dataclass
 class CompilationCacheProduced:
@@ -1002,5 +1108,3 @@ class CompilationCacheProduced:
     data: str
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> CompilationCacheProduced: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, url, data) -> None: ...

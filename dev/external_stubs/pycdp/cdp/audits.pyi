@@ -12,16 +12,14 @@ class AffectedCookie:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AffectedCookie: ...
-    def __init__(self, name, path, domain) -> None: ...
 
 @dataclass
 class AffectedRequest:
-    request_id: network.RequestId
-    url: typing.Optional[str] = ...
+    url: str
+    request_id: network.RequestId | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AffectedRequest: ...
-    def __init__(self, request_id, url) -> None: ...
 
 @dataclass
 class AffectedFrame:
@@ -29,98 +27,118 @@ class AffectedFrame:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AffectedFrame: ...
-    def __init__(self, frame_id) -> None: ...
 
 class CookieExclusionReason(enum.Enum):
-    EXCLUDE_SAME_SITE_UNSPECIFIED_TREATED_AS_LAX: str
-    EXCLUDE_SAME_SITE_NONE_INSECURE: str
-    EXCLUDE_SAME_SITE_LAX: str
-    EXCLUDE_SAME_SITE_STRICT: str
-    EXCLUDE_INVALID_SAME_PARTY: str
-    EXCLUDE_SAME_PARTY_CROSS_PARTY_CONTEXT: str
-    EXCLUDE_DOMAIN_NON_ASCII: str
-    EXCLUDE_THIRD_PARTY_COOKIE_BLOCKED_IN_FIRST_PARTY_SET: str
-    EXCLUDE_THIRD_PARTY_PHASEOUT: str
+    EXCLUDE_SAME_SITE_UNSPECIFIED_TREATED_AS_LAX = 'ExcludeSameSiteUnspecifiedTreatedAsLax'
+    EXCLUDE_SAME_SITE_NONE_INSECURE = 'ExcludeSameSiteNoneInsecure'
+    EXCLUDE_SAME_SITE_LAX = 'ExcludeSameSiteLax'
+    EXCLUDE_SAME_SITE_STRICT = 'ExcludeSameSiteStrict'
+    EXCLUDE_INVALID_SAME_PARTY = 'ExcludeInvalidSameParty'
+    EXCLUDE_SAME_PARTY_CROSS_PARTY_CONTEXT = 'ExcludeSamePartyCrossPartyContext'
+    EXCLUDE_DOMAIN_NON_ASCII = 'ExcludeDomainNonASCII'
+    EXCLUDE_THIRD_PARTY_COOKIE_BLOCKED_IN_FIRST_PARTY_SET = 'ExcludeThirdPartyCookieBlockedInFirstPartySet'
+    EXCLUDE_THIRD_PARTY_PHASEOUT = 'ExcludeThirdPartyPhaseout'
+    EXCLUDE_PORT_MISMATCH = 'ExcludePortMismatch'
+    EXCLUDE_SCHEME_MISMATCH = 'ExcludeSchemeMismatch'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> CookieExclusionReason: ...
 
 class CookieWarningReason(enum.Enum):
-    WARN_SAME_SITE_UNSPECIFIED_CROSS_SITE_CONTEXT: str
-    WARN_SAME_SITE_NONE_INSECURE: str
-    WARN_SAME_SITE_UNSPECIFIED_LAX_ALLOW_UNSAFE: str
-    WARN_SAME_SITE_STRICT_LAX_DOWNGRADE_STRICT: str
-    WARN_SAME_SITE_STRICT_CROSS_DOWNGRADE_STRICT: str
-    WARN_SAME_SITE_STRICT_CROSS_DOWNGRADE_LAX: str
-    WARN_SAME_SITE_LAX_CROSS_DOWNGRADE_STRICT: str
-    WARN_SAME_SITE_LAX_CROSS_DOWNGRADE_LAX: str
-    WARN_ATTRIBUTE_VALUE_EXCEEDS_MAX_SIZE: str
-    WARN_DOMAIN_NON_ASCII: str
-    WARN_THIRD_PARTY_PHASEOUT: str
-    WARN_CROSS_SITE_REDIRECT_DOWNGRADE_CHANGES_INCLUSION: str
+    WARN_SAME_SITE_UNSPECIFIED_CROSS_SITE_CONTEXT = 'WarnSameSiteUnspecifiedCrossSiteContext'
+    WARN_SAME_SITE_NONE_INSECURE = 'WarnSameSiteNoneInsecure'
+    WARN_SAME_SITE_UNSPECIFIED_LAX_ALLOW_UNSAFE = 'WarnSameSiteUnspecifiedLaxAllowUnsafe'
+    WARN_SAME_SITE_STRICT_LAX_DOWNGRADE_STRICT = 'WarnSameSiteStrictLaxDowngradeStrict'
+    WARN_SAME_SITE_STRICT_CROSS_DOWNGRADE_STRICT = 'WarnSameSiteStrictCrossDowngradeStrict'
+    WARN_SAME_SITE_STRICT_CROSS_DOWNGRADE_LAX = 'WarnSameSiteStrictCrossDowngradeLax'
+    WARN_SAME_SITE_LAX_CROSS_DOWNGRADE_STRICT = 'WarnSameSiteLaxCrossDowngradeStrict'
+    WARN_SAME_SITE_LAX_CROSS_DOWNGRADE_LAX = 'WarnSameSiteLaxCrossDowngradeLax'
+    WARN_ATTRIBUTE_VALUE_EXCEEDS_MAX_SIZE = 'WarnAttributeValueExceedsMaxSize'
+    WARN_DOMAIN_NON_ASCII = 'WarnDomainNonASCII'
+    WARN_THIRD_PARTY_PHASEOUT = 'WarnThirdPartyPhaseout'
+    WARN_CROSS_SITE_REDIRECT_DOWNGRADE_CHANGES_INCLUSION = 'WarnCrossSiteRedirectDowngradeChangesInclusion'
+    WARN_DEPRECATION_TRIAL_METADATA = 'WarnDeprecationTrialMetadata'
+    WARN_THIRD_PARTY_COOKIE_HEURISTIC = 'WarnThirdPartyCookieHeuristic'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> CookieWarningReason: ...
 
 class CookieOperation(enum.Enum):
-    SET_COOKIE: str
-    READ_COOKIE: str
+    SET_COOKIE = 'SetCookie'
+    READ_COOKIE = 'ReadCookie'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> CookieOperation: ...
 
+class InsightType(enum.Enum):
+    GIT_HUB_RESOURCE = 'GitHubResource'
+    GRACE_PERIOD = 'GracePeriod'
+    HEURISTICS = 'Heuristics'
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> InsightType: ...
+
+@dataclass
+class CookieIssueInsight:
+    type_: InsightType
+    table_entry_url: str | None = ...
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> CookieIssueInsight: ...
+
 @dataclass
 class CookieIssueDetails:
-    cookie_warning_reasons: typing.List[CookieWarningReason]
-    cookie_exclusion_reasons: typing.List[CookieExclusionReason]
+    cookie_warning_reasons: list[CookieWarningReason]
+    cookie_exclusion_reasons: list[CookieExclusionReason]
     operation: CookieOperation
-    cookie: typing.Optional[AffectedCookie] = ...
-    raw_cookie_line: typing.Optional[str] = ...
-    site_for_cookies: typing.Optional[str] = ...
-    cookie_url: typing.Optional[str] = ...
-    request: typing.Optional[AffectedRequest] = ...
+    cookie: AffectedCookie | None = ...
+    raw_cookie_line: str | None = ...
+    site_for_cookies: str | None = ...
+    cookie_url: str | None = ...
+    request: AffectedRequest | None = ...
+    insight: CookieIssueInsight | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> CookieIssueDetails: ...
-    def __init__(self, cookie_warning_reasons, cookie_exclusion_reasons, operation, cookie, raw_cookie_line, site_for_cookies, cookie_url, request) -> None: ...
 
 class MixedContentResolutionStatus(enum.Enum):
-    MIXED_CONTENT_BLOCKED: str
-    MIXED_CONTENT_AUTOMATICALLY_UPGRADED: str
-    MIXED_CONTENT_WARNING: str
+    MIXED_CONTENT_BLOCKED = 'MixedContentBlocked'
+    MIXED_CONTENT_AUTOMATICALLY_UPGRADED = 'MixedContentAutomaticallyUpgraded'
+    MIXED_CONTENT_WARNING = 'MixedContentWarning'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> MixedContentResolutionStatus: ...
 
 class MixedContentResourceType(enum.Enum):
-    ATTRIBUTION_SRC: str
-    AUDIO: str
-    BEACON: str
-    CSP_REPORT: str
-    DOWNLOAD: str
-    EVENT_SOURCE: str
-    FAVICON: str
-    FONT: str
-    FORM: str
-    FRAME: str
-    IMAGE: str
-    IMPORT: str
-    MANIFEST: str
-    PING: str
-    PLUGIN_DATA: str
-    PLUGIN_RESOURCE: str
-    PREFETCH: str
-    RESOURCE: str
-    SCRIPT: str
-    SERVICE_WORKER: str
-    SHARED_WORKER: str
-    SPECULATION_RULES: str
-    STYLESHEET: str
-    TRACK: str
-    VIDEO: str
-    WORKER: str
-    XML_HTTP_REQUEST: str
-    XSLT: str
+    ATTRIBUTION_SRC = 'AttributionSrc'
+    AUDIO = 'Audio'
+    BEACON = 'Beacon'
+    CSP_REPORT = 'CSPReport'
+    DOWNLOAD = 'Download'
+    EVENT_SOURCE = 'EventSource'
+    FAVICON = 'Favicon'
+    FONT = 'Font'
+    FORM = 'Form'
+    FRAME = 'Frame'
+    IMAGE = 'Image'
+    IMPORT = 'Import'
+    JSON = 'JSON'
+    MANIFEST = 'Manifest'
+    PING = 'Ping'
+    PLUGIN_DATA = 'PluginData'
+    PLUGIN_RESOURCE = 'PluginResource'
+    PREFETCH = 'Prefetch'
+    RESOURCE = 'Resource'
+    SCRIPT = 'Script'
+    SERVICE_WORKER = 'ServiceWorker'
+    SHARED_WORKER = 'SharedWorker'
+    SPECULATION_RULES = 'SpeculationRules'
+    STYLESHEET = 'Stylesheet'
+    TRACK = 'Track'
+    VIDEO = 'Video'
+    WORKER = 'Worker'
+    XML_HTTP_REQUEST = 'XMLHttpRequest'
+    XSLT = 'XSLT'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> MixedContentResourceType: ...
@@ -130,20 +148,22 @@ class MixedContentIssueDetails:
     resolution_status: MixedContentResolutionStatus
     insecure_url: str
     main_resource_url: str
-    resource_type: typing.Optional[MixedContentResourceType] = ...
-    request: typing.Optional[AffectedRequest] = ...
-    frame: typing.Optional[AffectedFrame] = ...
+    resource_type: MixedContentResourceType | None = ...
+    request: AffectedRequest | None = ...
+    frame: AffectedFrame | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> MixedContentIssueDetails: ...
-    def __init__(self, resolution_status, insecure_url, main_resource_url, resource_type, request, frame) -> None: ...
 
 class BlockedByResponseReason(enum.Enum):
-    COEP_FRAME_RESOURCE_NEEDS_COEP_HEADER: str
-    COOP_SANDBOXED_I_FRAME_CANNOT_NAVIGATE_TO_COOP_PAGE: str
-    CORP_NOT_SAME_ORIGIN: str
-    CORP_NOT_SAME_ORIGIN_AFTER_DEFAULTED_TO_SAME_ORIGIN_BY_COEP: str
-    CORP_NOT_SAME_SITE: str
+    COEP_FRAME_RESOURCE_NEEDS_COEP_HEADER = 'CoepFrameResourceNeedsCoepHeader'
+    COOP_SANDBOXED_I_FRAME_CANNOT_NAVIGATE_TO_COOP_PAGE = 'CoopSandboxedIFrameCannotNavigateToCoopPage'
+    CORP_NOT_SAME_ORIGIN = 'CorpNotSameOrigin'
+    CORP_NOT_SAME_ORIGIN_AFTER_DEFAULTED_TO_SAME_ORIGIN_BY_COEP = 'CorpNotSameOriginAfterDefaultedToSameOriginByCoep'
+    CORP_NOT_SAME_ORIGIN_AFTER_DEFAULTED_TO_SAME_ORIGIN_BY_DIP = 'CorpNotSameOriginAfterDefaultedToSameOriginByDip'
+    CORP_NOT_SAME_ORIGIN_AFTER_DEFAULTED_TO_SAME_ORIGIN_BY_COEP_AND_DIP = 'CorpNotSameOriginAfterDefaultedToSameOriginByCoepAndDip'
+    CORP_NOT_SAME_SITE = 'CorpNotSameSite'
+    SRI_MESSAGE_SIGNATURE_MISMATCH = 'SRIMessageSignatureMismatch'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> BlockedByResponseReason: ...
@@ -152,24 +172,23 @@ class BlockedByResponseReason(enum.Enum):
 class BlockedByResponseIssueDetails:
     request: AffectedRequest
     reason: BlockedByResponseReason
-    parent_frame: typing.Optional[AffectedFrame] = ...
-    blocked_frame: typing.Optional[AffectedFrame] = ...
+    parent_frame: AffectedFrame | None = ...
+    blocked_frame: AffectedFrame | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> BlockedByResponseIssueDetails: ...
-    def __init__(self, request, reason, parent_frame, blocked_frame) -> None: ...
 
 class HeavyAdResolutionStatus(enum.Enum):
-    HEAVY_AD_BLOCKED: str
-    HEAVY_AD_WARNING: str
+    HEAVY_AD_BLOCKED = 'HeavyAdBlocked'
+    HEAVY_AD_WARNING = 'HeavyAdWarning'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> HeavyAdResolutionStatus: ...
 
 class HeavyAdReason(enum.Enum):
-    NETWORK_TOTAL_LIMIT: str
-    CPU_TOTAL_LIMIT: str
-    CPU_PEAK_LIMIT: str
+    NETWORK_TOTAL_LIMIT = 'NetworkTotalLimit'
+    CPU_TOTAL_LIMIT = 'CpuTotalLimit'
+    CPU_PEAK_LIMIT = 'CpuPeakLimit'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> HeavyAdReason: ...
@@ -182,15 +201,15 @@ class HeavyAdIssueDetails:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> HeavyAdIssueDetails: ...
-    def __init__(self, resolution, reason, frame) -> None: ...
 
 class ContentSecurityPolicyViolationType(enum.Enum):
-    K_INLINE_VIOLATION: str
-    K_EVAL_VIOLATION: str
-    K_URL_VIOLATION: str
-    K_TRUSTED_TYPES_SINK_VIOLATION: str
-    K_TRUSTED_TYPES_POLICY_VIOLATION: str
-    K_WASM_EVAL_VIOLATION: str
+    K_INLINE_VIOLATION = 'kInlineViolation'
+    K_EVAL_VIOLATION = 'kEvalViolation'
+    K_URL_VIOLATION = 'kURLViolation'
+    K_SRI_VIOLATION = 'kSRIViolation'
+    K_TRUSTED_TYPES_SINK_VIOLATION = 'kTrustedTypesSinkViolation'
+    K_TRUSTED_TYPES_POLICY_VIOLATION = 'kTrustedTypesPolicyViolation'
+    K_WASM_EVAL_VIOLATION = 'kWasmEvalViolation'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> ContentSecurityPolicyViolationType: ...
@@ -200,29 +219,27 @@ class SourceCodeLocation:
     url: str
     line_number: int
     column_number: int
-    script_id: typing.Optional[runtime.ScriptId] = ...
+    script_id: runtime.ScriptId | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> SourceCodeLocation: ...
-    def __init__(self, url, line_number, column_number, script_id) -> None: ...
 
 @dataclass
 class ContentSecurityPolicyIssueDetails:
     violated_directive: str
     is_report_only: bool
     content_security_policy_violation_type: ContentSecurityPolicyViolationType
-    blocked_url: typing.Optional[str] = ...
-    frame_ancestor: typing.Optional[AffectedFrame] = ...
-    source_code_location: typing.Optional[SourceCodeLocation] = ...
-    violating_node_id: typing.Optional[dom.BackendNodeId] = ...
+    blocked_url: str | None = ...
+    frame_ancestor: AffectedFrame | None = ...
+    source_code_location: SourceCodeLocation | None = ...
+    violating_node_id: dom.BackendNodeId | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> ContentSecurityPolicyIssueDetails: ...
-    def __init__(self, violated_directive, is_report_only, content_security_policy_violation_type, blocked_url, frame_ancestor, source_code_location, violating_node_id) -> None: ...
 
 class SharedArrayBufferIssueType(enum.Enum):
-    TRANSFER_ISSUE: str
-    CREATION_ISSUE: str
+    TRANSFER_ISSUE = 'TransferIssue'
+    CREATION_ISSUE = 'CreationIssue'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> SharedArrayBufferIssueType: ...
@@ -235,7 +252,6 @@ class SharedArrayBufferIssueDetails:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> SharedArrayBufferIssueDetails: ...
-    def __init__(self, source_code_location, is_warning, type_) -> None: ...
 
 @dataclass
 class LowTextContrastIssueDetails:
@@ -249,52 +265,109 @@ class LowTextContrastIssueDetails:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> LowTextContrastIssueDetails: ...
-    def __init__(self, violating_node_id, violating_node_selector, contrast_ratio, threshold_aa, threshold_aaa, font_size, font_weight) -> None: ...
 
 @dataclass
 class CorsIssueDetails:
     cors_error_status: network.CorsErrorStatus
     is_warning: bool
     request: AffectedRequest
-    location: typing.Optional[SourceCodeLocation] = ...
-    initiator_origin: typing.Optional[str] = ...
-    resource_ip_address_space: typing.Optional[network.IPAddressSpace] = ...
-    client_security_state: typing.Optional[network.ClientSecurityState] = ...
+    location: SourceCodeLocation | None = ...
+    initiator_origin: str | None = ...
+    resource_ip_address_space: network.IPAddressSpace | None = ...
+    client_security_state: network.ClientSecurityState | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> CorsIssueDetails: ...
-    def __init__(self, cors_error_status, is_warning, request, location, initiator_origin, resource_ip_address_space, client_security_state) -> None: ...
 
 class AttributionReportingIssueType(enum.Enum):
-    PERMISSION_POLICY_DISABLED: str
-    UNTRUSTWORTHY_REPORTING_ORIGIN: str
-    INSECURE_CONTEXT: str
-    INVALID_HEADER: str
-    INVALID_REGISTER_TRIGGER_HEADER: str
-    SOURCE_AND_TRIGGER_HEADERS: str
-    SOURCE_IGNORED: str
-    TRIGGER_IGNORED: str
-    OS_SOURCE_IGNORED: str
-    OS_TRIGGER_IGNORED: str
-    INVALID_REGISTER_OS_SOURCE_HEADER: str
-    INVALID_REGISTER_OS_TRIGGER_HEADER: str
-    WEB_AND_OS_HEADERS: str
-    NO_WEB_OR_OS_SUPPORT: str
-    NAVIGATION_REGISTRATION_WITHOUT_TRANSIENT_USER_ACTIVATION: str
+    PERMISSION_POLICY_DISABLED = 'PermissionPolicyDisabled'
+    UNTRUSTWORTHY_REPORTING_ORIGIN = 'UntrustworthyReportingOrigin'
+    INSECURE_CONTEXT = 'InsecureContext'
+    INVALID_HEADER = 'InvalidHeader'
+    INVALID_REGISTER_TRIGGER_HEADER = 'InvalidRegisterTriggerHeader'
+    SOURCE_AND_TRIGGER_HEADERS = 'SourceAndTriggerHeaders'
+    SOURCE_IGNORED = 'SourceIgnored'
+    TRIGGER_IGNORED = 'TriggerIgnored'
+    OS_SOURCE_IGNORED = 'OsSourceIgnored'
+    OS_TRIGGER_IGNORED = 'OsTriggerIgnored'
+    INVALID_REGISTER_OS_SOURCE_HEADER = 'InvalidRegisterOsSourceHeader'
+    INVALID_REGISTER_OS_TRIGGER_HEADER = 'InvalidRegisterOsTriggerHeader'
+    WEB_AND_OS_HEADERS = 'WebAndOsHeaders'
+    NO_WEB_OR_OS_SUPPORT = 'NoWebOrOsSupport'
+    NAVIGATION_REGISTRATION_WITHOUT_TRANSIENT_USER_ACTIVATION = 'NavigationRegistrationWithoutTransientUserActivation'
+    INVALID_INFO_HEADER = 'InvalidInfoHeader'
+    NO_REGISTER_SOURCE_HEADER = 'NoRegisterSourceHeader'
+    NO_REGISTER_TRIGGER_HEADER = 'NoRegisterTriggerHeader'
+    NO_REGISTER_OS_SOURCE_HEADER = 'NoRegisterOsSourceHeader'
+    NO_REGISTER_OS_TRIGGER_HEADER = 'NoRegisterOsTriggerHeader'
+    NAVIGATION_REGISTRATION_UNIQUE_SCOPE_ALREADY_SET = 'NavigationRegistrationUniqueScopeAlreadySet'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> AttributionReportingIssueType: ...
 
+class SharedDictionaryError(enum.Enum):
+    USE_ERROR_CROSS_ORIGIN_NO_CORS_REQUEST = 'UseErrorCrossOriginNoCorsRequest'
+    USE_ERROR_DICTIONARY_LOAD_FAILURE = 'UseErrorDictionaryLoadFailure'
+    USE_ERROR_MATCHING_DICTIONARY_NOT_USED = 'UseErrorMatchingDictionaryNotUsed'
+    USE_ERROR_UNEXPECTED_CONTENT_DICTIONARY_HEADER = 'UseErrorUnexpectedContentDictionaryHeader'
+    WRITE_ERROR_COSS_ORIGIN_NO_CORS_REQUEST = 'WriteErrorCossOriginNoCorsRequest'
+    WRITE_ERROR_DISALLOWED_BY_SETTINGS = 'WriteErrorDisallowedBySettings'
+    WRITE_ERROR_EXPIRED_RESPONSE = 'WriteErrorExpiredResponse'
+    WRITE_ERROR_FEATURE_DISABLED = 'WriteErrorFeatureDisabled'
+    WRITE_ERROR_INSUFFICIENT_RESOURCES = 'WriteErrorInsufficientResources'
+    WRITE_ERROR_INVALID_MATCH_FIELD = 'WriteErrorInvalidMatchField'
+    WRITE_ERROR_INVALID_STRUCTURED_HEADER = 'WriteErrorInvalidStructuredHeader'
+    WRITE_ERROR_NAVIGATION_REQUEST = 'WriteErrorNavigationRequest'
+    WRITE_ERROR_NO_MATCH_FIELD = 'WriteErrorNoMatchField'
+    WRITE_ERROR_NON_LIST_MATCH_DEST_FIELD = 'WriteErrorNonListMatchDestField'
+    WRITE_ERROR_NON_SECURE_CONTEXT = 'WriteErrorNonSecureContext'
+    WRITE_ERROR_NON_STRING_ID_FIELD = 'WriteErrorNonStringIdField'
+    WRITE_ERROR_NON_STRING_IN_MATCH_DEST_LIST = 'WriteErrorNonStringInMatchDestList'
+    WRITE_ERROR_NON_STRING_MATCH_FIELD = 'WriteErrorNonStringMatchField'
+    WRITE_ERROR_NON_TOKEN_TYPE_FIELD = 'WriteErrorNonTokenTypeField'
+    WRITE_ERROR_REQUEST_ABORTED = 'WriteErrorRequestAborted'
+    WRITE_ERROR_SHUTTING_DOWN = 'WriteErrorShuttingDown'
+    WRITE_ERROR_TOO_LONG_ID_FIELD = 'WriteErrorTooLongIdField'
+    WRITE_ERROR_UNSUPPORTED_TYPE = 'WriteErrorUnsupportedType'
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> SharedDictionaryError: ...
+
+class SRIMessageSignatureError(enum.Enum):
+    MISSING_SIGNATURE_HEADER = 'MissingSignatureHeader'
+    MISSING_SIGNATURE_INPUT_HEADER = 'MissingSignatureInputHeader'
+    INVALID_SIGNATURE_HEADER = 'InvalidSignatureHeader'
+    INVALID_SIGNATURE_INPUT_HEADER = 'InvalidSignatureInputHeader'
+    SIGNATURE_HEADER_VALUE_IS_NOT_BYTE_SEQUENCE = 'SignatureHeaderValueIsNotByteSequence'
+    SIGNATURE_HEADER_VALUE_IS_PARAMETERIZED = 'SignatureHeaderValueIsParameterized'
+    SIGNATURE_HEADER_VALUE_IS_INCORRECT_LENGTH = 'SignatureHeaderValueIsIncorrectLength'
+    SIGNATURE_INPUT_HEADER_MISSING_LABEL = 'SignatureInputHeaderMissingLabel'
+    SIGNATURE_INPUT_HEADER_VALUE_NOT_INNER_LIST = 'SignatureInputHeaderValueNotInnerList'
+    SIGNATURE_INPUT_HEADER_VALUE_MISSING_COMPONENTS = 'SignatureInputHeaderValueMissingComponents'
+    SIGNATURE_INPUT_HEADER_INVALID_COMPONENT_TYPE = 'SignatureInputHeaderInvalidComponentType'
+    SIGNATURE_INPUT_HEADER_INVALID_COMPONENT_NAME = 'SignatureInputHeaderInvalidComponentName'
+    SIGNATURE_INPUT_HEADER_INVALID_HEADER_COMPONENT_PARAMETER = 'SignatureInputHeaderInvalidHeaderComponentParameter'
+    SIGNATURE_INPUT_HEADER_INVALID_DERIVED_COMPONENT_PARAMETER = 'SignatureInputHeaderInvalidDerivedComponentParameter'
+    SIGNATURE_INPUT_HEADER_KEY_ID_LENGTH = 'SignatureInputHeaderKeyIdLength'
+    SIGNATURE_INPUT_HEADER_INVALID_PARAMETER = 'SignatureInputHeaderInvalidParameter'
+    SIGNATURE_INPUT_HEADER_MISSING_REQUIRED_PARAMETERS = 'SignatureInputHeaderMissingRequiredParameters'
+    VALIDATION_FAILED_SIGNATURE_EXPIRED = 'ValidationFailedSignatureExpired'
+    VALIDATION_FAILED_INVALID_LENGTH = 'ValidationFailedInvalidLength'
+    VALIDATION_FAILED_SIGNATURE_MISMATCH = 'ValidationFailedSignatureMismatch'
+    VALIDATION_FAILED_INTEGRITY_MISMATCH = 'ValidationFailedIntegrityMismatch'
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> SRIMessageSignatureError: ...
+
 @dataclass
 class AttributionReportingIssueDetails:
     violation_type: AttributionReportingIssueType
-    request: typing.Optional[AffectedRequest] = ...
-    violating_node_id: typing.Optional[dom.BackendNodeId] = ...
-    invalid_parameter: typing.Optional[str] = ...
+    request: AffectedRequest | None = ...
+    violating_node_id: dom.BackendNodeId | None = ...
+    invalid_parameter: str | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingIssueDetails: ...
-    def __init__(self, violation_type, request, violating_node_id, invalid_parameter) -> None: ...
 
 @dataclass
 class QuirksModeIssueDetails:
@@ -306,30 +379,45 @@ class QuirksModeIssueDetails:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> QuirksModeIssueDetails: ...
-    def __init__(self, is_limited_quirks_mode, document_node_id, url, frame_id, loader_id) -> None: ...
 
 @dataclass
 class NavigatorUserAgentIssueDetails:
     url: str
-    location: typing.Optional[SourceCodeLocation] = ...
+    location: SourceCodeLocation | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> NavigatorUserAgentIssueDetails: ...
-    def __init__(self, url, location) -> None: ...
+
+@dataclass
+class SharedDictionaryIssueDetails:
+    shared_dictionary_error: SharedDictionaryError
+    request: AffectedRequest
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> SharedDictionaryIssueDetails: ...
+
+@dataclass
+class SRIMessageSignatureIssueDetails:
+    error: SRIMessageSignatureError
+    signature_base: str
+    integrity_assertions: list[str]
+    request: AffectedRequest
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> SRIMessageSignatureIssueDetails: ...
 
 class GenericIssueErrorType(enum.Enum):
-    CROSS_ORIGIN_PORTAL_POST_MESSAGE_ERROR: str
-    FORM_LABEL_FOR_NAME_ERROR: str
-    FORM_DUPLICATE_ID_FOR_INPUT_ERROR: str
-    FORM_INPUT_WITH_NO_LABEL_ERROR: str
-    FORM_AUTOCOMPLETE_ATTRIBUTE_EMPTY_ERROR: str
-    FORM_EMPTY_ID_AND_NAME_ATTRIBUTES_FOR_INPUT_ERROR: str
-    FORM_ARIA_LABELLED_BY_TO_NON_EXISTING_ID: str
-    FORM_INPUT_ASSIGNED_AUTOCOMPLETE_VALUE_TO_ID_OR_NAME_ATTRIBUTE_ERROR: str
-    FORM_LABEL_HAS_NEITHER_FOR_NOR_NESTED_INPUT: str
-    FORM_LABEL_FOR_MATCHES_NON_EXISTING_ID_ERROR: str
-    FORM_INPUT_HAS_WRONG_BUT_WELL_INTENDED_AUTOCOMPLETE_VALUE_ERROR: str
-    RESPONSE_WAS_BLOCKED_BY_ORB: str
+    FORM_LABEL_FOR_NAME_ERROR = 'FormLabelForNameError'
+    FORM_DUPLICATE_ID_FOR_INPUT_ERROR = 'FormDuplicateIdForInputError'
+    FORM_INPUT_WITH_NO_LABEL_ERROR = 'FormInputWithNoLabelError'
+    FORM_AUTOCOMPLETE_ATTRIBUTE_EMPTY_ERROR = 'FormAutocompleteAttributeEmptyError'
+    FORM_EMPTY_ID_AND_NAME_ATTRIBUTES_FOR_INPUT_ERROR = 'FormEmptyIdAndNameAttributesForInputError'
+    FORM_ARIA_LABELLED_BY_TO_NON_EXISTING_ID = 'FormAriaLabelledByToNonExistingId'
+    FORM_INPUT_ASSIGNED_AUTOCOMPLETE_VALUE_TO_ID_OR_NAME_ATTRIBUTE_ERROR = 'FormInputAssignedAutocompleteValueToIdOrNameAttributeError'
+    FORM_LABEL_HAS_NEITHER_FOR_NOR_NESTED_INPUT = 'FormLabelHasNeitherForNorNestedInput'
+    FORM_LABEL_FOR_MATCHES_NON_EXISTING_ID_ERROR = 'FormLabelForMatchesNonExistingIdError'
+    FORM_INPUT_HAS_WRONG_BUT_WELL_INTENDED_AUTOCOMPLETE_VALUE_ERROR = 'FormInputHasWrongButWellIntendedAutocompleteValueError'
+    RESPONSE_WAS_BLOCKED_BY_ORB = 'ResponseWasBlockedByORB'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> GenericIssueErrorType: ...
@@ -337,44 +425,43 @@ class GenericIssueErrorType(enum.Enum):
 @dataclass
 class GenericIssueDetails:
     error_type: GenericIssueErrorType
-    frame_id: typing.Optional[page.FrameId] = ...
-    violating_node_id: typing.Optional[dom.BackendNodeId] = ...
-    violating_node_attribute: typing.Optional[str] = ...
-    request: typing.Optional[AffectedRequest] = ...
+    frame_id: page.FrameId | None = ...
+    violating_node_id: dom.BackendNodeId | None = ...
+    violating_node_attribute: str | None = ...
+    request: AffectedRequest | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> GenericIssueDetails: ...
-    def __init__(self, error_type, frame_id, violating_node_id, violating_node_attribute, request) -> None: ...
 
 @dataclass
 class DeprecationIssueDetails:
     source_code_location: SourceCodeLocation
     type_: str
-    affected_frame: typing.Optional[AffectedFrame] = ...
+    affected_frame: AffectedFrame | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> DeprecationIssueDetails: ...
-    def __init__(self, source_code_location, type_, affected_frame) -> None: ...
 
 @dataclass
 class BounceTrackingIssueDetails:
-    tracking_sites: typing.List[str]
+    tracking_sites: list[str]
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> BounceTrackingIssueDetails: ...
-    def __init__(self, tracking_sites) -> None: ...
 
 @dataclass
 class CookieDeprecationMetadataIssueDetails:
-    allowed_sites: typing.List[str]
+    allowed_sites: list[str]
+    opt_out_percentage: float
+    is_opt_out_top_level: bool
+    operation: CookieOperation
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> CookieDeprecationMetadataIssueDetails: ...
-    def __init__(self, allowed_sites) -> None: ...
 
 class ClientHintIssueReason(enum.Enum):
-    META_TAG_ALLOW_LIST_INVALID_ORIGIN: str
-    META_TAG_MODIFIED_HTML: str
+    META_TAG_ALLOW_LIST_INVALID_ORIGIN = 'MetaTagAllowListInvalidOrigin'
+    META_TAG_MODIFIED_HTML = 'MetaTagModifiedHTML'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> ClientHintIssueReason: ...
@@ -385,47 +472,56 @@ class FederatedAuthRequestIssueDetails:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FederatedAuthRequestIssueDetails: ...
-    def __init__(self, federated_auth_request_issue_reason) -> None: ...
 
 class FederatedAuthRequestIssueReason(enum.Enum):
-    SHOULD_EMBARGO: str
-    TOO_MANY_REQUESTS: str
-    WELL_KNOWN_HTTP_NOT_FOUND: str
-    WELL_KNOWN_NO_RESPONSE: str
-    WELL_KNOWN_INVALID_RESPONSE: str
-    WELL_KNOWN_LIST_EMPTY: str
-    WELL_KNOWN_INVALID_CONTENT_TYPE: str
-    CONFIG_NOT_IN_WELL_KNOWN: str
-    WELL_KNOWN_TOO_BIG: str
-    CONFIG_HTTP_NOT_FOUND: str
-    CONFIG_NO_RESPONSE: str
-    CONFIG_INVALID_RESPONSE: str
-    CONFIG_INVALID_CONTENT_TYPE: str
-    CLIENT_METADATA_HTTP_NOT_FOUND: str
-    CLIENT_METADATA_NO_RESPONSE: str
-    CLIENT_METADATA_INVALID_RESPONSE: str
-    CLIENT_METADATA_INVALID_CONTENT_TYPE: str
-    DISABLED_IN_SETTINGS: str
-    ERROR_FETCHING_SIGNIN: str
-    INVALID_SIGNIN_RESPONSE: str
-    ACCOUNTS_HTTP_NOT_FOUND: str
-    ACCOUNTS_NO_RESPONSE: str
-    ACCOUNTS_INVALID_RESPONSE: str
-    ACCOUNTS_LIST_EMPTY: str
-    ACCOUNTS_INVALID_CONTENT_TYPE: str
-    ID_TOKEN_HTTP_NOT_FOUND: str
-    ID_TOKEN_NO_RESPONSE: str
-    ID_TOKEN_INVALID_RESPONSE: str
-    ID_TOKEN_IDP_ERROR_RESPONSE: str
-    ID_TOKEN_CROSS_SITE_IDP_ERROR_RESPONSE: str
-    ID_TOKEN_INVALID_REQUEST: str
-    ID_TOKEN_INVALID_CONTENT_TYPE: str
-    ERROR_ID_TOKEN: str
-    CANCELED: str
-    RP_PAGE_NOT_VISIBLE: str
-    SILENT_MEDIATION_FAILURE: str
-    THIRD_PARTY_COOKIES_BLOCKED: str
-    NOT_SIGNED_IN_WITH_IDP: str
+    SHOULD_EMBARGO = 'ShouldEmbargo'
+    TOO_MANY_REQUESTS = 'TooManyRequests'
+    WELL_KNOWN_HTTP_NOT_FOUND = 'WellKnownHttpNotFound'
+    WELL_KNOWN_NO_RESPONSE = 'WellKnownNoResponse'
+    WELL_KNOWN_INVALID_RESPONSE = 'WellKnownInvalidResponse'
+    WELL_KNOWN_LIST_EMPTY = 'WellKnownListEmpty'
+    WELL_KNOWN_INVALID_CONTENT_TYPE = 'WellKnownInvalidContentType'
+    CONFIG_NOT_IN_WELL_KNOWN = 'ConfigNotInWellKnown'
+    WELL_KNOWN_TOO_BIG = 'WellKnownTooBig'
+    CONFIG_HTTP_NOT_FOUND = 'ConfigHttpNotFound'
+    CONFIG_NO_RESPONSE = 'ConfigNoResponse'
+    CONFIG_INVALID_RESPONSE = 'ConfigInvalidResponse'
+    CONFIG_INVALID_CONTENT_TYPE = 'ConfigInvalidContentType'
+    CLIENT_METADATA_HTTP_NOT_FOUND = 'ClientMetadataHttpNotFound'
+    CLIENT_METADATA_NO_RESPONSE = 'ClientMetadataNoResponse'
+    CLIENT_METADATA_INVALID_RESPONSE = 'ClientMetadataInvalidResponse'
+    CLIENT_METADATA_INVALID_CONTENT_TYPE = 'ClientMetadataInvalidContentType'
+    IDP_NOT_POTENTIALLY_TRUSTWORTHY = 'IdpNotPotentiallyTrustworthy'
+    DISABLED_IN_SETTINGS = 'DisabledInSettings'
+    DISABLED_IN_FLAGS = 'DisabledInFlags'
+    ERROR_FETCHING_SIGNIN = 'ErrorFetchingSignin'
+    INVALID_SIGNIN_RESPONSE = 'InvalidSigninResponse'
+    ACCOUNTS_HTTP_NOT_FOUND = 'AccountsHttpNotFound'
+    ACCOUNTS_NO_RESPONSE = 'AccountsNoResponse'
+    ACCOUNTS_INVALID_RESPONSE = 'AccountsInvalidResponse'
+    ACCOUNTS_LIST_EMPTY = 'AccountsListEmpty'
+    ACCOUNTS_INVALID_CONTENT_TYPE = 'AccountsInvalidContentType'
+    ID_TOKEN_HTTP_NOT_FOUND = 'IdTokenHttpNotFound'
+    ID_TOKEN_NO_RESPONSE = 'IdTokenNoResponse'
+    ID_TOKEN_INVALID_RESPONSE = 'IdTokenInvalidResponse'
+    ID_TOKEN_IDP_ERROR_RESPONSE = 'IdTokenIdpErrorResponse'
+    ID_TOKEN_CROSS_SITE_IDP_ERROR_RESPONSE = 'IdTokenCrossSiteIdpErrorResponse'
+    ID_TOKEN_INVALID_REQUEST = 'IdTokenInvalidRequest'
+    ID_TOKEN_INVALID_CONTENT_TYPE = 'IdTokenInvalidContentType'
+    ERROR_ID_TOKEN = 'ErrorIdToken'
+    CANCELED = 'Canceled'
+    RP_PAGE_NOT_VISIBLE = 'RpPageNotVisible'
+    SILENT_MEDIATION_FAILURE = 'SilentMediationFailure'
+    THIRD_PARTY_COOKIES_BLOCKED = 'ThirdPartyCookiesBlocked'
+    NOT_SIGNED_IN_WITH_IDP = 'NotSignedInWithIdp'
+    MISSING_TRANSIENT_USER_ACTIVATION = 'MissingTransientUserActivation'
+    REPLACED_BY_ACTIVE_MODE = 'ReplacedByActiveMode'
+    INVALID_FIELDS_SPECIFIED = 'InvalidFieldsSpecified'
+    RELYING_PARTY_ORIGIN_IS_OPAQUE = 'RelyingPartyOriginIsOpaque'
+    TYPE_NOT_MATCHING = 'TypeNotMatching'
+    UI_DISMISSED_NO_EMBARGO = 'UiDismissedNoEmbargo'
+    CORS_ERROR = 'CorsError'
+    SUPPRESSED_BY_SEGMENTATION_PLATFORM = 'SuppressedBySegmentationPlatform'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> FederatedAuthRequestIssueReason: ...
@@ -436,18 +532,17 @@ class FederatedAuthUserInfoRequestIssueDetails:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FederatedAuthUserInfoRequestIssueDetails: ...
-    def __init__(self, federated_auth_user_info_request_issue_reason) -> None: ...
 
 class FederatedAuthUserInfoRequestIssueReason(enum.Enum):
-    NOT_SAME_ORIGIN: str
-    NOT_IFRAME: str
-    NOT_POTENTIALLY_TRUSTWORTHY: str
-    NO_API_PERMISSION: str
-    NOT_SIGNED_IN_WITH_IDP: str
-    NO_ACCOUNT_SHARING_PERMISSION: str
-    INVALID_CONFIG_OR_WELL_KNOWN: str
-    INVALID_ACCOUNTS_RESPONSE: str
-    NO_RETURNING_USER_FROM_FETCHED_ACCOUNTS: str
+    NOT_SAME_ORIGIN = 'NotSameOrigin'
+    NOT_IFRAME = 'NotIframe'
+    NOT_POTENTIALLY_TRUSTWORTHY = 'NotPotentiallyTrustworthy'
+    NO_API_PERMISSION = 'NoApiPermission'
+    NOT_SIGNED_IN_WITH_IDP = 'NotSignedInWithIdp'
+    NO_ACCOUNT_SHARING_PERMISSION = 'NoAccountSharingPermission'
+    INVALID_CONFIG_OR_WELL_KNOWN = 'InvalidConfigOrWellKnown'
+    INVALID_ACCOUNTS_RESPONSE = 'InvalidAccountsResponse'
+    NO_RETURNING_USER_FROM_FETCHED_ACCOUNTS = 'NoReturningUserFromFetchedAccounts'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> FederatedAuthUserInfoRequestIssueReason: ...
@@ -459,21 +554,54 @@ class ClientHintIssueDetails:
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> ClientHintIssueDetails: ...
-    def __init__(self, source_code_location, client_hint_issue_reason) -> None: ...
 
 @dataclass
 class FailedRequestInfo:
     url: str
     failure_message: str
-    request_id: typing.Optional[network.RequestId] = ...
+    request_id: network.RequestId | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> FailedRequestInfo: ...
-    def __init__(self, url, failure_message, request_id) -> None: ...
+
+class PartitioningBlobURLInfo(enum.Enum):
+    BLOCKED_CROSS_PARTITION_FETCHING = 'BlockedCrossPartitionFetching'
+    ENFORCE_NOOPENER_FOR_NAVIGATION = 'EnforceNoopenerForNavigation'
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> PartitioningBlobURLInfo: ...
+
+@dataclass
+class PartitioningBlobURLIssueDetails:
+    url: str
+    partitioning_blob_url_info: PartitioningBlobURLInfo
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> PartitioningBlobURLIssueDetails: ...
+
+class ElementAccessibilityIssueReason(enum.Enum):
+    DISALLOWED_SELECT_CHILD = 'DisallowedSelectChild'
+    DISALLOWED_OPT_GROUP_CHILD = 'DisallowedOptGroupChild'
+    NON_PHRASING_CONTENT_OPTION_CHILD = 'NonPhrasingContentOptionChild'
+    INTERACTIVE_CONTENT_OPTION_CHILD = 'InteractiveContentOptionChild'
+    INTERACTIVE_CONTENT_LEGEND_CHILD = 'InteractiveContentLegendChild'
+    INTERACTIVE_CONTENT_SUMMARY_DESCENDANT = 'InteractiveContentSummaryDescendant'
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> ElementAccessibilityIssueReason: ...
+
+@dataclass
+class ElementAccessibilityIssueDetails:
+    node_id: dom.BackendNodeId
+    element_accessibility_issue_reason: ElementAccessibilityIssueReason
+    has_disallowed_attributes: bool
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> ElementAccessibilityIssueDetails: ...
 
 class StyleSheetLoadingIssueReason(enum.Enum):
-    LATE_IMPORT_RULE: str
-    REQUEST_FAILED: str
+    LATE_IMPORT_RULE = 'LateImportRule'
+    REQUEST_FAILED = 'RequestFailed'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> StyleSheetLoadingIssueReason: ...
@@ -482,17 +610,16 @@ class StyleSheetLoadingIssueReason(enum.Enum):
 class StylesheetLoadingIssueDetails:
     source_code_location: SourceCodeLocation
     style_sheet_loading_issue_reason: StyleSheetLoadingIssueReason
-    failed_request_info: typing.Optional[FailedRequestInfo] = ...
+    failed_request_info: FailedRequestInfo | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> StylesheetLoadingIssueDetails: ...
-    def __init__(self, source_code_location, style_sheet_loading_issue_reason, failed_request_info) -> None: ...
 
 class PropertyRuleIssueReason(enum.Enum):
-    INVALID_SYNTAX: str
-    INVALID_INITIAL_VALUE: str
-    INVALID_INHERITS: str
-    INVALID_NAME: str
+    INVALID_SYNTAX = 'InvalidSyntax'
+    INVALID_INITIAL_VALUE = 'InvalidInitialValue'
+    INVALID_INHERITS = 'InvalidInherits'
+    INVALID_NAME = 'InvalidName'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> PropertyRuleIssueReason: ...
@@ -501,63 +628,86 @@ class PropertyRuleIssueReason(enum.Enum):
 class PropertyRuleIssueDetails:
     source_code_location: SourceCodeLocation
     property_rule_issue_reason: PropertyRuleIssueReason
-    property_value: typing.Optional[str] = ...
+    property_value: str | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> PropertyRuleIssueDetails: ...
-    def __init__(self, source_code_location, property_rule_issue_reason, property_value) -> None: ...
+
+class UserReidentificationIssueType(enum.Enum):
+    BLOCKED_FRAME_NAVIGATION = 'BlockedFrameNavigation'
+    BLOCKED_SUBRESOURCE = 'BlockedSubresource'
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> UserReidentificationIssueType: ...
+
+@dataclass
+class UserReidentificationIssueDetails:
+    type_: UserReidentificationIssueType
+    request: AffectedRequest | None = ...
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> UserReidentificationIssueDetails: ...
 
 class InspectorIssueCode(enum.Enum):
-    COOKIE_ISSUE: str
-    MIXED_CONTENT_ISSUE: str
-    BLOCKED_BY_RESPONSE_ISSUE: str
-    HEAVY_AD_ISSUE: str
-    CONTENT_SECURITY_POLICY_ISSUE: str
-    SHARED_ARRAY_BUFFER_ISSUE: str
-    LOW_TEXT_CONTRAST_ISSUE: str
-    CORS_ISSUE: str
-    ATTRIBUTION_REPORTING_ISSUE: str
-    QUIRKS_MODE_ISSUE: str
-    NAVIGATOR_USER_AGENT_ISSUE: str
-    GENERIC_ISSUE: str
-    DEPRECATION_ISSUE: str
-    CLIENT_HINT_ISSUE: str
-    FEDERATED_AUTH_REQUEST_ISSUE: str
-    BOUNCE_TRACKING_ISSUE: str
-    COOKIE_DEPRECATION_METADATA_ISSUE: str
-    STYLESHEET_LOADING_ISSUE: str
-    FEDERATED_AUTH_USER_INFO_REQUEST_ISSUE: str
-    PROPERTY_RULE_ISSUE: str
+    COOKIE_ISSUE = 'CookieIssue'
+    MIXED_CONTENT_ISSUE = 'MixedContentIssue'
+    BLOCKED_BY_RESPONSE_ISSUE = 'BlockedByResponseIssue'
+    HEAVY_AD_ISSUE = 'HeavyAdIssue'
+    CONTENT_SECURITY_POLICY_ISSUE = 'ContentSecurityPolicyIssue'
+    SHARED_ARRAY_BUFFER_ISSUE = 'SharedArrayBufferIssue'
+    LOW_TEXT_CONTRAST_ISSUE = 'LowTextContrastIssue'
+    CORS_ISSUE = 'CorsIssue'
+    ATTRIBUTION_REPORTING_ISSUE = 'AttributionReportingIssue'
+    QUIRKS_MODE_ISSUE = 'QuirksModeIssue'
+    PARTITIONING_BLOB_URL_ISSUE = 'PartitioningBlobURLIssue'
+    NAVIGATOR_USER_AGENT_ISSUE = 'NavigatorUserAgentIssue'
+    GENERIC_ISSUE = 'GenericIssue'
+    DEPRECATION_ISSUE = 'DeprecationIssue'
+    CLIENT_HINT_ISSUE = 'ClientHintIssue'
+    FEDERATED_AUTH_REQUEST_ISSUE = 'FederatedAuthRequestIssue'
+    BOUNCE_TRACKING_ISSUE = 'BounceTrackingIssue'
+    COOKIE_DEPRECATION_METADATA_ISSUE = 'CookieDeprecationMetadataIssue'
+    STYLESHEET_LOADING_ISSUE = 'StylesheetLoadingIssue'
+    FEDERATED_AUTH_USER_INFO_REQUEST_ISSUE = 'FederatedAuthUserInfoRequestIssue'
+    PROPERTY_RULE_ISSUE = 'PropertyRuleIssue'
+    SHARED_DICTIONARY_ISSUE = 'SharedDictionaryIssue'
+    ELEMENT_ACCESSIBILITY_ISSUE = 'ElementAccessibilityIssue'
+    SRI_MESSAGE_SIGNATURE_ISSUE = 'SRIMessageSignatureIssue'
+    USER_REIDENTIFICATION_ISSUE = 'UserReidentificationIssue'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> InspectorIssueCode: ...
 
 @dataclass
 class InspectorIssueDetails:
-    cookie_issue_details: typing.Optional[CookieIssueDetails] = ...
-    mixed_content_issue_details: typing.Optional[MixedContentIssueDetails] = ...
-    blocked_by_response_issue_details: typing.Optional[BlockedByResponseIssueDetails] = ...
-    heavy_ad_issue_details: typing.Optional[HeavyAdIssueDetails] = ...
-    content_security_policy_issue_details: typing.Optional[ContentSecurityPolicyIssueDetails] = ...
-    shared_array_buffer_issue_details: typing.Optional[SharedArrayBufferIssueDetails] = ...
-    low_text_contrast_issue_details: typing.Optional[LowTextContrastIssueDetails] = ...
-    cors_issue_details: typing.Optional[CorsIssueDetails] = ...
-    attribution_reporting_issue_details: typing.Optional[AttributionReportingIssueDetails] = ...
-    quirks_mode_issue_details: typing.Optional[QuirksModeIssueDetails] = ...
-    navigator_user_agent_issue_details: typing.Optional[NavigatorUserAgentIssueDetails] = ...
-    generic_issue_details: typing.Optional[GenericIssueDetails] = ...
-    deprecation_issue_details: typing.Optional[DeprecationIssueDetails] = ...
-    client_hint_issue_details: typing.Optional[ClientHintIssueDetails] = ...
-    federated_auth_request_issue_details: typing.Optional[FederatedAuthRequestIssueDetails] = ...
-    bounce_tracking_issue_details: typing.Optional[BounceTrackingIssueDetails] = ...
-    cookie_deprecation_metadata_issue_details: typing.Optional[CookieDeprecationMetadataIssueDetails] = ...
-    stylesheet_loading_issue_details: typing.Optional[StylesheetLoadingIssueDetails] = ...
-    property_rule_issue_details: typing.Optional[PropertyRuleIssueDetails] = ...
-    federated_auth_user_info_request_issue_details: typing.Optional[FederatedAuthUserInfoRequestIssueDetails] = ...
+    cookie_issue_details: CookieIssueDetails | None = ...
+    mixed_content_issue_details: MixedContentIssueDetails | None = ...
+    blocked_by_response_issue_details: BlockedByResponseIssueDetails | None = ...
+    heavy_ad_issue_details: HeavyAdIssueDetails | None = ...
+    content_security_policy_issue_details: ContentSecurityPolicyIssueDetails | None = ...
+    shared_array_buffer_issue_details: SharedArrayBufferIssueDetails | None = ...
+    low_text_contrast_issue_details: LowTextContrastIssueDetails | None = ...
+    cors_issue_details: CorsIssueDetails | None = ...
+    attribution_reporting_issue_details: AttributionReportingIssueDetails | None = ...
+    quirks_mode_issue_details: QuirksModeIssueDetails | None = ...
+    partitioning_blob_url_issue_details: PartitioningBlobURLIssueDetails | None = ...
+    navigator_user_agent_issue_details: NavigatorUserAgentIssueDetails | None = ...
+    generic_issue_details: GenericIssueDetails | None = ...
+    deprecation_issue_details: DeprecationIssueDetails | None = ...
+    client_hint_issue_details: ClientHintIssueDetails | None = ...
+    federated_auth_request_issue_details: FederatedAuthRequestIssueDetails | None = ...
+    bounce_tracking_issue_details: BounceTrackingIssueDetails | None = ...
+    cookie_deprecation_metadata_issue_details: CookieDeprecationMetadataIssueDetails | None = ...
+    stylesheet_loading_issue_details: StylesheetLoadingIssueDetails | None = ...
+    property_rule_issue_details: PropertyRuleIssueDetails | None = ...
+    federated_auth_user_info_request_issue_details: FederatedAuthUserInfoRequestIssueDetails | None = ...
+    shared_dictionary_issue_details: SharedDictionaryIssueDetails | None = ...
+    element_accessibility_issue_details: ElementAccessibilityIssueDetails | None = ...
+    sri_message_signature_issue_details: SRIMessageSignatureIssueDetails | None = ...
+    user_reidentification_issue_details: UserReidentificationIssueDetails | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> InspectorIssueDetails: ...
-    def __init__(self, cookie_issue_details, mixed_content_issue_details, blocked_by_response_issue_details, heavy_ad_issue_details, content_security_policy_issue_details, shared_array_buffer_issue_details, low_text_contrast_issue_details, cors_issue_details, attribution_reporting_issue_details, quirks_mode_issue_details, navigator_user_agent_issue_details, generic_issue_details, deprecation_issue_details, client_hint_issue_details, federated_auth_request_issue_details, bounce_tracking_issue_details, cookie_deprecation_metadata_issue_details, stylesheet_loading_issue_details, property_rule_issue_details, federated_auth_user_info_request_issue_details) -> None: ...
 
 class IssueId(str):
     def to_json(self) -> str: ...
@@ -568,22 +718,19 @@ class IssueId(str):
 class InspectorIssue:
     code: InspectorIssueCode
     details: InspectorIssueDetails
-    issue_id: typing.Optional[IssueId] = ...
+    issue_id: IssueId | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> InspectorIssue: ...
-    def __init__(self, code, details, issue_id) -> None: ...
 
-def get_encoded_response(request_id: network.RequestId, encoding: str, quality: typing.Optional[float] = None, size_only: typing.Optional[bool] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.Tuple[typing.Optional[str], int, int]]: ...
+def get_encoded_response(request_id: network.RequestId, encoding: str, quality: float | None = None, size_only: bool | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[str | None, int, int]]: ...
 def disable() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def enable() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def check_contrast(report_aaa: typing.Optional[bool] = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def check_forms_issues() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, typing.List[GenericIssueDetails]]: ...
+def check_contrast(report_aaa: bool | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def check_forms_issues() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[GenericIssueDetails]]: ...
 
 @dataclass
 class IssueAdded:
     issue: InspectorIssue
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> IssueAdded: ...
-    def to_json(self) -> T_JSON_DICT: ...
-    def __init__(self, issue) -> None: ...

@@ -41,14 +41,6 @@ class AdScriptId:
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AdScriptId: ...
 
-@dataclass
-class AdScriptAncestry:
-    ancestry_chain: list[AdScriptId]
-    root_script_filterlist_rule: str | None = ...
-    def to_json(self) -> T_JSON_DICT: ...
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> AdScriptAncestry: ...
-
 class SecureContextType(enum.Enum):
     SECURE = 'Secure'
     SECURE_LOCALHOST = 'SecureLocalhost'
@@ -79,7 +71,6 @@ class PermissionsPolicyFeature(enum.Enum):
     ACCELEROMETER = 'accelerometer'
     ALL_SCREENS_CAPTURE = 'all-screens-capture'
     AMBIENT_LIGHT_SENSOR = 'ambient-light-sensor'
-    ARIA_NOTIFY = 'aria-notify'
     ATTRIBUTION_REPORTING = 'attribution-reporting'
     AUTOPLAY = 'autoplay'
     BLUETOOTH = 'bluetooth'
@@ -117,7 +108,6 @@ class PermissionsPolicyFeature(enum.Enum):
     CROSS_ORIGIN_ISOLATED = 'cross-origin-isolated'
     DEFERRED_FETCH = 'deferred-fetch'
     DEFERRED_FETCH_MINIMAL = 'deferred-fetch-minimal'
-    DEVICE_ATTRIBUTES = 'device-attributes'
     DIGITAL_CREDENTIALS_GET = 'digital-credentials-get'
     DIRECT_SOCKETS = 'direct-sockets'
     DIRECT_SOCKETS_PRIVATE = 'direct-sockets-private'
@@ -139,15 +129,11 @@ class PermissionsPolicyFeature(enum.Enum):
     INTEREST_COHORT = 'interest-cohort'
     JOIN_AD_INTEREST_GROUP = 'join-ad-interest-group'
     KEYBOARD_MAP = 'keyboard-map'
-    LANGUAGE_DETECTOR = 'language-detector'
-    LANGUAGE_MODEL = 'language-model'
     LOCAL_FONTS = 'local-fonts'
-    LOCAL_NETWORK_ACCESS = 'local-network-access'
     MAGNETOMETER = 'magnetometer'
     MEDIA_PLAYBACK_WHILE_NOT_VISIBLE = 'media-playback-while-not-visible'
     MICROPHONE = 'microphone'
     MIDI = 'midi'
-    ON_DEVICE_SPEECH_RECOGNITION = 'on-device-speech-recognition'
     OTP_CREDENTIALS = 'otp-credentials'
     PAYMENT = 'payment'
     PICTURE_IN_PICTURE = 'picture-in-picture'
@@ -157,8 +143,6 @@ class PermissionsPolicyFeature(enum.Enum):
     PRIVATE_STATE_TOKEN_REDEMPTION = 'private-state-token-redemption'
     PUBLICKEY_CREDENTIALS_CREATE = 'publickey-credentials-create'
     PUBLICKEY_CREDENTIALS_GET = 'publickey-credentials-get'
-    RECORD_AD_AUCTION_EVENTS = 'record-ad-auction-events'
-    REWRITER = 'rewriter'
     RUN_AD_AUCTION = 'run-ad-auction'
     SCREEN_WAKE_LOCK = 'screen-wake-lock'
     SERIAL = 'serial'
@@ -169,9 +153,7 @@ class PermissionsPolicyFeature(enum.Enum):
     SPEAKER_SELECTION = 'speaker-selection'
     STORAGE_ACCESS = 'storage-access'
     SUB_APPS = 'sub-apps'
-    SUMMARIZER = 'summarizer'
     SYNC_XHR = 'sync-xhr'
-    TRANSLATOR = 'translator'
     UNLOAD = 'unload'
     USB = 'usb'
     USB_UNRESTRICTED = 'usb-unrestricted'
@@ -180,7 +162,6 @@ class PermissionsPolicyFeature(enum.Enum):
     WEB_PRINTING = 'web-printing'
     WEB_SHARE = 'web-share'
     WINDOW_MANAGEMENT = 'window-management'
-    WRITER = 'writer'
     XR_SPATIAL_TRACKING = 'xr-spatial-tracking'
     def to_json(self) -> str: ...
     @classmethod
@@ -649,6 +630,15 @@ class WebAppManifest:
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> WebAppManifest: ...
 
+class AutoResponseMode(enum.Enum):
+    NONE = 'none'
+    AUTO_ACCEPT = 'autoAccept'
+    AUTO_REJECT = 'autoReject'
+    AUTO_OPT_OUT = 'autoOptOut'
+    def to_json(self) -> str: ...
+    @classmethod
+    def from_json(cls, json: str) -> AutoResponseMode: ...
+
 class NavigationType(enum.Enum):
     NAVIGATION = 'Navigation'
     BACK_FORWARD_CACHE_RESTORE = 'BackForwardCacheRestore'
@@ -737,7 +727,6 @@ class BackForwardCacheNotRestoredReason(enum.Enum):
     BROADCAST_CHANNEL = 'BroadcastChannel'
     WEB_XR = 'WebXR'
     SHARED_WORKER = 'SharedWorker'
-    SHARED_WORKER_MESSAGE = 'SharedWorkerMessage'
     WEB_LOCKS = 'WebLocks'
     WEB_HID = 'WebHID'
     WEB_SHARE = 'WebShare'
@@ -798,8 +787,6 @@ class BackForwardCacheNotRestoredReason(enum.Enum):
     REQUESTED_BY_WEB_VIEW_CLIENT = 'RequestedByWebViewClient'
     POST_MESSAGE_BY_WEB_VIEW_CLIENT = 'PostMessageByWebViewClient'
     CACHE_CONTROL_NO_STORE_DEVICE_BOUND_SESSION_TERMINATED = 'CacheControlNoStoreDeviceBoundSessionTerminated'
-    CACHE_LIMIT_PRUNED_ON_MODERATE_MEMORY_PRESSURE = 'CacheLimitPrunedOnModerateMemoryPressure'
-    CACHE_LIMIT_PRUNED_ON_CRITICAL_MEMORY_PRESSURE = 'CacheLimitPrunedOnCriticalMemoryPressure'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> BackForwardCacheNotRestoredReason: ...
@@ -857,7 +844,7 @@ def get_app_manifest(manifest_id: str | None = None) -> typing.Generator[T_JSON_
 def get_installability_errors() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[InstallabilityError]]: ...
 def get_manifest_icons() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, str | None]: ...
 def get_app_id() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[str | None, str | None]]: ...
-def get_ad_script_ancestry(frame_id: FrameId) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, AdScriptAncestry | None]: ...
+def get_ad_script_id(frame_id: FrameId) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, AdScriptId | None]: ...
 def get_frame_tree() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, FrameTree]: ...
 def get_layout_metrics() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[LayoutViewport, VisualViewport, dom.Rect, LayoutViewport, VisualViewport, dom.Rect]]: ...
 def get_navigation_history() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[int, list[NavigationEntry]]]: ...
@@ -865,7 +852,7 @@ def reset_navigation_history() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, Non
 def get_resource_content(frame_id: FrameId, url: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[str, bool]]: ...
 def get_resource_tree() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, FrameResourceTree]: ...
 def handle_java_script_dialog(accept: bool, prompt_text: str | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def navigate(url: str, referrer: str | None = None, transition_type: TransitionType | None = None, frame_id: FrameId | None = None, referrer_policy: ReferrerPolicy | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[FrameId, network.LoaderId | None, str | None, bool | None]]: ...
+def navigate(url: str, referrer: str | None = None, transition_type: TransitionType | None = None, frame_id: FrameId | None = None, referrer_policy: ReferrerPolicy | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[FrameId, network.LoaderId | None, str | None]]: ...
 def navigate_to_history_entry(entry_id: int) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def print_to_pdf(landscape: bool | None = None, display_header_footer: bool | None = None, print_background: bool | None = None, scale: float | None = None, paper_width: float | None = None, paper_height: float | None = None, margin_top: float | None = None, margin_bottom: float | None = None, margin_left: float | None = None, margin_right: float | None = None, page_ranges: str | None = None, header_template: str | None = None, footer_template: str | None = None, prefer_css_page_size: bool | None = None, transfer_mode: str | None = None, generate_tagged_pdf: bool | None = None, generate_document_outline: bool | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, tuple[str, io.StreamHandle | None]]: ...
 def reload(ignore_cache: bool | None = None, script_to_evaluate_on_load: str | None = None, loader_id: network.LoaderId | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
@@ -895,11 +882,11 @@ def stop_screencast() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def produce_compilation_cache(scripts: list[CompilationCacheParams]) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def add_compilation_cache(url: str, data: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def clear_compilation_cache() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def set_spc_transaction_mode(mode: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def set_rph_registration_mode(mode: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def set_spc_transaction_mode(mode: AutoResponseMode) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def set_rph_registration_mode(mode: AutoResponseMode) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def generate_test_report(message: str, group: str | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def wait_for_debugger() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def set_intercept_file_chooser_dialog(enabled: bool, cancel: bool | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def set_intercept_file_chooser_dialog(enabled: bool) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def set_prerendering_allowed(is_allowed: bool) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 
 @dataclass
@@ -1030,7 +1017,6 @@ class InterstitialShown:
 
 @dataclass
 class JavascriptDialogClosed:
-    frame_id: FrameId
     result: bool
     user_input: str
     @classmethod
@@ -1039,7 +1025,6 @@ class JavascriptDialogClosed:
 @dataclass
 class JavascriptDialogOpening:
     url: str
-    frame_id: FrameId
     message: str
     type_: DialogType
     has_browser_handler: bool

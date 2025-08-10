@@ -26,7 +26,6 @@ class RuleSet:
 class RuleSetErrorType(enum.Enum):
     SOURCE_IS_NOT_JSON_OBJECT = 'SourceIsNotJsonObject'
     INVALID_RULES_SKIPPED = 'InvalidRulesSkipped'
-    INVALID_RULESET_LEVEL_TAG = 'InvalidRulesetLevelTag'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> RuleSetErrorType: ...
@@ -76,6 +75,7 @@ class PrerenderFinalStatus(enum.Enum):
     INVALID_SCHEME_REDIRECT = 'InvalidSchemeRedirect'
     INVALID_SCHEME_NAVIGATION = 'InvalidSchemeNavigation'
     NAVIGATION_REQUEST_BLOCKED_BY_CSP = 'NavigationRequestBlockedByCsp'
+    MAIN_FRAME_NAVIGATION = 'MainFrameNavigation'
     MOJO_BINDER_POLICY = 'MojoBinderPolicy'
     RENDERER_PROCESS_CRASHED = 'RendererProcessCrashed'
     RENDERER_PROCESS_KILLED = 'RendererProcessKilled'
@@ -165,7 +165,6 @@ class PrefetchStatus(enum.Enum):
     PREFETCH_FAILED_MIME_NOT_SUPPORTED = 'PrefetchFailedMIMENotSupported'
     PREFETCH_FAILED_NET_ERROR = 'PrefetchFailedNetError'
     PREFETCH_FAILED_NON2_XX = 'PrefetchFailedNon2XX'
-    PREFETCH_EVICTED_AFTER_BROWSING_DATA_REMOVED = 'PrefetchEvictedAfterBrowsingDataRemoved'
     PREFETCH_EVICTED_AFTER_CANDIDATE_REMOVED = 'PrefetchEvictedAfterCandidateRemoved'
     PREFETCH_EVICTED_FOR_NEWER_PREFETCH = 'PrefetchEvictedForNewerPrefetch'
     PREFETCH_HELDBACK = 'PrefetchHeldback'

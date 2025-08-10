@@ -22,7 +22,6 @@ class ResourceType(enum.Enum):
     PING = 'Ping'
     CSP_VIOLATION_REPORT = 'CSPViolationReport'
     PREFLIGHT = 'Preflight'
-    FED_CM = 'FedCM'
     OTHER = 'Other'
     def to_json(self) -> str: ...
     @classmethod
@@ -227,7 +226,6 @@ class BlockedReason(enum.Enum):
     MIXED_CONTENT = 'mixed-content'
     ORIGIN = 'origin'
     INSPECTOR = 'inspector'
-    INTEGRITY = 'integrity'
     SUBRESOURCE_FILTER = 'subresource-filter'
     CONTENT_TYPE = 'content-type'
     COEP_FRAME_RESOURCE_NEEDS_COEP_HEADER = 'coep-frame-resource-needs-coep-header'
@@ -334,7 +332,6 @@ class ServiceWorkerRouterSource(enum.Enum):
     CACHE = 'cache'
     FETCH_EVENT = 'fetch-event'
     RACE_NETWORK_AND_FETCH_HANDLER = 'race-network-and-fetch-handler'
-    RACE_NETWORK_AND_CACHE = 'race-network-and-cache'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> ServiceWorkerRouterSource: ...
@@ -507,7 +504,6 @@ class CookieBlockedReason(enum.Enum):
     NAME_VALUE_PAIR_EXCEEDS_MAX_SIZE = 'NameValuePairExceedsMaxSize'
     PORT_MISMATCH = 'PortMismatch'
     SCHEME_MISMATCH = 'SchemeMismatch'
-    ANONYMOUS_CONTEXT = 'AnonymousContext'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> CookieBlockedReason: ...
@@ -659,7 +655,6 @@ class SignedExchangeError:
 @dataclass
 class SignedExchangeInfo:
     outer_response: Response
-    has_extra_info: bool
     header: SignedExchangeHeader | None = ...
     security_details: SecurityDetails | None = ...
     errors: list[SignedExchangeError] | None = ...
@@ -694,28 +689,6 @@ class DirectTCPSocketOptions:
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> DirectTCPSocketOptions: ...
 
-@dataclass
-class DirectUDPSocketOptions:
-    remote_addr: str | None = ...
-    remote_port: int | None = ...
-    local_addr: str | None = ...
-    local_port: int | None = ...
-    dns_query_type: DirectSocketDnsQueryType | None = ...
-    send_buffer_size: float | None = ...
-    receive_buffer_size: float | None = ...
-    def to_json(self) -> T_JSON_DICT: ...
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> DirectUDPSocketOptions: ...
-
-@dataclass
-class DirectUDPMessage:
-    data: str
-    remote_addr: str | None = ...
-    remote_port: int | None = ...
-    def to_json(self) -> T_JSON_DICT: ...
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> DirectUDPMessage: ...
-
 class PrivateNetworkRequestPolicy(enum.Enum):
     ALLOW = 'Allow'
     BLOCK_FROM_INSECURE_TO_MORE_PRIVATE = 'BlockFromInsecureToMorePrivate'
@@ -723,14 +696,13 @@ class PrivateNetworkRequestPolicy(enum.Enum):
     PREFLIGHT_BLOCK = 'PreflightBlock'
     PREFLIGHT_WARN = 'PreflightWarn'
     PERMISSION_BLOCK = 'PermissionBlock'
-    PERMISSION_WARN = 'PermissionWarn'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> PrivateNetworkRequestPolicy: ...
 
 class IPAddressSpace(enum.Enum):
-    LOOPBACK = 'Loopback'
     LOCAL = 'Local'
+    PRIVATE = 'Private'
     PUBLIC = 'Public'
     UNKNOWN = 'Unknown'
     def to_json(self) -> str: ...
@@ -886,7 +858,7 @@ def continue_intercepted_request(interception_id: InterceptionId, error_reason: 
 def delete_cookies(name: str, url: str | None = None, domain: str | None = None, path: str | None = None, partition_key: CookiePartitionKey | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def disable() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def emulate_network_conditions(offline: bool, latency: float, download_throughput: float, upload_throughput: float, connection_type: ConnectionType | None = None, packet_loss: float | None = None, packet_queue_length: int | None = None, packet_reordering: bool | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
-def enable(max_total_buffer_size: int | None = None, max_resource_buffer_size: int | None = None, max_post_data_size: int | None = None, report_direct_socket_traffic: bool | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
+def enable(max_total_buffer_size: int | None = None, max_resource_buffer_size: int | None = None, max_post_data_size: int | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 def get_all_cookies() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[Cookie]]: ...
 def get_certificate(origin: str) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[str]]: ...
 def get_cookies(urls: list[str] | None = None) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[Cookie]]: ...
@@ -1133,73 +1105,6 @@ class DirectTCPSocketClosed:
     timestamp: MonotonicTime
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> DirectTCPSocketClosed: ...
-
-@dataclass
-class DirectTCPSocketChunkSent:
-    identifier: RequestId
-    data: str
-    timestamp: MonotonicTime
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> DirectTCPSocketChunkSent: ...
-
-@dataclass
-class DirectTCPSocketChunkReceived:
-    identifier: RequestId
-    data: str
-    timestamp: MonotonicTime
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> DirectTCPSocketChunkReceived: ...
-
-@dataclass
-class DirectUDPSocketCreated:
-    identifier: RequestId
-    options: DirectUDPSocketOptions
-    timestamp: MonotonicTime
-    initiator: Initiator | None
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> DirectUDPSocketCreated: ...
-
-@dataclass
-class DirectUDPSocketOpened:
-    identifier: RequestId
-    local_addr: str
-    local_port: int
-    timestamp: MonotonicTime
-    remote_addr: str | None
-    remote_port: int | None
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> DirectUDPSocketOpened: ...
-
-@dataclass
-class DirectUDPSocketAborted:
-    identifier: RequestId
-    error_message: str
-    timestamp: MonotonicTime
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> DirectUDPSocketAborted: ...
-
-@dataclass
-class DirectUDPSocketClosed:
-    identifier: RequestId
-    timestamp: MonotonicTime
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> DirectUDPSocketClosed: ...
-
-@dataclass
-class DirectUDPSocketChunkSent:
-    identifier: RequestId
-    message: DirectUDPMessage
-    timestamp: MonotonicTime
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> DirectUDPSocketChunkSent: ...
-
-@dataclass
-class DirectUDPSocketChunkReceived:
-    identifier: RequestId
-    message: DirectUDPMessage
-    timestamp: MonotonicTime
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> DirectUDPSocketChunkReceived: ...
 
 @dataclass
 class RequestWillBeSentExtraInfo:

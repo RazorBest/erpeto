@@ -354,7 +354,6 @@ class SRIMessageSignatureError(enum.Enum):
     VALIDATION_FAILED_SIGNATURE_EXPIRED = 'ValidationFailedSignatureExpired'
     VALIDATION_FAILED_INVALID_LENGTH = 'ValidationFailedInvalidLength'
     VALIDATION_FAILED_SIGNATURE_MISMATCH = 'ValidationFailedSignatureMismatch'
-    VALIDATION_FAILED_INTEGRITY_MISMATCH = 'ValidationFailedIntegrityMismatch'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> SRIMessageSignatureError: ...
@@ -399,8 +398,6 @@ class SharedDictionaryIssueDetails:
 @dataclass
 class SRIMessageSignatureIssueDetails:
     error: SRIMessageSignatureError
-    signature_base: str
-    integrity_assertions: list[str]
     request: AffectedRequest
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
@@ -521,7 +518,6 @@ class FederatedAuthRequestIssueReason(enum.Enum):
     TYPE_NOT_MATCHING = 'TypeNotMatching'
     UI_DISMISSED_NO_EMBARGO = 'UiDismissedNoEmbargo'
     CORS_ERROR = 'CorsError'
-    SUPPRESSED_BY_SEGMENTATION_PLATFORM = 'SuppressedBySegmentationPlatform'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> FederatedAuthRequestIssueReason: ...
@@ -579,25 +575,24 @@ class PartitioningBlobURLIssueDetails:
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> PartitioningBlobURLIssueDetails: ...
 
-class ElementAccessibilityIssueReason(enum.Enum):
+class SelectElementAccessibilityIssueReason(enum.Enum):
     DISALLOWED_SELECT_CHILD = 'DisallowedSelectChild'
     DISALLOWED_OPT_GROUP_CHILD = 'DisallowedOptGroupChild'
     NON_PHRASING_CONTENT_OPTION_CHILD = 'NonPhrasingContentOptionChild'
     INTERACTIVE_CONTENT_OPTION_CHILD = 'InteractiveContentOptionChild'
     INTERACTIVE_CONTENT_LEGEND_CHILD = 'InteractiveContentLegendChild'
-    INTERACTIVE_CONTENT_SUMMARY_DESCENDANT = 'InteractiveContentSummaryDescendant'
     def to_json(self) -> str: ...
     @classmethod
-    def from_json(cls, json: str) -> ElementAccessibilityIssueReason: ...
+    def from_json(cls, json: str) -> SelectElementAccessibilityIssueReason: ...
 
 @dataclass
-class ElementAccessibilityIssueDetails:
+class SelectElementAccessibilityIssueDetails:
     node_id: dom.BackendNodeId
-    element_accessibility_issue_reason: ElementAccessibilityIssueReason
+    select_element_accessibility_issue_reason: SelectElementAccessibilityIssueReason
     has_disallowed_attributes: bool
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> ElementAccessibilityIssueDetails: ...
+    def from_json(cls, json: T_JSON_DICT) -> SelectElementAccessibilityIssueDetails: ...
 
 class StyleSheetLoadingIssueReason(enum.Enum):
     LATE_IMPORT_RULE = 'LateImportRule'
@@ -633,21 +628,6 @@ class PropertyRuleIssueDetails:
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> PropertyRuleIssueDetails: ...
 
-class UserReidentificationIssueType(enum.Enum):
-    BLOCKED_FRAME_NAVIGATION = 'BlockedFrameNavigation'
-    BLOCKED_SUBRESOURCE = 'BlockedSubresource'
-    def to_json(self) -> str: ...
-    @classmethod
-    def from_json(cls, json: str) -> UserReidentificationIssueType: ...
-
-@dataclass
-class UserReidentificationIssueDetails:
-    type_: UserReidentificationIssueType
-    request: AffectedRequest | None = ...
-    def to_json(self) -> T_JSON_DICT: ...
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> UserReidentificationIssueDetails: ...
-
 class InspectorIssueCode(enum.Enum):
     COOKIE_ISSUE = 'CookieIssue'
     MIXED_CONTENT_ISSUE = 'MixedContentIssue'
@@ -671,9 +651,8 @@ class InspectorIssueCode(enum.Enum):
     FEDERATED_AUTH_USER_INFO_REQUEST_ISSUE = 'FederatedAuthUserInfoRequestIssue'
     PROPERTY_RULE_ISSUE = 'PropertyRuleIssue'
     SHARED_DICTIONARY_ISSUE = 'SharedDictionaryIssue'
-    ELEMENT_ACCESSIBILITY_ISSUE = 'ElementAccessibilityIssue'
+    SELECT_ELEMENT_ACCESSIBILITY_ISSUE = 'SelectElementAccessibilityIssue'
     SRI_MESSAGE_SIGNATURE_ISSUE = 'SRIMessageSignatureIssue'
-    USER_REIDENTIFICATION_ISSUE = 'UserReidentificationIssue'
     def to_json(self) -> str: ...
     @classmethod
     def from_json(cls, json: str) -> InspectorIssueCode: ...
@@ -702,9 +681,8 @@ class InspectorIssueDetails:
     property_rule_issue_details: PropertyRuleIssueDetails | None = ...
     federated_auth_user_info_request_issue_details: FederatedAuthUserInfoRequestIssueDetails | None = ...
     shared_dictionary_issue_details: SharedDictionaryIssueDetails | None = ...
-    element_accessibility_issue_details: ElementAccessibilityIssueDetails | None = ...
+    select_element_accessibility_issue_details: SelectElementAccessibilityIssueDetails | None = ...
     sri_message_signature_issue_details: SRIMessageSignatureIssueDetails | None = ...
-    user_reidentification_issue_details: UserReidentificationIssueDetails | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> InspectorIssueDetails: ...

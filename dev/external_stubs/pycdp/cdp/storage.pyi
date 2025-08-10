@@ -1,6 +1,6 @@
 import enum
 import typing
-from . import browser as browser, network as network, page as page, target as target
+from . import browser as browser, network as network, page as page
 from .util import T_JSON_DICT as T_JSON_DICT, event_class as event_class
 from dataclasses import dataclass
 
@@ -81,34 +81,31 @@ class InterestGroupAuctionFetchType(enum.Enum):
     @classmethod
     def from_json(cls, json: str) -> InterestGroupAuctionFetchType: ...
 
-class SharedStorageAccessScope(enum.Enum):
-    WINDOW = 'window'
-    SHARED_STORAGE_WORKLET = 'sharedStorageWorklet'
-    PROTECTED_AUDIENCE_WORKLET = 'protectedAudienceWorklet'
-    HEADER = 'header'
+class SharedStorageAccessType(enum.Enum):
+    DOCUMENT_ADD_MODULE = 'documentAddModule'
+    DOCUMENT_SELECT_URL = 'documentSelectURL'
+    DOCUMENT_RUN = 'documentRun'
+    DOCUMENT_SET = 'documentSet'
+    DOCUMENT_APPEND = 'documentAppend'
+    DOCUMENT_DELETE = 'documentDelete'
+    DOCUMENT_CLEAR = 'documentClear'
+    DOCUMENT_GET = 'documentGet'
+    WORKLET_SET = 'workletSet'
+    WORKLET_APPEND = 'workletAppend'
+    WORKLET_DELETE = 'workletDelete'
+    WORKLET_CLEAR = 'workletClear'
+    WORKLET_GET = 'workletGet'
+    WORKLET_KEYS = 'workletKeys'
+    WORKLET_ENTRIES = 'workletEntries'
+    WORKLET_LENGTH = 'workletLength'
+    WORKLET_REMAINING_BUDGET = 'workletRemainingBudget'
+    HEADER_SET = 'headerSet'
+    HEADER_APPEND = 'headerAppend'
+    HEADER_DELETE = 'headerDelete'
+    HEADER_CLEAR = 'headerClear'
     def to_json(self) -> str: ...
     @classmethod
-    def from_json(cls, json: str) -> SharedStorageAccessScope: ...
-
-class SharedStorageAccessMethod(enum.Enum):
-    ADD_MODULE = 'addModule'
-    CREATE_WORKLET = 'createWorklet'
-    SELECT_URL = 'selectURL'
-    RUN = 'run'
-    BATCH_UPDATE = 'batchUpdate'
-    SET_ = 'set'
-    APPEND = 'append'
-    DELETE = 'delete'
-    CLEAR = 'clear'
-    GET = 'get'
-    KEYS = 'keys'
-    VALUES = 'values'
-    ENTRIES = 'entries'
-    LENGTH = 'length'
-    REMAINING_BUDGET = 'remainingBudget'
-    def to_json(self) -> str: ...
-    @classmethod
-    def from_json(cls, json: str) -> SharedStorageAccessMethod: ...
+    def from_json(cls, json: str) -> SharedStorageAccessType: ...
 
 @dataclass
 class SharedStorageEntry:
@@ -129,16 +126,6 @@ class SharedStorageMetadata:
     def from_json(cls, json: T_JSON_DICT) -> SharedStorageMetadata: ...
 
 @dataclass
-class SharedStoragePrivateAggregationConfig:
-    filtering_id_max_bytes: int
-    aggregation_coordinator_origin: str | None = ...
-    context_id: str | None = ...
-    max_contributions: int | None = ...
-    def to_json(self) -> T_JSON_DICT: ...
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> SharedStoragePrivateAggregationConfig: ...
-
-@dataclass
 class SharedStorageReportingMetadata:
     event_type: str
     reporting_url: str
@@ -157,22 +144,12 @@ class SharedStorageUrlWithMetadata:
 @dataclass
 class SharedStorageAccessParams:
     script_source_url: str | None = ...
-    data_origin: str | None = ...
     operation_name: str | None = ...
-    operation_id: str | None = ...
-    keep_alive: bool | None = ...
-    private_aggregation_config: SharedStoragePrivateAggregationConfig | None = ...
     serialized_data: str | None = ...
     urls_with_metadata: list[SharedStorageUrlWithMetadata] | None = ...
-    urn_uuid: str | None = ...
     key: str | None = ...
     value: str | None = ...
     ignore_if_present: bool | None = ...
-    worklet_ordinal: int | None = ...
-    worklet_target_id: target.TargetID | None = ...
-    with_lock: str | None = ...
-    batch_update_id: str | None = ...
-    batch_size: int | None = ...
     def to_json(self) -> T_JSON_DICT: ...
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> SharedStorageAccessParams: ...
@@ -266,6 +243,14 @@ class AttributionReportingEventReportWindows:
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingEventReportWindows: ...
 
+@dataclass
+class AttributionReportingTriggerSpec:
+    trigger_data: list[float]
+    event_report_windows: AttributionReportingEventReportWindows
+    def to_json(self) -> T_JSON_DICT: ...
+    @classmethod
+    def from_json(cls, json: T_JSON_DICT) -> AttributionReportingTriggerSpec: ...
+
 class AttributionReportingTriggerDataMatching(enum.Enum):
     EXACT = 'exact'
     MODULUS = 'modulus'
@@ -302,19 +287,10 @@ class AttributionScopesData:
     def from_json(cls, json: T_JSON_DICT) -> AttributionScopesData: ...
 
 @dataclass
-class AttributionReportingNamedBudgetDef:
-    name: str
-    budget: int
-    def to_json(self) -> T_JSON_DICT: ...
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> AttributionReportingNamedBudgetDef: ...
-
-@dataclass
 class AttributionReportingSourceRegistration:
     time: network.TimeSinceEpoch
     expiry: int
-    trigger_data: list[float]
-    event_report_windows: AttributionReportingEventReportWindows
+    trigger_specs: list[AttributionReportingTriggerSpec]
     aggregatable_report_window: int
     type_: AttributionReportingSourceType
     source_origin: str
@@ -328,9 +304,6 @@ class AttributionReportingSourceRegistration:
     destination_limit_priority: SignedInt64AsBase10
     aggregatable_debug_reporting_config: AttributionReportingAggregatableDebugReportingConfig
     max_event_level_reports: int
-    named_budgets: list[AttributionReportingNamedBudgetDef]
-    debug_reporting: bool
-    event_level_epsilon: float
     debug_key: UnsignedInt64AsBase10 | None = ...
     scopes_data: AttributionScopesData | None = ...
     def to_json(self) -> T_JSON_DICT: ...
@@ -410,14 +383,6 @@ class AttributionReportingAggregatableDedupKey:
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingAggregatableDedupKey: ...
 
 @dataclass
-class AttributionReportingNamedBudgetCandidate:
-    filters: AttributionReportingFilterPair
-    name: str | None = ...
-    def to_json(self) -> T_JSON_DICT: ...
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> AttributionReportingNamedBudgetCandidate: ...
-
-@dataclass
 class AttributionReportingTriggerRegistration:
     filters: AttributionReportingFilterPair
     aggregatable_dedup_keys: list[AttributionReportingAggregatableDedupKey]
@@ -429,7 +394,6 @@ class AttributionReportingTriggerRegistration:
     source_registration_time_config: AttributionReportingSourceRegistrationTimeConfig
     aggregatable_debug_reporting_config: AttributionReportingAggregatableDebugReportingConfig
     scopes: list[str]
-    named_budgets: list[AttributionReportingNamedBudgetCandidate]
     debug_key: UnsignedInt64AsBase10 | None = ...
     aggregation_coordinator_origin: str | None = ...
     trigger_context_id: str | None = ...
@@ -481,15 +445,6 @@ class AttributionReportingAggregatableResult(enum.Enum):
     @classmethod
     def from_json(cls, json: str) -> AttributionReportingAggregatableResult: ...
 
-class AttributionReportingReportResult(enum.Enum):
-    SENT = 'sent'
-    PROHIBITED = 'prohibited'
-    FAILED_TO_ASSEMBLE = 'failedToAssemble'
-    EXPIRED = 'expired'
-    def to_json(self) -> str: ...
-    @classmethod
-    def from_json(cls, json: str) -> AttributionReportingReportResult: ...
-
 @dataclass
 class RelatedWebsiteSet:
     primary_sites: list[str]
@@ -535,7 +490,6 @@ def set_attribution_reporting_tracking(enable: bool) -> typing.Generator[T_JSON_
 def send_pending_attribution_reports() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, int]: ...
 def get_related_website_sets() -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[RelatedWebsiteSet]]: ...
 def get_affected_urls_for_third_party_cookie_metadata(first_party_url: str, third_party_urls: list[str]) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, list[str]]: ...
-def set_protected_audience_k_anonymity(owner: str, name: str, hashes: list[str]) -> typing.Generator[T_JSON_DICT, T_JSON_DICT, None]: ...
 
 @dataclass
 class CacheStorageContentUpdated:
@@ -606,26 +560,12 @@ class InterestGroupAuctionNetworkRequestCreated:
 @dataclass
 class SharedStorageAccessed:
     access_time: network.TimeSinceEpoch
-    scope: SharedStorageAccessScope
-    method: SharedStorageAccessMethod
+    type_: SharedStorageAccessType
     main_frame_id: page.FrameId
     owner_origin: str
-    owner_site: str
     params: SharedStorageAccessParams
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> SharedStorageAccessed: ...
-
-@dataclass
-class SharedStorageWorkletOperationExecutionFinished:
-    finished_time: network.TimeSinceEpoch
-    execution_time: int
-    method: SharedStorageAccessMethod
-    operation_id: str
-    worklet_target_id: target.TargetID
-    main_frame_id: page.FrameId
-    owner_origin: str
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> SharedStorageWorkletOperationExecutionFinished: ...
 
 @dataclass
 class StorageBucketCreatedOrUpdated:
@@ -653,24 +593,3 @@ class AttributionReportingTriggerRegistered:
     aggregatable: AttributionReportingAggregatableResult
     @classmethod
     def from_json(cls, json: T_JSON_DICT) -> AttributionReportingTriggerRegistered: ...
-
-@dataclass
-class AttributionReportingReportSent:
-    url: str
-    body: dict
-    result: AttributionReportingReportResult
-    net_error: int | None
-    net_error_name: str | None
-    http_status_code: int | None
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> AttributionReportingReportSent: ...
-
-@dataclass
-class AttributionReportingVerboseDebugReportSent:
-    url: str
-    body: list[dict] | None
-    net_error: int | None
-    net_error_name: str | None
-    http_status_code: int | None
-    @classmethod
-    def from_json(cls, json: T_JSON_DICT) -> AttributionReportingVerboseDebugReportSent: ...

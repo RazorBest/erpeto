@@ -6,3 +6,4 @@ autobahn==23.6.2
 python-dateutil==2.8.2
 python-cdp @ git+https://github.com/RazorBest/python-cdp.git@master
 adblockparser==0.7
+cheap-repr==0.5.2

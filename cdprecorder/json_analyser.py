@@ -16,7 +16,9 @@ class JSONField:
 
 
 class JSONSchema:
-    def __init__(self, data: str, token_classifier: Optional[Callable[[str], bool]] = None):
+    def __init__(
+        self, data: str, token_classifier: Optional[Callable[[str], bool]] = None
+    ):
         self.data = json.loads(data)
 
         if token_classifier is not None:

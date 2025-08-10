@@ -44,6 +44,7 @@ class LowercaseStr(str):
 
 class BrowserAction:
     """Base class for all actions performed in Chrome."""
+
     def __init__(self) -> None:
         self.ID: int = -1
         self.targets: list[HttpTarget] = []

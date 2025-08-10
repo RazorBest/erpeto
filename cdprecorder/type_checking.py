@@ -16,7 +16,9 @@ class CdpEvent(Protocol):
 
 
 class HttpTarget(Protocol):
-    def apply(self, action: HttpAction, prev_actions: list[Optional[HttpAction]]) -> None: ...
+    def apply(
+        self, action: HttpAction, prev_actions: list[Optional[HttpAction]]
+    ) -> None: ...
 
 
 RequestInfo = Union[

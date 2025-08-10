@@ -91,7 +91,9 @@ LOWERCASESTR_DEFINITION = """class LowercaseStr(str):
 """
 
 
-def get_source_code(obj: object, annotations: bool = False, docstrings: bool = False) -> str:
+def get_source_code(
+    obj: object, annotations: bool = False, docstrings: bool = False
+) -> str:
     source = inspect.getsource(obj)
     if annotations and docstrings:
         return source
@@ -121,7 +123,9 @@ def get_source_code(obj: object, annotations: bool = False, docstrings: bool = F
     # Remove docstrings from the python code
     if not docstrings:
         for node in ast.walk(ast_obj):
-            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module)):
+            if not isinstance(
+                node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module)
+            ):
                 continue
 
             if len(node.body) == 0:
@@ -132,7 +136,9 @@ def get_source_code(obj: object, annotations: bool = False, docstrings: bool = F
             if not isinstance(first_child, ast.Expr):
                 continue
 
-            if not isinstance(first_child.value, ast.Constant) or not isinstance(first_child.value.value, str):
+            if not isinstance(first_child.value, ast.Constant) or not isinstance(
+                first_child.value.value, str
+            ):
                 continue
 
             # The spec says that end_lineno is optional
@@ -154,7 +160,7 @@ def get_source_code(obj: object, annotations: bool = False, docstrings: bool = F
 
             for child in node.body:
                 ast.increment_lineno(child, n=-removed_lines_count)
-    
+
     source = ast.unparse(ast_obj)
 
     return source

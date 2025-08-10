@@ -55,9 +55,10 @@ class DataSource(ABC, DynamicRepr):
 
 class InputSource(DataSource):
     """Represents data that comes from a user"""
+
     def __init__(self, text: str):
         self.text = text
-    
+
     def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
         return self.text
 
@@ -111,8 +112,8 @@ class RegexSource(IntermediaryDataSource):
         self.default = default
 
     def get_value_from_upper_value(self, upper_value: str) -> Optional[str]:
-        groups = re.search(self.pattern, upper_value, flags=re.DOTALL|re.IGNORECASE)
-        
+        groups = re.search(self.pattern, upper_value, flags=re.DOTALL | re.IGNORECASE)
+
         if groups is None:
             return self.default
 
@@ -164,7 +165,9 @@ class BodySource(ActionDataSource):
         return action.body.decode("utf8")
 
 
-def get_object_at_json_path(data: object, path: list[Union[str, int]]) -> Optional[object]:
+def get_object_at_json_path(
+    data: object, path: list[Union[str, int]]
+) -> Optional[object]:
     try:
         for key in path:
             if isinstance(data, list):
@@ -206,7 +209,9 @@ class JSONFieldTarget(DynamicRepr):
         self.source = source
         self.path = path
 
-    def apply(self, container_data: object, prev_actions: Sequence[Optional[HttpAction]]) -> None:
+    def apply(
+        self, container_data: object, prev_actions: Sequence[Optional[HttpAction]]
+    ) -> None:
         value = self.source.get_value(prev_actions)
         if value is None or len(self.path) == 0:
             return
@@ -237,7 +242,9 @@ class JSONContainer(DataSource):
 
 
 class QueryStringContainer(DataSource):
-    def __init__(self, qlist: list[tuple[Union[str, DataSource], Union[str, DataSource]]]):
+    def __init__(
+        self, qlist: list[tuple[Union[str, DataSource], Union[str, DataSource]]]
+    ):
         self.qlist = qlist
 
     def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
@@ -249,14 +256,16 @@ class QueryStringContainer(DataSource):
                 value = value_source.get_value(prev_actions)
                 if value is None:
                     return None
-            
+
             if isinstance(name_source, str):
                 name = name_source
             else:
                 name = name_source.get_value(prev_actions)
                 if name is None:
                     return None
-            
-            data_pairs.append(f"{urllib.parse.quote_plus(name)}={urllib.parse.quote_plus(value)}")
-        
+
+            data_pairs.append(
+                f"{urllib.parse.quote_plus(name)}={urllib.parse.quote_plus(value)}"
+            )
+
         return "&".join(data_pairs)

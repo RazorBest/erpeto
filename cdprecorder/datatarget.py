@@ -31,7 +31,9 @@ class SingleSourcedTarget(ABC):
     def __init__(self, source: DataSource):
         self.source = source
 
-    def apply(self, action: HttpAction, prev_actions: list[Optional[HttpAction]]) -> None:
+    def apply(
+        self, action: HttpAction, prev_actions: list[Optional[HttpAction]]
+    ) -> None:
         value = self.source.get_value(prev_actions)
         if value is None:
             return

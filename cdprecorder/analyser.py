@@ -54,16 +54,18 @@ CONST_HEADERS = [
     "sec-ch-ua",
     "content-type",
     "accept",
-    "x-requested-with"
+    "x-requested-with",
 ]
 
 
-def search_str_in_soup(soup: BeautifulSoup, text: str) -> Union[bs4.element.Tag, bs4.element.NavigableString, None]:
+def search_str_in_soup(
+    soup: BeautifulSoup, text: str
+) -> Union[bs4.element.Tag, bs4.element.NavigableString, None]:
     def tag_contains_str(tag: bs4.Tag) -> bool:
         for key, val in tag.attrs.items():
             # Multi-valued attrs: https://beautiful-soup-4.readthedocs.io/en/latest/#multi-valued-attributes
-            if isinstance(val, list): # type: ignore[unreachable]
-                for elem in val: # type: ignore[unreachable]
+            if isinstance(val, list):  # type: ignore[unreachable]
+                for elem in val:  # type: ignore[unreachable]
                     if text in elem:
                         return True
 
@@ -81,10 +83,10 @@ def search_str_in_soup(soup: BeautifulSoup, text: str) -> Union[bs4.element.Tag,
 def get_selector_from_tag(tag: bs4.Tag) -> str:
     # TODO: implement
     return ""
-    
+
 
 def find_context_html(data: str, text: str):
-    soup = BeautifulSoup(data)   
+    soup = BeautifulSoup(data)
     tag = search_str_in_soup(soup, text)
     # TODO: return something
 
@@ -99,14 +101,24 @@ def find_context_bytes(data: bytes, text_to_find: bytes) -> Optional[bytes]:
         if end - start == len(data):
             return b".*"
 
-        return b"(?:.{" + str(start).encode() + b"}).{" + str(end - start).encode() + b"}"
-    
+        return (
+            b"(?:.{" + str(start).encode() + b"}).{" + str(end - start).encode() + b"}"
+        )
+
     offset = 6
     while start >= offset:
-        prefix = re.escape(data[start-offset:start])
-        suffix = re.escape(data[end:end+offset])
-        pattern = b"(?:" + prefix + b").{" + str(end - start).encode() + b"}(?:" + suffix + b")"
-        matches = re.findall(pattern, data, flags=re.DOTALL|re.IGNORECASE)
+        prefix = re.escape(data[start - offset : start])
+        suffix = re.escape(data[end : end + offset])
+        pattern = (
+            b"(?:"
+            + prefix
+            + b").{"
+            + str(end - start).encode()
+            + b"}(?:"
+            + suffix
+            + b")"
+        )
+        matches = re.findall(pattern, data, flags=re.DOTALL | re.IGNORECASE)
         if len(matches) == 0:
             raise Exception
         if len(matches) == 1:
@@ -115,6 +127,7 @@ def find_context_bytes(data: bytes, text_to_find: bytes) -> Optional[bytes]:
         offset += 6
 
     return pattern
+
 
 def find_context_str(data: str, text: str) -> Optional[str]:
     start = data.find(text)
@@ -127,13 +140,15 @@ def find_context_str(data: str, text: str) -> Optional[str]:
             return ".*"
 
         return "(?:.{" + str(start) + "}).{" + str(end - start) + "}"
-    
-    prefix = re.escape(data[start-6:start])
-    suffix = re.escape(data[end:end+6])
+
+    prefix = re.escape(data[start - 6 : start])
+    suffix = re.escape(data[end : end + 6])
     return "(?:" + prefix + ").{" + str(end - start) + "}(?:" + suffix + ")"
 
 
 T = TypeVar("T", str, bytes)
+
+
 def find_context(data: T, text: T, data_type: str = "str") -> Optional[T]:
     if data_type == "str":
         if not isinstance(data, str):
@@ -162,16 +177,17 @@ def greedy_check_if_attr_value(body: str, pos: int) -> bool:
         if needs_equals:
             if body[i].isspace():
                 continue
-            elif body[i] == '=':
+            elif body[i] == "=":
                 needs_equals = False
             else:
                 return False
         elif needs_open_bracket:
-            if body[i] == '<':
+            if body[i] == "<":
                 needs_open_bracket = False
                 is_attr_value_prefix = True
 
     return is_attr_value_prefix
+
 
 def greedy_html_match(body: str, text: str) -> tuple[str, str]:
     """
@@ -180,7 +196,7 @@ def greedy_html_match(body: str, text: str) -> tuple[str, str]:
 
     Returns:
         - a tuple of the match_type and separator
-    
+
     match_type can be:
         - "attribute" - the text is the value of an attribute
         - empty string - the text didn't match
@@ -188,20 +204,26 @@ def greedy_html_match(body: str, text: str) -> tuple[str, str]:
     idx = body.find(text)
     if idx == -1:
         return "", ""
-    
+
     str_separator = ""
     if body[idx - 1] == '"' and body[idx + len(text)] == '"':
         str_separator = '"'
     if body[idx - 1] == "'" and body[idx + len(text)] == "'":
         str_separator = "'"
-    
+
     if greedy_check_if_attr_value(body, idx - len(str_separator) - 1):
         return "attribute", str_separator
 
     return "", ""
 
 
-def build_regex_based_on_selected_attributes(tag_name: str, prev_attrs: list, after_attrs: list, attr_name: str, value_pattern: str):
+def build_regex_based_on_selected_attributes(
+    tag_name: str,
+    prev_attrs: list,
+    after_attrs: list,
+    attr_name: str,
+    value_pattern: str,
+):
     prev_attr_pattern = ""
     for name, _, is_used in prev_attrs:
         if not is_used:
@@ -213,14 +235,14 @@ def build_regex_based_on_selected_attributes(tag_name: str, prev_attrs: list, af
         if not is_used:
             continue
         after_attr_pattern += rf"[^>]+{re.escape(name)}"
-    
+
     tag_pattern = rf"<{re.escape(tag_name)}"
     spaced_equal = r"[\s]*=[\s]*"
     if len(after_attr_pattern) > 0:
         attr_pattern = rf"{tag_pattern}[^>]+{prev_attr_pattern}{re.escape(attr_name)}{spaced_equal}{value_pattern}{after_attr_pattern}"
     else:
         attr_pattern = rf"{tag_pattern}[^>]+{prev_attr_pattern}{re.escape(attr_name)}{spaced_equal}{value_pattern}"
-    
+
     return attr_pattern
 
 
@@ -228,7 +250,7 @@ class HTMLNodeFixedMatcher:
     def __init__(self, name: str, attrs: list[str]):
         self.name = name
         self.attrs = attrs
-    
+
     def tag_matches_args(self, tag: bs4.Tag) -> bool:
         if len(self.attrs) != len(tag.attrs):
             return False
@@ -236,7 +258,7 @@ class HTMLNodeFixedMatcher:
         for attr1, attr2 in zip(self.attrs, tag.attrs):
             if attr1 != attr2:
                 return False
-        
+
         return True
 
     def tag_matches(self, tag: bs4.Tag) -> bool:
@@ -247,7 +269,7 @@ class HTMLNodeMatcher:
     def __init__(self, name: str, attrs: list[str]):
         self.name = name
         self.attrs = attrs
-    
+
     def tag_matches_args(self, tag: bs4.Tag) -> bool:
         idx = 0
         # Check if the attributes are in order
@@ -256,13 +278,13 @@ class HTMLNodeMatcher:
                 break
             if name == self.attrs[idx]:
                 idx += 1
-        
+
         # Not all attributes were found in the desired order
         return idx >= len(self.attrs)
 
     def tag_matches(self, tag: bs4.Tag) -> bool:
         return tag.name == self.name and self.tag_matches_args(tag)
-    
+
     def build_regex(self) -> str:
         attr_pattern = r""
         for name in self.attrs:
@@ -285,7 +307,7 @@ class HTMLAttrValuePattern:
     post_attrs: list[AttrMatcher] = field(default_factory=list)
     pre_nodes: list[HTMLNodeMatcher] = field(default_factory=list)
     post_nodes: list[HTMLNodeMatcher] = field(default_factory=list)
-    
+
     def set_active_attr(self, name: str, active: bool) -> None:
         found = False
 
@@ -310,11 +332,13 @@ class HTMLAttrValuePattern:
     def deactivate_all_attr(self) -> None:
         for matcher in self.pre_attrs + self.post_attrs:
             self.deactivate_attr(matcher.name)
-    
+
     def match_soup(self, soup: BeautifulSoup) -> list[bs4.Tag]:
         matched_nodes = []
 
-        all_attrs = self.pre_attrs + [AttrMatcher(self.attr_name, True)] + self.post_attrs
+        all_attrs = (
+            self.pre_attrs + [AttrMatcher(self.attr_name, True)] + self.post_attrs
+        )
         all_attr_names = [attr.name for attr in all_attrs]
         attr_finder = {name: True for name in all_attr_names}
         nodes = soup.find_all(self.tag_name, attrs=attr_finder)
@@ -322,7 +346,7 @@ class HTMLAttrValuePattern:
         for node in nodes:
             if not own_tag.tag_matches(node):
                 continue
-            
+
             success = True
 
             for prev_node in self.pre_nodes:
@@ -331,7 +355,7 @@ class HTMLAttrValuePattern:
                         continue
                     if not prev_node.tag_matches(candidate):
                         success = False
-            
+
             if not success:
                 continue
 
@@ -344,7 +368,7 @@ class HTMLAttrValuePattern:
 
             if not success:
                 continue
-                
+
             matched_nodes.append(node)
 
         return matched_nodes
@@ -361,7 +385,7 @@ class HTMLAttrValuePattern:
             if not attr.active:
                 continue
             after_attr_pattern += rf"[^>]+{re.escape(attr.name)}"
-        
+
         previous_tags_pattern = r""
         for node in self.pre_nodes:
             previous_tags_pattern += node.build_regex() + ".*?"
@@ -369,24 +393,26 @@ class HTMLAttrValuePattern:
         next_tags_pattern = r""
         for node in self.post_nodes:
             next_tags_pattern += ".*?" + node.build_regex()
-        
+
         tag_pattern = rf"<{re.escape(self.tag_name)}"
         spaced_equal = r"[\s]*=[\s]*"
         attr_pattern = rf"{tag_pattern}[^>]+{prev_attr_pattern}{re.escape(self.attr_name)}{spaced_equal}{value_pattern}{after_attr_pattern}"
-        
+
         pattern = rf"{previous_tags_pattern}{attr_pattern}{next_tags_pattern}"
-        
+
         return pattern
 
 
-def html_attr_value_pattern_from_tag(tag: bs4.Tag, attr_name: str) -> HTMLAttrValuePattern:
+def html_attr_value_pattern_from_tag(
+    tag: bs4.Tag, attr_name: str
+) -> HTMLAttrValuePattern:
     attrs = list(tag.attrs.items())
     pos_of_attr_name = -1
     for idx, (k, v) in enumerate(attrs):
         if k == attr_name:
             pos_of_attr_name = idx
             break
-    
+
     if pos_of_attr_name == -1:
         raise ValueError("Attribute name not found")
 
@@ -394,7 +420,9 @@ def html_attr_value_pattern_from_tag(tag: bs4.Tag, attr_name: str) -> HTMLAttrVa
     # Get the attributes that are defined before `attr_name`
     pre_attr_matchers = [AttrMatcher(k, True) for k, _ in attrs[:pos_of_attr_name]]
     # Get the attributes that are defined after `attr_name`
-    post_attr_matchers = [AttrMatcher(k, True) for k, _ in attrs[pos_of_attr_name + 1:]]
+    post_attr_matchers = [
+        AttrMatcher(k, True) for k, _ in attrs[pos_of_attr_name + 1 :]
+    ]
 
     return HTMLAttrValuePattern(
         tag_name=tag.name,
@@ -425,128 +453,137 @@ def activate_necessary_attributes(template: HTMLAttrValuePattern, matched_nodes:
                 idx += 1
                 if idx >= len(all_attr):
                     break
-            
+
         for attr in template.pre_attrs:
             if node.
 '''
+
 
 def get_soup_root(element: bs4.Tag) -> bs4.BeautifulSoup:
     while element.parent is not None:
         element = element.parent
 
     if not isinstance(element, BeautifulSoup):
-        raise ValueError("Soup is not in propper form. Root must be of type BeautifulSoup.")
-    
-    return element
-    
+        raise ValueError(
+            "Soup is not in propper form. Root must be of type BeautifulSoup."
+        )
 
-def build_unique_regex_attr_val(html: str, tag: bs4.Tag, attr_name: str, separator: str) -> Optional[str]:
+    return element
+
+
+def build_unique_regex_attr_val(
+    html: str, tag: bs4.Tag, attr_name: str, separator: str
+) -> Optional[str]:
     """Builds a regex that selects the attribute value in the HTML from wich the tag comes from."""
     attr_value = tag.attrs[attr_name]
-    #lines = html.split("\n")
-    
+    # lines = html.split("\n")
+
     if separator != "":
         value_pattern = rf"{separator}([^{separator}]*?){separator}"
     else:
         value_pattern = r"([^\s>]*?)"
-    
+
     template = html_attr_value_pattern_from_tag(tag, attr_name)
     template.deactivate_all_attr()
 
     attr_pattern = template.build_regex(value_pattern)
-    found = re.findall(attr_pattern, html, flags=re.DOTALL|re.IGNORECASE)
+    found = re.findall(attr_pattern, html, flags=re.DOTALL | re.IGNORECASE)
     if len(found) == 1:
         return attr_pattern
 
     if len(found) == 0:
         import pdb
+
         pdb.set_trace()
-    
+
     attr_names = [attr.name for attr in template.pre_attrs + template.post_attrs]
-    
+
     found_unique_regex = False
-    
+
     active_attrs = []
     # Starting using the previous attributes, starting from the one with the longest name
     for new_name in attr_names:
         # TODO: What if there are multiple attributes with the same name?
         template.activate_attr(new_name)
-        
+
         active_attrs.append(new_name)
-        
+
         attr_pattern = template.build_regex(value_pattern)
-        
-        found = re.findall(attr_pattern, html, flags=re.DOTALL|re.IGNORECASE)
+
+        found = re.findall(attr_pattern, html, flags=re.DOTALL | re.IGNORECASE)
         if len(found) == 1:
             found_unique_regex = True
             break
-        
+
         if len(found) == 0:
             import pdb
+
             pdb.set_trace()
-    
+
     if not found_unique_regex:
         for pre_node, post_node in zip(tag.previous_elements, tag.next_elements):
             if not isinstance(pre_node, bs4.element.Tag):
                 continue
-        
+
             node_attr_names = list(pre_node.attrs)
             matcher = HTMLNodeMatcher(pre_node.name, node_attr_names)
             template.pre_nodes.insert(0, matcher)
             attr_pattern = template.build_regex(value_pattern)
-            
-            found = re.findall(attr_pattern, html, flags=re.DOTALL|re.IGNORECASE)
+
+            found = re.findall(attr_pattern, html, flags=re.DOTALL | re.IGNORECASE)
             if len(found) == 1 and found[0] == attr_value:
                 found_unique_regex = True
                 break
-            
+
             if len(found) == 0:
                 import pdb
+
                 pdb.set_trace()
 
             if not isinstance(post_node, bs4.element.Tag):
                 continue
-        
+
             node_attr_names = list(post_node.attrs)
             matcher = HTMLNodeMatcher(post_node.name, node_attr_names)
             template.post_nodes.append(matcher)
             attr_pattern = template.build_regex(value_pattern)
-            
+
             print(f"Checking {attr_pattern!r}")
-            found = re.findall(attr_pattern, html, flags=re.DOTALL|re.IGNORECASE)
+            found = re.findall(attr_pattern, html, flags=re.DOTALL | re.IGNORECASE)
             if len(found) == 1 and found[0] == attr_value:
                 found_unique_regex = True
                 break
-            
+
             if len(found) == 0:
                 import pdb
+
                 pdb.set_trace()
-            
+
         # TODO: look at the next_elements of the tag
-        
+
         if not found_unique_regex:
             return None
 
     for name in active_attrs:
         template.deactivate_attr(name)
         attr_pattern = template.build_regex(value_pattern)
-        found = re.findall(attr_pattern, html, flags=re.DOTALL|re.IGNORECASE)
+        found = re.findall(attr_pattern, html, flags=re.DOTALL | re.IGNORECASE)
         if len(found) != 1 or found[0] != attr_value:
             template.activate_attr(name)
 
     attr_pattern = template.build_regex(value_pattern)
-    
+
     return attr_pattern
-    
+
 
 def find_source_of_str_in_body(body: str, text: str) -> Optional[str]:
     """Receives a text that is a substring of the HTML body. Finds a relevant regex that selects that
     substring."""
     match_type, separator = greedy_html_match(body, text)
-    
+
     def has_attr_val(tag: bs4.Tag) -> bool:
         return text in tag.attrs.values()
-    
+
     if match_type == "attribute":
         soup = BeautifulSoup(body, features="html.parser")
         found_tag = soup.find(has_attr_val)
@@ -556,17 +593,21 @@ def find_source_of_str_in_body(body: str, text: str) -> Optional[str]:
                 if v == text:
                     attr_name = k
                     break
-            
+
             if attr_name is not None:
-                pattern = build_unique_regex_attr_val(body, found_tag, attr_name, separator)
+                pattern = build_unique_regex_attr_val(
+                    body, found_tag, attr_name, separator
+                )
                 return pattern
 
     return None
-        
-    
-def look_for_str_in_response(text: str, action: ResponseAction, stype="") -> Optional[DataSource]:
+
+
+def look_for_str_in_response(
+    text: str, action: ResponseAction, stype=""
+) -> Optional[DataSource]:
     text_bin = text.encode()
-    
+
     if action.body and action.body.find(text_bin) != -1:
         pattern = find_source_of_str_in_body(action.body.decode("utf8"), text)
         if pattern is not None:
@@ -576,7 +617,7 @@ def look_for_str_in_response(text: str, action: ResponseAction, stype="") -> Opt
         escaped_value = value
         if key.lower() == "set-cookie":
             escaped_value = urllib.parse.unquote(value)
-        
+
         source = None
 
         if text in escaped_value:
@@ -590,7 +631,9 @@ def look_for_str_in_response(text: str, action: ResponseAction, stype="") -> Opt
                         if end - start == len(cookie.value):
                             strcontext = ".*"
                         else:
-                            strcontext = "(?:.{" + str(start) + "}).{" + str(end - start) + "}"
+                            strcontext = (
+                                "(?:.{" + str(start) + "}).{" + str(end - start) + "}"
+                            )
 
                         # match = re.match(strcontext, cookie.value)
 
@@ -614,7 +657,9 @@ def look_for_str_in_response(text: str, action: ResponseAction, stype="") -> Opt
     return None
 
 
-def look_for_str_in_input_action(text: str, action: InputAction) -> Optional[DataSource]:
+def look_for_str_in_input_action(
+    text: str, action: InputAction
+) -> Optional[DataSource]:
     if action.text in text:
         start = text.find(action.text)
         end = start + len(action.text)
@@ -625,9 +670,11 @@ def look_for_str_in_input_action(text: str, action: InputAction) -> Optional[Dat
         return src2
 
     return None
-    
 
-def look_for_str_in_actions(text: str, actions: list[HttpAction], stype="") -> Optional[DataSource]:
+
+def look_for_str_in_actions(
+    text: str, actions: list[HttpAction], stype=""
+) -> Optional[DataSource]:
     """Takes a string and looks for it through the actions present in the actions."""
     for action in actions[::-1]:
         source = None
@@ -638,11 +685,13 @@ def look_for_str_in_actions(text: str, actions: list[HttpAction], stype="") -> O
 
         if source is not None:
             return source
-            
+
     return None
 
 
-def look_for_str_in_last_source_actions(text: str, actions: list[HttpAction], stype="", limit=10) -> Optional[DataSource]:
+def look_for_str_in_last_source_actions(
+    text: str, actions: list[HttpAction], stype="", limit=10
+) -> Optional[DataSource]:
     """Receives a string and looks for it through the last actions present in the actions, up to the
     given limit."""
     actions_checked = 0
@@ -691,7 +740,7 @@ def search_for_cookie(actions: list, cookie: Cookie) -> list[SingleSourcedTarget
             target = CookieTarget(cookie.name, source)
             print(f"Found {source.__class__.__name__} for {target.__class__.__name__}")
             return [target]
-    
+
     return []
 
 
@@ -709,11 +758,13 @@ def search_for_json(actions: list, schema: JSONSchema) -> list[SingleSourcedTarg
         container = JSONContainer(schema, json_targets)
         targets.append(BodyTarget(container))
         print(f"Found {container.__class__.__name__} for BodyTarget")
-    
+
     return targets
 
 
-def search_for_query_string(actions: list, query_list: list[tuple[str, str]]) -> list[SingleSourcedTarget]:
+def search_for_query_string(
+    actions: list, query_list: list[tuple[str, str]]
+) -> list[SingleSourcedTarget]:
     new_qlist: list[tuple[Union[str, DataSource], Union[str, DataSource]]] = []
     has_sources = False
     print(f"Queriy list: {query_list}")
@@ -749,7 +800,7 @@ def search_for_query_string(actions: list, query_list: list[tuple[str, str]]) ->
                 found_name = source
 
         new_qlist.append((found_name, found_value))
-    
+
     if has_sources:
         return [BodyTarget(QueryStringContainer(new_qlist))]
 
@@ -777,10 +828,12 @@ def analyse_actions(actions: list[BrowserAction]) -> None:
                     action.targets.extend(targets)
                 except json.JSONDecodeError:
                     pass
-                
-                #try:
-                query_list = urllib.parse.parse_qsl(body, strict_parsing=True, keep_blank_values=True)
+
+                # try:
+                query_list = urllib.parse.parse_qsl(
+                    body, strict_parsing=True, keep_blank_values=True
+                )
                 targets = search_for_query_string(actions[:action_idx], query_list)
                 action.targets.extend(targets)
-                #except ValueError:
+                # except ValueError:
                 #    pass

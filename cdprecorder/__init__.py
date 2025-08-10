@@ -58,16 +58,11 @@ def register_custom_repr(
         clsname = obj.__class__.__name__
 
         full_fields = [f"{name}={repr(getattr(obj, name))}" for name in full_names]
-        first_fields = [
-            f"{name}={cheap_repr.cheap_repr(getattr(obj, name))}"
-            for name in first_names
-        ]
+        first_fields = [f"{name}={cheap_repr.cheap_repr(getattr(obj, name))}" for name in first_names]
         custom_fields = full_fields + first_fields
 
         other_fields = [
-            PreparedReprStr(
-                f"{field.name}={cheap_repr.cheap_repr(getattr(obj, field.name))}"
-            )
+            PreparedReprStr(f"{field.name}={cheap_repr.cheap_repr(getattr(obj, field.name))}")
             for field in dataclasses.fields(obj)
             if field.name not in custom_names
         ]
@@ -79,19 +74,11 @@ def register_custom_repr(
 cheap_repr.register_repr(cdp.network.LoadingFinished)(cheap_repr.normal_repr)
 
 register_custom_repr(cdp.network.Request, ["method"], ["url"], maxparts=3)
-register_custom_repr(
-    cdp.network.RequestWillBeSent, [], ["request_id", "request"], maxparts=4
-)
-register_custom_repr(
-    cdp.network.RequestWillBeSentExtraInfo, [], ["request_id"], maxparts=3
-)
+register_custom_repr(cdp.network.RequestWillBeSent, [], ["request_id", "request"], maxparts=4)
+register_custom_repr(cdp.network.RequestWillBeSentExtraInfo, [], ["request_id"], maxparts=3)
 register_custom_repr(cdp.network.Response, [], ["url"], maxparts=3)
-register_custom_repr(
-    cdp.network.ResponseReceived, [], ["request_id", "response"], maxparts=3
-)
-register_custom_repr(
-    cdp.network.ResponseReceivedExtraInfo, [], ["request_id"], maxparts=3
-)
+register_custom_repr(cdp.network.ResponseReceived, [], ["request_id", "response"], maxparts=3)
+register_custom_repr(cdp.network.ResponseReceivedExtraInfo, [], ["request_id"], maxparts=3)
 
 
 # cheap_repr.register_repr(cdp.network.ResponseReceived)(cheap_repr.normal_repr)
@@ -109,9 +96,7 @@ def custom_repr_str(obj: str, helper: cheap_repr.ReprHelper) -> str:
 def configure_root_logger(**kwargs) -> None:  # type: ignore[no-untyped-def]
     kwargs.setdefault("level", logging.DEBUG)
     kwargs.setdefault("encoding", "utf-8")
-    kwargs.setdefault(
-        "format", "%(asctime)s %(levelno)s %(filename)s:%(lineno)s: %(message)s"
-    )
+    kwargs.setdefault("format", "%(asctime)s %(levelno)s %(filename)s:%(lineno)s: %(message)s")
     # From the documentation of logging.basicConfig about the `stream` argument:
     # > Note that this argument is incompatible with filename - if both are
     # present, a ValueError is raised.

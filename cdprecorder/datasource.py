@@ -165,9 +165,7 @@ class BodySource(ActionDataSource):
         return action.body.decode("utf8")
 
 
-def get_object_at_json_path(
-    data: object, path: list[Union[str, int]]
-) -> Optional[object]:
+def get_object_at_json_path(data: object, path: list[Union[str, int]]) -> Optional[object]:
     try:
         for key in path:
             if isinstance(data, list):
@@ -209,9 +207,7 @@ class JSONFieldTarget(DynamicRepr):
         self.source = source
         self.path = path
 
-    def apply(
-        self, container_data: object, prev_actions: Sequence[Optional[HttpAction]]
-    ) -> None:
+    def apply(self, container_data: object, prev_actions: Sequence[Optional[HttpAction]]) -> None:
         value = self.source.get_value(prev_actions)
         if value is None or len(self.path) == 0:
             return
@@ -242,9 +238,7 @@ class JSONContainer(DataSource):
 
 
 class QueryStringContainer(DataSource):
-    def __init__(
-        self, qlist: list[tuple[Union[str, DataSource], Union[str, DataSource]]]
-    ):
+    def __init__(self, qlist: list[tuple[Union[str, DataSource], Union[str, DataSource]]]):
         self.qlist = qlist
 
     def get_value(self, prev_actions: Sequence[Optional[HttpAction]]) -> Optional[str]:
@@ -266,8 +260,6 @@ class QueryStringContainer(DataSource):
                     return None
                 name = name_from_source
 
-            data_pairs.append(
-                f"{urllib.parse.quote_plus(name)}={urllib.parse.quote_plus(value)}"
-            )
+            data_pairs.append(f"{urllib.parse.quote_plus(name)}={urllib.parse.quote_plus(value)}")
 
         return "&".join(data_pairs)

@@ -58,9 +58,7 @@ CONST_HEADERS = [
 ]
 
 
-def search_str_in_soup(
-    soup: BeautifulSoup, text: str
-) -> Union[bs4.element.Tag, bs4.element.NavigableString, None]:
+def search_str_in_soup(soup: BeautifulSoup, text: str) -> Union[bs4.element.Tag, bs4.element.NavigableString, None]:
     def tag_contains_str(tag: bs4.Tag) -> bool:
         for key, val in tag.attrs.items():
             # Multi-valued attrs: https://beautiful-soup-4.readthedocs.io/en/latest/#multi-valued-attributes
@@ -96,23 +94,13 @@ def find_context_bytes(data: bytes, text_to_find: bytes) -> Optional[bytes]:
         if end - start == len(data):
             return b".*"
 
-        return (
-            b"(?:.{" + str(start).encode() + b"}).{" + str(end - start).encode() + b"}"
-        )
+        return b"(?:.{" + str(start).encode() + b"}).{" + str(end - start).encode() + b"}"
 
     offset = 6
     while start >= offset:
         prefix = re.escape(data[start - offset : start])
         suffix = re.escape(data[end : end + offset])
-        pattern = (
-            b"(?:"
-            + prefix
-            + b").{"
-            + str(end - start).encode()
-            + b"}(?:"
-            + suffix
-            + b")"
-        )
+        pattern = b"(?:" + prefix + b").{" + str(end - start).encode() + b"}(?:" + suffix + b")"
         matches = re.findall(pattern, data, flags=re.DOTALL | re.IGNORECASE)
         if len(matches) == 0:
             raise Exception
@@ -331,9 +319,7 @@ class HTMLAttrValuePattern:
     def match_soup(self, soup: BeautifulSoup) -> list[bs4.Tag]:
         matched_nodes = []
 
-        all_attrs = (
-            self.pre_attrs + [AttrMatcher(self.attr_name, True)] + self.post_attrs
-        )
+        all_attrs = self.pre_attrs + [AttrMatcher(self.attr_name, True)] + self.post_attrs
         all_attr_names = [attr.name for attr in all_attrs]
         attr_finder = {name: True for name in all_attr_names}
         nodes = soup.find_all(self.tag_name, attrs=attr_finder)
@@ -398,9 +384,7 @@ class HTMLAttrValuePattern:
         return pattern
 
 
-def html_attr_value_pattern_from_tag(
-    tag: bs4.Tag, attr_name: str
-) -> HTMLAttrValuePattern:
+def html_attr_value_pattern_from_tag(tag: bs4.Tag, attr_name: str) -> HTMLAttrValuePattern:
     attrs = list(tag.attrs.items())
     pos_of_attr_name = -1
     for idx, (k, v) in enumerate(attrs):
@@ -415,9 +399,7 @@ def html_attr_value_pattern_from_tag(
     # Get the attributes that are defined before `attr_name`
     pre_attr_matchers = [AttrMatcher(k, True) for k, _ in attrs[:pos_of_attr_name]]
     # Get the attributes that are defined after `attr_name`
-    post_attr_matchers = [
-        AttrMatcher(k, True) for k, _ in attrs[pos_of_attr_name + 1 :]
-    ]
+    post_attr_matchers = [AttrMatcher(k, True) for k, _ in attrs[pos_of_attr_name + 1 :]]
 
     return HTMLAttrValuePattern(
         tag_name=tag.name,
@@ -459,16 +441,12 @@ def get_soup_root(element: bs4.Tag) -> bs4.BeautifulSoup:
         element = element.parent
 
     if not isinstance(element, BeautifulSoup):
-        raise ValueError(
-            "Soup is not in propper form. Root must be of type BeautifulSoup."
-        )
+        raise ValueError("Soup is not in propper form. Root must be of type BeautifulSoup.")
 
     return element
 
 
-def build_unique_regex_attr_val(
-    html: str, tag: bs4.Tag, attr_name: str, separator: str
-) -> Optional[str]:
+def build_unique_regex_attr_val(html: str, tag: bs4.Tag, attr_name: str, separator: str) -> Optional[str]:
     """Builds a regex that selects the attribute value in the HTML from wich the tag comes from."""
     attr_value = tag.attrs[attr_name]
     # lines = html.split("\n")
@@ -585,9 +563,7 @@ def find_source_of_str_in_body(body: str, text: str) -> Optional[str]:
                     break
 
             if attr_name is not None:
-                pattern = build_unique_regex_attr_val(
-                    body, found_tag, attr_name, separator
-                )
+                pattern = build_unique_regex_attr_val(body, found_tag, attr_name, separator)
                 return pattern
 
     return None
@@ -622,9 +598,7 @@ def look_for_str_in_response(
                         if end - start == len(cookie.value):
                             strcontext = ".*"
                         else:
-                            strcontext = (
-                                "(?:.{" + str(start) + "}).{" + str(end - start) + "}"
-                            )
+                            strcontext = "(?:.{" + str(start) + "}).{" + str(end - start) + "}"
 
                         # match = re.match(strcontext, cookie.value)
 
@@ -648,9 +622,7 @@ def look_for_str_in_response(
     return None
 
 
-def look_for_str_in_input_action(
-    text: str, action: InputAction
-) -> Optional[DataSource]:
+def look_for_str_in_input_action(text: str, action: InputAction) -> Optional[DataSource]:
     if action.text in text:
         start = text.find(action.text)
         end = start + len(action.text)
@@ -681,9 +653,7 @@ def look_for_str_in_actions(
     return None
 
 
-def look_for_str_in_last_source_actions(
-    text: str, actions: list[HttpAction], limit: int = 10
-) -> Optional[DataSource]:
+def look_for_str_in_last_source_actions(text: str, actions: list[HttpAction], limit: int = 10) -> Optional[DataSource]:
     """Receives a string and looks for it through the last actions present in the actions, up to the
     given limit."""
     actions_checked = 0
@@ -754,9 +724,7 @@ def search_for_json(actions: list, schema: JSONSchema) -> list[SingleSourcedTarg
     return targets
 
 
-def search_for_query_string(
-    actions: list, query_list: list[tuple[str, str]]
-) -> list[SingleSourcedTarget]:
+def search_for_query_string(actions: list, query_list: list[tuple[str, str]]) -> list[SingleSourcedTarget]:
     new_qlist: list[tuple[Union[str, DataSource], Union[str, DataSource]]] = []
     has_sources = False
     print(f"Queriy list: {query_list}")
@@ -822,9 +790,7 @@ def analyse_actions(actions: list[BrowserAction]) -> None:
                     pass
 
                 # try:
-                query_list = urllib.parse.parse_qsl(
-                    body, strict_parsing=True, keep_blank_values=True
-                )
+                query_list = urllib.parse.parse_qsl(body, strict_parsing=True, keep_blank_values=True)
                 targets = search_for_query_string(actions[:action_idx], query_list)
                 action.targets.extend(targets)
                 # except ValueError:

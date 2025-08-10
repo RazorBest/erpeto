@@ -107,9 +107,7 @@ async def insert_js_leech_script(
         listener = aiter(receiver)
 
         await target_session.execute(
-            cdp.page.add_script_to_evaluate_on_new_document(
-                expression, run_immediately=True, world_name=context_name
-            )
+            cdp.page.add_script_to_evaluate_on_new_document(expression, run_immediately=True, world_name=context_name)
         )
 
         timed_listener = AsyncIterableWithTimeout(listener, runtime_init_timeout)
@@ -241,9 +239,7 @@ class AsyncIterableWithTimeout(Generic[T]):
             self.start_time = start_time
 
     def __aiter__(self) -> AsyncIterator[T]:
-        return AsyncIteratorWithTimeout(
-            self.iterable.__aiter__(), self.timeout, self.start_time
-        )
+        return AsyncIteratorWithTimeout(self.iterable.__aiter__(), self.timeout, self.start_time)
 
 
 class CancelableAsyncIterator(Generic[T]):
@@ -332,9 +328,7 @@ class Recorder:
         await self.runtime_ctx.on_binding_called(evt)
         self.communications += self.runtime_ctx.pop_actions()
 
-    async def on_execution_context_created(
-        self, evt: cdp.runtime.ExecutionContextCreated
-    ) -> None:
+    async def on_execution_context_created(self, evt: cdp.runtime.ExecutionContextCreated) -> None:
         await self.runtime_ctx.on_execution_context_created(evt)
 
     async def on_request_will_be_sent(self, evt: cdp.network.RequestWillBeSent) -> None:
@@ -344,14 +338,11 @@ class Recorder:
         self.request_map[request_id].add_event(evt)
 
         if not self.collect_all and (
-            is_url_ignored(cdp_req.url, self.start_origin)
-            or self.urlfilter.should_block(evt.request.url)
+            is_url_ignored(cdp_req.url, self.start_origin) or self.urlfilter.should_block(evt.request.url)
         ):
             self.request_map[request_id].ignored = True
 
-    async def on_request_will_be_sent_extra_info(
-        self, evt: cdp.network.RequestWillBeSentExtraInfo
-    ) -> None:
+    async def on_request_will_be_sent_extra_info(self, evt: cdp.network.RequestWillBeSentExtraInfo) -> None:
         if not self.request_map[evt.request_id].ignored:
             self.request_map[evt.request_id].add_event(evt)
 
@@ -359,9 +350,7 @@ class Recorder:
         if not self.request_map[evt.request_id].ignored:
             self.request_map[evt.request_id].add_event(evt)
 
-    async def on_response_received_extra_info(
-        self, evt: cdp.network.ResponseReceivedExtraInfo
-    ) -> None:
+    async def on_response_received_extra_info(self, evt: cdp.network.ResponseReceivedExtraInfo) -> None:
         if not self.request_map[evt.request_id].ignored:
             self.request_map[evt.request_id].add_event(evt)
 
@@ -372,9 +361,7 @@ class Recorder:
 
         body = None
         try:
-            cdp_body_result = await self.target_session.execute(
-                cdp.network.get_response_body(request_id)
-            )
+            cdp_body_result = await self.target_session.execute(cdp.network.get_response_body(request_id))
             resulted_body, is_base_64 = cdp_body_result
             if is_base_64:
                 body = base64.b64decode(resulted_body)
@@ -535,9 +522,7 @@ async def obtain_cdp_target_id(conn: CDPConnection) -> cdp.target.TargetID:
 
     context_id = None
     context_id = await conn.execute(cdp.target.create_browser_context())
-    target_id = await conn.execute(
-        cdp.target.create_target("about:blank", browser_context_id=context_id)
-    )
+    target_id = await conn.execute(cdp.target.create_target("about:blank", browser_context_id=context_id))
 
     return target_id
 
@@ -560,9 +545,7 @@ class WidgetState:
         return runtime_ctx.widget_context_id
 
     async def start_timer(self) -> None:
-        await self.target_session.execute(
-            cdp.runtime.evaluate("startTimerIfElemLoaded()", context_id=self.context_id)
-        )
+        await self.target_session.execute(cdp.runtime.evaluate("startTimerIfElemLoaded()", context_id=self.context_id))
         self.start_time = time.time()
 
     async def _send_state_elapsed(self, start_time: float) -> None:
@@ -570,29 +553,18 @@ class WidgetState:
         if self.stop_time is not None:
             elapsed = self.stop_time - start_time
         await self.target_session.execute(
-            cdp.runtime.evaluate(
-                f"setTimerElapsed({elapsed})", context_id=self.context_id
-            )
+            cdp.runtime.evaluate(f"setTimerElapsed({elapsed})", context_id=self.context_id)
         )
 
-    async def _send_state_pos(
-        self, top: str, right: str, bottom: str, left: str
-    ) -> None:
+    async def _send_state_pos(self, top: str, right: str, bottom: str, left: str) -> None:
         # Lucky that strings are represented the same in Python and JavaScript
         expression = f"setWidgetPos({top!r}, {right!r}, {bottom!r}, {left!r})"
-        await self.target_session.execute(
-            cdp.runtime.evaluate(expression, context_id=self.context_id)
-        )
+        await self.target_session.execute(cdp.runtime.evaluate(expression, context_id=self.context_id))
 
     async def send_state(self) -> None:
         if self.start_time is not None:
             await self._send_state_elapsed(self.start_time)
-        if (
-            self.top is not None
-            and self.right is not None
-            and self.bottom is not None
-            and self.left is not None
-        ):
+        if self.top is not None and self.right is not None and self.bottom is not None and self.left is not None:
             await self._send_state_pos(self.top, self.right, self.bottom, self.left)
 
 
@@ -605,9 +577,7 @@ async def bind_func_to_context(
 ) -> None:
     if context_name is None:
         return
-    await target_session.execute(
-        cdp.runtime.add_binding(name, execution_context_name=context_name)
-    )
+    await target_session.execute(cdp.runtime.add_binding(name, execution_context_name=context_name))
 
 
 async def bind_func_to_context_id(
@@ -620,20 +590,14 @@ async def bind_func_to_context_id(
     # Using execution_context_id is deprecated
     # But, adding the biding with execution_context_name doesn't work when the recorder is restarted
     #   on an already started Chrome
-    await target_session.execute(
-        cdp.runtime.add_binding(name, execution_context_id=context_id)
-    )
+    await target_session.execute(cdp.runtime.add_binding(name, execution_context_id=context_id))
 
 
 async def init_runtime_scripts(
     target_session: pycdp.twisted.CDPSession,
 ) -> RuntimeContext:
-    listener_context_name, listener_context_id = await insert_js_action_listener(
-        target_session
-    )
-    await bind_func_to_context_id(
-        target_session, RuntimeContext.EVENT_SEND_BINDING, listener_context_id
-    )
+    listener_context_name, listener_context_id = await insert_js_action_listener(target_session)
+    await bind_func_to_context_id(target_session, RuntimeContext.EVENT_SEND_BINDING, listener_context_id)
 
     runtime = RuntimeContext(
         target_session,
@@ -675,14 +639,10 @@ class RuntimeContext:
         if evt.name == self.EVENT_SEND_BINDING:
             await self.on_event_send(evt.payload)
 
-    async def on_execution_context_created(
-        self, evt: cdp.runtime.ExecutionContextCreated
-    ) -> None:
+    async def on_execution_context_created(self, evt: cdp.runtime.ExecutionContextCreated) -> None:
         if evt.context.name == self.listener_context_name:
             self.listener_context_id = evt.context.id_
-            await bind_func_to_context_id(
-                self.target_session, self.EVENT_SEND_BINDING, self.listener_context_id
-            )
+            await bind_func_to_context_id(self.target_session, self.EVENT_SEND_BINDING, self.listener_context_id)
 
     def pop_actions(self) -> list[InputAction]:
         actions = self.actions

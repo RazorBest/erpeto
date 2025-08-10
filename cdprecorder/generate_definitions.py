@@ -21,14 +21,7 @@ if TYPE_CHECKING:
     # from typing import Callable, CodeType, FrameType, FunctionType, MethodType, Module, TypeAlias, TracebackType
 
     Inspectable: TypeAlias = (
-        ModuleType
-        | type[Any]
-        | MethodType
-        | FunctionType
-        | TracebackType
-        | FrameType
-        | CodeType
-        | Callable[..., Any]
+        ModuleType | type[Any] | MethodType | FunctionType | TracebackType | FrameType | CodeType | Callable[..., Any]
     )
 
 
@@ -135,9 +128,7 @@ def remove_annotations_from_ast(ast_obj: ast.AST) -> None:
 
 def remove_docstrings_from_ast(ast_obj: ast.AST) -> None:
     for node in ast.walk(ast_obj):
-        if not isinstance(
-            node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module)
-        ):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module)):
             continue
 
         if len(node.body) == 0:
@@ -148,9 +139,7 @@ def remove_docstrings_from_ast(ast_obj: ast.AST) -> None:
         if not isinstance(first_child, ast.Expr):
             continue
 
-        if not isinstance(first_child.value, ast.Constant) or not isinstance(
-            first_child.value.value, str
-        ):
+        if not isinstance(first_child.value, ast.Constant) or not isinstance(first_child.value.value, str):
             continue
 
         # The spec says that end_lineno is optional
@@ -174,9 +163,7 @@ def remove_docstrings_from_ast(ast_obj: ast.AST) -> None:
             ast.increment_lineno(child, n=-removed_lines_count)
 
 
-def get_source_code(
-    obj: Inspectable, annotations: bool = False, docstrings: bool = False
-) -> str:
+def get_source_code(obj: Inspectable, annotations: bool = False, docstrings: bool = False) -> str:
     source = inspect.getsource(obj)
     if annotations and docstrings:
         return source

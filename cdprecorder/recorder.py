@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
+import os
 import platform
 import random
 import string
@@ -23,6 +25,7 @@ from typing import (
 import pycdp
 import pycdp.twisted
 import twisted.internet.reactor
+from cheap_repr import cheap_repr
 from pycdp import cdp
 from pycdp.browser import ChromeLauncher
 from pycdp.twisted import CDPConnection as _PyCDPConnection
@@ -31,7 +34,7 @@ from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.interfaces import IReactorCore, IReactorTime
 from twisted.web.client import Agent
 
-from . import filters
+from . import filters, logger, tkinter_ui
 from .action import InputAction
 
 if TYPE_CHECKING:
@@ -99,12 +102,14 @@ async def insert_js_leech_script(
     evt_to_listen = cdp.runtime.ExecutionContextCreated
     try:
         # Don't call target_session.listen because we need the receiver object to close it at the end
-        receiver = pycdp.twisted.CDPEventListener(pycdp.twisted.DeferredQueue(1024))
+        receiver = pycdp.twisted.CDPEventListener(defer.DeferredQueue(1024))
         target_session._listeners[evt_to_listen].add(receiver)
         listener = aiter(receiver)
 
         await target_session.execute(
-            cdp.page.add_script_to_evaluate_on_new_document(expression, run_immediately=True, world_name=context_name)
+            cdp.page.add_script_to_evaluate_on_new_document(
+                expression, run_immediately=True, world_name=context_name
+            )
         )
 
         timed_listener = AsyncIterableWithTimeout(listener, runtime_init_timeout)
@@ -165,6 +170,16 @@ class HttpCommunication:
 
         return text
 
+    def __repr__(self) -> str:
+        request_id = f"request_id={self.request_id!r}"
+        ignored = f"ignored={self.ignored!r}"
+        events = f"events={self.events!r}"
+        response_bodies = f"response_bodies={self.response_bodies!r}"
+
+        components = [request_id, ignored, events, response_bodies]
+
+        return f"{self.__class__.__name__}({', '.join(components)})"
+
     def __eq__(self, obj: object) -> bool:
         if type(self) != type(obj):
             return False
@@ -181,7 +196,12 @@ T = TypeVar("T")
 
 
 class AsyncIteratorWithTimeout(Generic[T]):
-    def __init__(self, iterator: AsyncIterator[T], timeout: float, start_time: Optional[float] = None):
+    def __init__(
+        self,
+        iterator: AsyncIterator[T],
+        timeout: float,
+        start_time: Optional[float] = None,
+    ):
         self.iterator = iterator
         self.timeout = timeout
         if start_time is None:
@@ -207,7 +227,12 @@ class AsyncIteratorWithTimeout(Generic[T]):
 
 
 class AsyncIterableWithTimeout(Generic[T]):
-    def __init__(self, iterable: AsyncIterable[T], timeout: float, start_time: Optional[float] = None):
+    def __init__(
+        self,
+        iterable: AsyncIterable[T],
+        timeout: float,
+        start_time: Optional[float] = None,
+    ):
         self.iterable = iterable
         self.timeout = timeout
         if start_time is None:
@@ -216,7 +241,60 @@ class AsyncIterableWithTimeout(Generic[T]):
             self.start_time = start_time
 
     def __aiter__(self) -> AsyncIterator[T]:
-        return AsyncIteratorWithTimeout(self.iterable.__aiter__(), self.timeout, self.start_time)
+        return AsyncIteratorWithTimeout(
+            self.iterable.__aiter__(), self.timeout, self.start_time
+        )
+
+
+class CancelableAsyncIterator(Generic[T]):
+    def __init__(self, iterator: AsyncIterator[T], stop_event: defer.Deferred):
+        self.iterator = iterator
+        self._stop_event = stop_event
+        self._next_task: Optional[defer.Deferred[T]] = None
+
+        def on_cancel(res):
+            if self._next_task is not None:
+                self._next_task.cancel()
+                self._next_task = None
+
+        self._stop_event.addCallback(on_cancel)
+
+    def cancel(self):
+        return self._stop_event.callback(None)
+
+    async def __anext__(self) -> T:
+        if self._stop_event.called:
+            raise StopAsyncIteration
+
+        if self._next_task is None:
+            coro = self.iterator.__anext__()
+            if not isinstance(coro, Coroutine):
+                raise AwaitableIsNotCoroutine
+            self._next_task = defer.Deferred.fromCoroutine(coro)
+
+        try:
+            res = await self._next_task
+        except defer.CancelledError:
+            raise StopAsyncIteration
+        finally:
+            self._next_task = None
+
+        return res
+
+    def __aiter__(self) -> CancelableAsyncIterator:
+        return self
+
+
+class CancelableAsyncIterable(Generic[T]):
+    def __init__(self, iterable: AsyncIterable[T]):
+        self.iterable = iterable
+        self._stop_event = defer.Deferred()
+
+    def cancel(self):
+        return self._stop_event.callback(None)
+
+    def __aiter__(self) -> AsyncIterator[T]:
+        return CancelableAsyncIterator(self.iterable.__aiter__(), self._stop_event)
 
 
 class Recorder:
@@ -234,6 +312,7 @@ class Recorder:
         self.communications: list[Union[HttpCommunication, InputAction]] = []
         self.request_map: dict[pycdp.cdp.network.RequestId, HttpCommunication] = {}
         self.runtime_ctx = get_runtime_context()
+        self.on_stop_cbs = []
 
     async def on_http_data(
         self,
@@ -253,7 +332,9 @@ class Recorder:
         await self.runtime_ctx.on_binding_called(evt)
         self.communications += self.runtime_ctx.pop_actions()
 
-    async def on_execution_context_created(self, evt: cdp.runtime.ExecutionContextCreated) -> None:
+    async def on_execution_context_created(
+        self, evt: cdp.runtime.ExecutionContextCreated
+    ) -> None:
         await self.runtime_ctx.on_execution_context_created(evt)
 
     async def on_request_will_be_sent(self, evt: cdp.network.RequestWillBeSent) -> None:
@@ -263,11 +344,14 @@ class Recorder:
         self.request_map[request_id].add_event(evt)
 
         if not self.collect_all and (
-            is_url_ignored(cdp_req.url, self.start_origin) or self.urlfilter.should_block(evt.request.url)
+            is_url_ignored(cdp_req.url, self.start_origin)
+            or self.urlfilter.should_block(evt.request.url)
         ):
             self.request_map[request_id].ignored = True
 
-    async def on_request_will_be_sent_extra_info(self, evt: cdp.network.RequestWillBeSentExtraInfo) -> None:
+    async def on_request_will_be_sent_extra_info(
+        self, evt: cdp.network.RequestWillBeSentExtraInfo
+    ) -> None:
         if not self.request_map[evt.request_id].ignored:
             self.request_map[evt.request_id].add_event(evt)
 
@@ -275,7 +359,9 @@ class Recorder:
         if not self.request_map[evt.request_id].ignored:
             self.request_map[evt.request_id].add_event(evt)
 
-    async def on_response_received_extra_info(self, evt: cdp.network.ResponseReceivedExtraInfo) -> None:
+    async def on_response_received_extra_info(
+        self, evt: cdp.network.ResponseReceivedExtraInfo
+    ) -> None:
         if not self.request_map[evt.request_id].ignored:
             self.request_map[evt.request_id].add_event(evt)
 
@@ -286,7 +372,9 @@ class Recorder:
 
         body = None
         try:
-            cdp_body_result = await self.target_session.execute(cdp.network.get_response_body(request_id))
+            cdp_body_result = await self.target_session.execute(
+                cdp.network.get_response_body(request_id)
+            )
             resulted_body, is_base_64 = cdp_body_result
             if is_base_64:
                 body = base64.b64decode(resulted_body)
@@ -298,6 +386,16 @@ class Recorder:
 
         self.request_map[request_id].add_event(evt)
         self.request_map[request_id].response_bodies.append(body)
+
+    async def on_start(self):
+        print("on start")
+
+    async def on_stop(self):
+        for callback in self.on_stop_cbs:
+            callback()
+
+    def add_on_stop_callback(self, callback):
+        self.on_stop_cbs.append(callback)
 
 
 async def collect_communications(
@@ -325,12 +423,17 @@ async def collect_communications(
     recorder = Recorder(target_session, urlfilter, collect_all, start_origin)
     runtime_context = get_runtime_context()
 
+    ui = tkinter_ui.TkRecordControl(reactor, recorder.on_start, recorder.on_stop)
+
     timed_listener = AsyncIterableWithTimeout(listener, timeout)
-    async for evt in timed_listener:
+    timed_cancelable_listener = CancelableAsyncIterable(timed_listener)
+
+    recorder.add_on_stop_callback(lambda: timed_cancelable_listener.cancel())
+
+    async for evt in timed_cancelable_listener:
+        # logger.debug("Event: %s", cheap_repr(evt))
         if isinstance(evt, cdp.runtime.BindingCalled):
             await recorder.on_binding_called(evt)
-        if not runtime_context.recording_running:
-            break
 
         if isinstance(
             evt,
@@ -363,12 +466,19 @@ class CDPConnection(_PyCDPConnection):
     connect = _PyCDPConnection.connect.__wrapped__  # type: ignore[attr-defined] # pylint: disable=no-member
 
 
-# Default path: Windows
-CHROME_BINARY = r"C:\Users\Marius\AppData\Local\Google\Chrome\Application\chrome.exe"
-if platform.system() == "Linux":
-    CHROME_BINARY = "/usr/bin/google-chrome-stable"
-if platform.system() == "Darwin":
-    CHROME_BINARY = r"/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome"
+def find_chrome_binary_path() -> str:
+    home_path = os.path.expanduser("~")
+    # Default path: Windows
+    path = home_path + r"\AppData\Local\Google\Chrome\Application\chrome.exe"
+    if platform.system() == "Linux":
+        path = "/usr/bin/google-chrome-stable"
+    if platform.system() == "Darwin":
+        path = r"/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome"
+
+    return path
+
+
+CHROME_BINARY = find_chrome_binary_path()
 
 
 @dataclass(frozen=True)
@@ -425,7 +535,9 @@ async def obtain_cdp_target_id(conn: CDPConnection) -> cdp.target.TargetID:
 
     context_id = None
     context_id = await conn.execute(cdp.target.create_browser_context())
-    target_id = await conn.execute(cdp.target.create_target("about:blank", browser_context_id=context_id))
+    target_id = await conn.execute(
+        cdp.target.create_target("about:blank", browser_context_id=context_id)
+    )
 
     return target_id
 
@@ -448,7 +560,9 @@ class WidgetState:
         return runtime_ctx.widget_context_id
 
     async def start_timer(self) -> None:
-        await self.target_session.execute(cdp.runtime.evaluate("startTimerIfElemLoaded()", context_id=self.context_id))
+        await self.target_session.execute(
+            cdp.runtime.evaluate("startTimerIfElemLoaded()", context_id=self.context_id)
+        )
         self.start_time = time.time()
 
     async def _send_state_elapsed(self, start_time: float) -> None:
@@ -456,18 +570,29 @@ class WidgetState:
         if self.stop_time is not None:
             elapsed = self.stop_time - start_time
         await self.target_session.execute(
-            cdp.runtime.evaluate(f"setTimerElapsed({elapsed})", context_id=self.context_id)
+            cdp.runtime.evaluate(
+                f"setTimerElapsed({elapsed})", context_id=self.context_id
+            )
         )
 
-    async def _send_state_pos(self, top: str, right: str, bottom: str, left: str) -> None:
+    async def _send_state_pos(
+        self, top: str, right: str, bottom: str, left: str
+    ) -> None:
         # Lucky that strings are represented the same in Python and JavaScript
         expression = f"setWidgetPos({top!r}, {right!r}, {bottom!r}, {left!r})"
-        await self.target_session.execute(cdp.runtime.evaluate(expression, context_id=self.context_id))
+        await self.target_session.execute(
+            cdp.runtime.evaluate(expression, context_id=self.context_id)
+        )
 
     async def send_state(self) -> None:
         if self.start_time is not None:
             await self._send_state_elapsed(self.start_time)
-        if self.top is not None and self.right is not None and self.bottom is not None and self.left is not None:
+        if (
+            self.top is not None
+            and self.right is not None
+            and self.bottom is not None
+            and self.left is not None
+        ):
             await self._send_state_pos(self.top, self.right, self.bottom, self.left)
 
 
@@ -480,36 +605,40 @@ async def bind_func_to_context(
 ) -> None:
     if context_name is None:
         return
-    await target_session.execute(cdp.runtime.add_binding(name, execution_context_name=context_name))
+    await target_session.execute(
+        cdp.runtime.add_binding(name, execution_context_name=context_name)
+    )
 
 
 async def bind_func_to_context_id(
-    target_session: pycdp.twisted.CDPSession, name: str, context_id: Optional[cdp.runtime.ExecutionContextId]
+    target_session: pycdp.twisted.CDPSession,
+    name: str,
+    context_id: Optional[cdp.runtime.ExecutionContextId],
 ) -> None:
     if context_id is None:
         return
     # Using execution_context_id is deprecated
     # But, adding the biding with execution_context_name doesn't work when the recorder is restarted
     #   on an already started Chrome
-    await target_session.execute(cdp.runtime.add_binding(name, execution_context_id=context_id))
+    await target_session.execute(
+        cdp.runtime.add_binding(name, execution_context_id=context_id)
+    )
 
 
-async def init_runtime_scripts(target_session: pycdp.twisted.CDPSession) -> RuntimeContext:
-    widget_context_name, widget_context_id = await insert_widget_extension(target_session)
-    listener_context_name, listener_context_id = await insert_js_action_listener(target_session)
-    await bind_func_to_context_id(target_session, RuntimeContext.TOGGLE_RECORD_BINDING, widget_context_id)
-    await bind_func_to_context_id(target_session, RuntimeContext.SEND_WIDGET_POS_BINDING, widget_context_id)
-    await bind_func_to_context_id(target_session, RuntimeContext.EVENT_SEND_BINDING, listener_context_id)
-
-    widget = WidgetState(target_session)
+async def init_runtime_scripts(
+    target_session: pycdp.twisted.CDPSession,
+) -> RuntimeContext:
+    listener_context_name, listener_context_id = await insert_js_action_listener(
+        target_session
+    )
+    await bind_func_to_context_id(
+        target_session, RuntimeContext.EVENT_SEND_BINDING, listener_context_id
+    )
 
     runtime = RuntimeContext(
         target_session,
-        widget_context_name,
-        widget_context_id,
         listener_context_name,
         listener_context_id,
-        widget,
     )
 
     set_runtime_context(runtime)
@@ -517,49 +646,23 @@ async def init_runtime_scripts(target_session: pycdp.twisted.CDPSession) -> Runt
     return runtime
 
 
-async def init_runtime_state(runtime: RuntimeContext) -> None:
-    await runtime.widget.start_timer()
-    await runtime.widget.send_state()
-
-
 class RuntimeContext:
-    TOGGLE_RECORD_BINDING = "toggleRecord"
-    SEND_WIDGET_POS_BINDING = "sendWidgetPos"
     EVENT_SEND_BINDING = "sendRecordedEvent"
 
     def __init__(
         self,
         target_session: pycdp.twisted.CDPSession,
-        widget_context_name: str,
-        widget_context_id: cdp.runtime.ExecutionContextId,
         listener_context_name: str,
         listener_context_id: cdp.runtime.ExecutionContextId,
-        widget: WidgetState,
     ):
         self.target_session = target_session
-        self.widget_context_name = widget_context_name
-        self.widget_context_id = widget_context_id
         self.listener_context_name = listener_context_name
         self.listener_context_id = listener_context_id
-        self.widget = widget
 
         self.start_time: Optional[float] = None
         self.stop_time: Optional[float] = None
 
         self.actions: list[InputAction] = []
-
-    async def on_toggle_record(self) -> None:
-        if self.widget.stop_time is None:
-            # Mark the time when the recording is stopped
-            self.widget.stop_time = time.time()
-            await self.target_session.execute(cdp.runtime.remove_binding(self.TOGGLE_RECORD_BINDING))
-
-    async def on_send_widget_pos(self, payload: str) -> None:
-        data = json.loads(payload)
-        self.widget.top = data["top"]
-        self.widget.right = data["right"]
-        self.widget.bottom = data["bottom"]
-        self.widget.left = data["left"]
 
     async def on_event_send(self, payload: str) -> None:
         data = json.loads(payload)
@@ -569,26 +672,17 @@ class RuntimeContext:
             self.actions.append(action)
 
     async def on_binding_called(self, evt: cdp.runtime.BindingCalled) -> None:
-        if evt.name == self.TOGGLE_RECORD_BINDING:
-            await self.on_toggle_record()
-        elif evt.name == self.SEND_WIDGET_POS_BINDING:
-            await self.on_send_widget_pos(evt.payload)
-        elif evt.name == self.EVENT_SEND_BINDING:
+        if evt.name == self.EVENT_SEND_BINDING:
             await self.on_event_send(evt.payload)
 
-    async def on_execution_context_created(self, evt: cdp.runtime.ExecutionContextCreated) -> None:
-        if evt.context.name == self.widget_context_name:
-            self.widget_context_id = evt.context.id_
-            await bind_func_to_context_id(self.target_session, self.TOGGLE_RECORD_BINDING, self.widget_context_id)
-            await bind_func_to_context_id(self.target_session, self.SEND_WIDGET_POS_BINDING, self.widget_context_id)
-            await self.widget.send_state()
-        elif evt.context.name == self.listener_context_name:
+    async def on_execution_context_created(
+        self, evt: cdp.runtime.ExecutionContextCreated
+    ) -> None:
+        if evt.context.name == self.listener_context_name:
             self.listener_context_id = evt.context.id_
-            await bind_func_to_context_id(self.target_session, self.EVENT_SEND_BINDING, self.listener_context_id)
-
-    @property
-    def recording_running(self) -> bool:
-        return self.widget.stop_time is None
+            await bind_func_to_context_id(
+                self.target_session, self.EVENT_SEND_BINDING, self.listener_context_id
+            )
 
     def pop_actions(self) -> list[InputAction]:
         actions = self.actions
@@ -634,7 +728,9 @@ async def insert_widget_extension(
     return await insert_js_leech_script(target_session, expression)
 
 
-async def record(options: RecorderOptions) -> list[Union[HttpCommunication, InputAction]]:
+async def record(
+    options: RecorderOptions,
+) -> list[Union[HttpCommunication, InputAction]]:
     urlfilter = filters.URLFilter()
 
     try:
@@ -644,7 +740,10 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
         if options.fail_if_no_connection:
             raise ConnectionRefusedError
         port = options.cdp_port
-        chrome = ChromeLauncher(binary=options.binary, args=[f"--remote-debugging-port={port}", "--incognito"])
+        chrome = ChromeLauncher(
+            binary=options.binary,
+            args=[f"--remote-debugging-port={port}", "--incognito"],
+        )
         await threads.deferToThread(chrome.launch)  # type: ignore[no-untyped-call]
         await conn.connect()
 
@@ -681,7 +780,6 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
         start_url = info.url
 
     runtime = await init_runtime_scripts(target_session)
-    await init_runtime_state(runtime)
 
     start_origin = None
     if options.keep_only_same_origin_urls:
@@ -689,12 +787,7 @@ async def record(options: RecorderOptions) -> list[Union[HttpCommunication, Inpu
 
     try:
         communications = await collect_communications(
-            target_session,
-            listener,
-            urlfilter,
-            20,
-            options.collect_all,
-            start_origin
+            target_session, listener, urlfilter, 20, options.collect_all, start_origin
         )
     finally:
         target_session.close_listeners()

@@ -28,11 +28,13 @@ import twisted.internet.reactor
 from cheap_repr import cheap_repr
 from pycdp import cdp
 from pycdp.browser import ChromeLauncher
-from pycdp.twisted import CDPConnection as _PyCDPConnection
+from pycdp.twisted import CDPConnection as _TwistedPyCDPConnection
 from twisted.internet import defer, threads
 from twisted.internet.error import ConnectionRefusedError
 from twisted.internet.interfaces import IReactorCore, IReactorTime
 from twisted.web.client import Agent
+
+from pycdp.asyncio import CDPConnection as _PyCDPConnection, ClientSession
 
 from . import filters, logger, tkinter_ui
 from .action import InputAction
@@ -98,13 +100,10 @@ async def insert_js_leech_script(
 
     await target_session.execute(cdp.page.runtime.enable())
 
-    receiver = None
-    evt_to_listen = cdp.runtime.ExecutionContextCreated
+    events_queue = None
     try:
-        # Don't call target_session.listen because we need the receiver object to close it at the end
-        receiver = pycdp.twisted.CDPEventListener(defer.DeferredQueue(1024))
-        target_session._listeners[evt_to_listen].add(receiver)
-        listener = aiter(receiver)
+        events_queue = target_session.create_listener(cdp.runtime.ExecutionContextCreated)
+        listener = aiter(events_queue)
 
         await target_session.execute(
             cdp.page.add_script_to_evaluate_on_new_document(expression, run_immediately=True, world_name=context_name)
@@ -118,8 +117,8 @@ async def insert_js_leech_script(
     except defer.TimeoutError as exc:
         raise Exception from exc
     finally:
-        if receiver is not None:
-            receiver.close()
+        if events_queue is not None:
+            events_queue.close()
 
     if context_id is None:
         raise Exception
@@ -193,7 +192,7 @@ class HttpCommunication:
 T = TypeVar("T")
 
 
-class AsyncIteratorWithTimeout(Generic[T]):
+class TwistedAsyncIteratorWithTimeout(Generic[T]):
     def __init__(
         self,
         iterator: AsyncIterator[T],
@@ -220,6 +219,50 @@ class AsyncIteratorWithTimeout(Generic[T]):
         d.addTimeout(remained, reactor)
         return await d
 
+    def __aiter__(self) -> TwistedAsyncIteratorWithTimeout:
+        return self
+
+
+class TwistedAsyncIterableWithTimeout(Generic[T]):
+    def __init__(
+        self,
+        iterable: AsyncIterable[T],
+        timeout: float,
+        start_time: Optional[float] = None,
+    ):
+        self.iterable = iterable
+        self.timeout = timeout
+        if start_time is None:
+            self.start_time = time.time()
+        else:
+            self.start_time = start_time
+
+    def __aiter__(self) -> AsyncIterator[T]:
+        return TwistedAsyncIteratorWithTimeout(self.iterable.__aiter__(), self.timeout, self.start_time)
+
+
+class AsyncIteratorWithTimeout(Generic[T]):
+    def __init__(
+        self,
+        iterator: AsyncIterator[T],
+        timeout: float,
+        start_time: Optional[float] = None,
+    ):
+        self.iterator = iterator
+        self.timeout = timeout
+        if start_time is None:
+            self.start_time = time.time()
+        else:
+            self.start_time = start_time
+
+    async def __anext__(self) -> T:
+        curr_time = time.time()
+        remained = self.timeout - (curr_time - self.start_time)
+        if remained <= 0:
+            raise StopAsyncIteration
+
+        return await asyncio.wait_for(self.iterator.__anext__(), remained)
+
     def __aiter__(self) -> AsyncIteratorWithTimeout:
         return self
 
@@ -242,7 +285,7 @@ class AsyncIterableWithTimeout(Generic[T]):
         return AsyncIteratorWithTimeout(self.iterable.__aiter__(), self.timeout, self.start_time)
 
 
-class CancelableAsyncIterator(Generic[T]):
+class TwistedCancelableAsyncIterator(Generic[T]):
     def __init__(self, iterator: AsyncIterator[T], stop_event: defer.Deferred):
         self.iterator = iterator
         self._stop_event = stop_event
@@ -277,6 +320,47 @@ class CancelableAsyncIterator(Generic[T]):
 
         return res
 
+    def __aiter__(self) -> TwistedCancelableAsyncIterator:
+        return self
+
+
+class TwistedCancelableAsyncIterable(Generic[T]):
+    def __init__(self, iterable: AsyncIterable[T]):
+        self.iterable = iterable
+        self._stop_event = defer.Deferred()
+
+    def cancel(self):
+        return self._stop_event.callback(None)
+
+    def __aiter__(self) -> AsyncIterator[T]:
+        return TwistedCancelableAsyncIterator(self.iterable.__aiter__(), self._stop_event)
+
+
+class CancelableAsyncIterator(Generic[T]):
+    def __init__(self, iterator: AsyncIterator[T], stop_event: asyncio.Event):
+        self.iterator = iterator
+        self._stop_event = stop_event
+        self._wait_cancel = asyncio.create_task(self._stop_event.wait())
+
+    def cancel(self):
+        return self._stop_event.set()
+
+    async def __anext__(self) -> T:
+        if self._stop_event.is_set():
+            raise StopAsyncIteration
+
+        it_next = asyncio.create_task(self.iterator.__anext__())
+
+        done, pending = await asyncio.wait([it_next, self._wait_cancel], return_when=asyncio.FIRST_COMPLETED)
+
+        if it_next in pending:
+            it_next.cancel()
+
+        if self._wait_cancel in done:
+            raise StopAsyncIteration
+
+        return it_next.result()
+
     def __aiter__(self) -> CancelableAsyncIterator:
         return self
 
@@ -284,10 +368,10 @@ class CancelableAsyncIterator(Generic[T]):
 class CancelableAsyncIterable(Generic[T]):
     def __init__(self, iterable: AsyncIterable[T]):
         self.iterable = iterable
-        self._stop_event = defer.Deferred()
+        self._stop_event = asyncio.Event()
 
     def cancel(self):
-        return self._stop_event.callback(None)
+        return self._stop_event.set()
 
     def __aiter__(self) -> AsyncIterator[T]:
         return CancelableAsyncIterator(self.iterable.__aiter__(), self._stop_event)
@@ -300,11 +384,15 @@ class Recorder:
         urlfilter: filters.URLFilter,
         collect_all: bool,
         start_origin: Optional[str],
+        connection,
+        listener: AsyncIterable,
     ):
         self.target_session = target_session
         self.urlfilter = urlfilter
         self.start_origin = start_origin
         self.collect_all = collect_all
+        self.connection = connection
+        self.listener = CancelableAsyncIterable(listener)
         self.communications: list[Union[HttpCommunication, InputAction]] = []
         self.request_map: dict[pycdp.cdp.network.RequestId, HttpCommunication] = {}
         self.runtime_ctx = get_runtime_context()
@@ -384,14 +472,14 @@ class Recorder:
     def add_on_stop_callback(self, callback):
         self.on_stop_cbs.append(callback)
 
+    async def close(self):
+        self.target_session.close_listeners()
+        await self.connection.close()
+
 
 async def collect_communications(
-    target_session: pycdp.twisted.CDPSession,
-    listener: AsyncIterator[object],
-    urlfilter: filters.URLFilter,
+    recorder: Recorder,
     timeout: int = 120,
-    collect_all: bool = False,
-    start_origin: Optional[str] = None,
 ) -> list[Union[HttpCommunication, InputAction]]:
     """Takes a cdp session, listens for events, and generates a list of
     communications.
@@ -407,7 +495,7 @@ async def collect_communications(
     Returns:
         A list of communications.
     """
-    recorder = Recorder(target_session, urlfilter, collect_all, start_origin)
+    listener = recorder.listener
     runtime_context = get_runtime_context()
 
     ui = tkinter_ui.TkRecordControl(reactor, recorder.on_start, recorder.on_stop)
@@ -448,6 +536,11 @@ async def collect_communications(
     return recorder.communications
 
 
+class TwistedCDPConnection(_TwistedPyCDPConnection):
+    # Remove `retry_on` wrapper from function
+    connect = _PyCDPConnection.connect.__wrapped__  # type: ignore[attr-defined] # pylint: disable=no-member
+
+
 class CDPConnection(_PyCDPConnection):
     # Remove `retry_on` wrapper from function
     connect = _PyCDPConnection.connect.__wrapped__  # type: ignore[attr-defined] # pylint: disable=no-member
@@ -472,15 +565,24 @@ CHROME_BINARY = find_chrome_binary_path()
 class RecorderOptions:
     start_url: str
     keep_only_same_origin_urls: bool = True
-    collect_all: bool = False
-    binary: str = CHROME_BINARY
+    collect_all: bool = True
+    binary: Optional[str] = CHROME_BINARY
     cdp_host: str = "localhost"
     cdp_port: int = 9222
-    fail_if_no_connection: bool = False
+    proxy_host: Optional[str] = None
+    proxy_port: int = 8080
+    proxy_scheme: str = "http"
 
     @property
     def cdp_url(self) -> str:
         return f"http://{self.cdp_host}:{self.cdp_port}"
+
+    @property
+    def proxy_url(self) -> Optional[str]:
+        if self.proxy_host is None:
+            return None
+
+        return f"{self.proxy_scheme}://{self.proxy_host}:{self.proxy_port}"
 
 
 async def obtain_active_tab(
@@ -688,21 +790,26 @@ async def insert_widget_extension(
     return await insert_js_leech_script(target_session, expression)
 
 
-async def record(
-    options: RecorderOptions,
-) -> list[Union[HttpCommunication, InputAction]]:
+async def init_recorder(options: RecorderOptions):
     urlfilter = filters.URLFilter()
 
     try:
-        conn = CDPConnection(options.cdp_url, Agent(reactor), reactor)  # type: ignore[no-untyped-call]
+        http = ClientSession()
+        conn = CDPConnection(options.cdp_url, http)
         await conn.connect()
+        conn.start()
     except ConnectionRefusedError:
-        if options.fail_if_no_connection:
+        if options.binary is None:
             raise ConnectionRefusedError
         port = options.cdp_port
+
+        chrome_args = [f"--remote-debugging-port={port}", "--incognito"]
+        if options.proxy_url is not None:
+            chrome_args.append(f"--proxy-server={options.proxy_url}")
+            chrome_args.append("--ignore-certificate-errors")
         chrome = ChromeLauncher(
             binary=options.binary,
-            args=[f"--remote-debugging-port={port}", "--incognito"],
+            args=chrome_args,
         )
         await threads.deferToThread(chrome.launch)  # type: ignore[no-untyped-call]
         await conn.connect()
@@ -717,6 +824,9 @@ async def record(
     await target_session.execute(cdp.runtime.enable())
 
     await target_session.execute(cdp.network.enable())
+
+    # await target_session.execute(cdp.security.enable())
+    # await target_session.execute(cdp.security.set_ignore_certificate_errors(True))
 
     # Start the listener before navigating to the page
     listener = target_session.listen(
@@ -745,12 +855,17 @@ async def record(
     if options.keep_only_same_origin_urls:
         start_origin = extract_origin(start_url)
 
+    return Recorder(target_session, urlfilter, options.collect_all, start_origin, conn, listener)
+
+
+async def record(
+    options: RecorderOptions,
+) -> list[Union[HttpCommunication, InputAction]]:
+    recorder = await init_recorder(options)
+
     try:
-        communications = await collect_communications(
-            target_session, listener, urlfilter, 20, options.collect_all, start_origin
-        )
+        communications = await collect_communications(recorder, 20)
     finally:
-        target_session.close_listeners()
-        await conn.close()
+        await recorder.close()
 
     return communications

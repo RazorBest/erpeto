@@ -59,50 +59,80 @@ async def on_fail(comparator, httpobj1, httpobj2):
 
 @pytest.mark.asyncio
 async def test_csrf_form_run_csrf_from_submit_success():
+    logging.getLogger("selenium").setLevel(logging.WARNING)
+    logging.getLogger("pycdp").setLevel(logging.WARNING)
     logging.info("Starting web app")
     app = VenvAppRunner("http_apps/csrf_form")
     app.wait_until_up()
     logging.info("Web app started")
 
-    sniffer_manager1 = skopo.MitmproxySnifferManager("1")
-    sniffer_manager1.start_sniffer_on_thread()
-    proxy1 = sniffer_manager1.start_proxy_instance(port=8080)
+    comparator = await skopo.create_mitmproxy_sniffer_comparator(on_fail)
 
-    sniffer_manager2 = skopo.MitmproxySnifferManager("2")
-    sniffer_manager2.start_sniffer_on_thread()
-    proxy2 = sniffer_manager2.start_proxy_instance(port=8081)
-
-    await sniffer_manager1.wait_for_proxy_connection_with_sniffer()
-    await sniffer_manager2.wait_for_proxy_connection_with_sniffer()
-
-    proxy_url1 = f"http://{proxy1.host}:{proxy1.port}"
-    proxy_url2 = f"http://{proxy2.host}:{proxy2.port}"
+    proxy_url1 = comparator.sniffer1.proxy_url
+    proxy_url2 = comparator.sniffer2.proxy_url
 
     # proxy_url = f"http://{proxy_info.host}:{proxy_info.port}"
     options = webdriver.ChromeOptions()
     cdp_port = 9222
     options.add_argument(f"--remote-debugging-port={cdp_port}")
     options.add_argument(f"--proxy-server={proxy_url1}")
-    options.add_argument("--ignore-ceritifcate-erros")
+    options.add_argument("--headless=new")
+    capabilities = options.to_capabilities()
+    capabilities["acceptInsecureCerts"] = True
+    print(options.to_capabilities())
+    options.binary_location = "/usr/bin/google-chrome-stable"
     driver = webdriver.Chrome(options)
     logging.info("Instantiated web driver")
 
     recorder_options = recorder.RecorderOptions(
-        "http://localhost:5000",
+        "http://local:5000",
         cdp_host="localhost",
         cdp_port=cdp_port,
         collect_all=True,
     )
 
+    sniffer1 = comparator.sniffer1
+
+    async def pass_sniffer():
+        req = None
+        try:
+            while True:
+                req = await sniffer1.get_message()
+                await sniffer1.send_command(skopo.SniffCommand.NOP)
+        except asyncio.CancelledError:
+            if req is not None:
+                await sniffer1.send_command(skopo.SniffCommand.NOP)
+            pass
+
     try:
-        rec = await recorder.init_recorder(recorder_options)
+        t1 = asyncio.create_task(recorder.init_recorder(recorder_options))
+        t2 = asyncio.create_task(pass_sniffer())
+        done, pending = await asyncio.wait([t1, t2], return_when=asyncio.FIRST_COMPLETED)
+
+        if t1 not in done:
+            assert False, "Recorder should end"
+        await asyncio.sleep(2)
+        t2.cancel()
+
+        rec = t1.result()
 
         t1 = asyncio.create_task(asyncio.to_thread(run_csrf_form_submitsuccess, driver))
-        t2 = asyncio.create_task(recorder.collect_communications(rec, 20))
-        done, pending = await asyncio.wait([t1, t2], return_when=asyncio.FIRST_COMPLETED)
+        t2 = asyncio.create_task(recorder.collect_communications(rec, 30))
+        t3 = asyncio.create_task(log_sniffer())
+        done, pending = await asyncio.wait([t1, t2, t3], return_when=asyncio.FIRST_COMPLETED)
+
+        if t2 in done:
+            logging.info("Task2 is done")
+            logging.info("Result: %s", t2.result())
+
+        if t3 in done:
+            logging.info("Task3 is done")
 
         if t1 in pending:
             raise Exception("Recorder stopped before selenium test")
+
+        if t3 in pending:
+            t3.cancel()
 
         if t2 in pending:
             rec.listener.cancel()
@@ -111,6 +141,11 @@ async def test_csrf_form_run_csrf_from_submit_success():
         await rec.close()
 
     logging.info("Recorded communications")
+
+    sniffer1.stop()
+    comparator.sniffer2.stop()
+
+    return
 
     actions = erpeto.parse_communications_into_actions(communications)
     erpeto.make_action_ids_consecutive_from_list(actions)

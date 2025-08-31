@@ -1,24 +1,22 @@
 from __future__ import annotations
 
 import logging
-import pickle
 import socket
 import sys
 from urllib.parse import urlunparse
 from typing import Optional, TYPE_CHECKING
 
-from mitmproxy import ctx, http
+from mitmproxy import ctx, http, tcp
 
-import common_data
-from common_data import SniffConnection, RequestData, ResponseData
-
-# :'(
-# Used by pickle to load RequestData and ResponseData
-sys.modules["cdprecorder"] = common_data
-sys.modules["cdprecorder.common_data"] = common_data
-sys.modules["cdprecorder.skopo.common_data"] = common_data
-
-import requests
+from sniff_protocol import (
+    RequestData,
+    ResponseData,
+    SniffCommand,
+    SnifferMetadata,
+    SnifferProxyClient,
+    read_sock_datagram,
+    to_sock_datagram,
+)
 
 
 if TYPE_CHECKING:
@@ -58,12 +56,33 @@ class PrefixFilter(logging.Filter):
         return True
 
 
+class MitmproxySnifferProxyClient(SnifferProxyClient):
+    def __init__(self, sockaddr: str):
+        self.client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.client.connect(sockaddr)
+
+    def _get_data(self) -> bytes:
+        data = read_sock_datagram(self.client)
+        return data
+
+    def _send_data(self, data: bytes):
+        datagram = to_sock_datagram(data)
+        self.client.sendall(datagram)
+
+    def close(self):
+        if self.client is not None:
+            self.client.shutdown(socket.SHUT_RDWR)
+            self.client.close()
+            self.client = None
+
+    def __del__(self):
+        self.close()
+
+
 class TheSpy:
     def __init__(self):
-        self.data_sender = None
+        self.client = None
         self.flows = set()
-
-        logging.info("PPpp", extra={"client": "haubau"})
 
         self.log_filter = PrefixFilter()
         handler = logging.getLogger().handlers[0]
@@ -90,12 +109,11 @@ class TheSpy:
         )
 
     def start_connection(self, socketaddress: str):
-        if self.data_sender is not None:
-            self.data_sender.close()
+        if self.client is not None:
+            self.client.close()
         logging.info("Connecting to %s", socketaddress)
-        self.data_sender = SniffConnection(socketaddress)
+        self.client = MitmproxySnifferProxyClient(socketaddress)
         assert isinstance(self.proxyname, str)
-        self.data_sender.send(self.proxyname)
 
     def running(self):
         if ctx.options.socketaddress is not None:
@@ -108,6 +126,7 @@ class TheSpy:
             self.start_connection(ctx.options.socketaddress)
 
     def request(self, flow: http.HTTPFlow):
+        pass
         self.flows.add(id(flow))
         logging.info("Intercepted request")
         mitmreq = flow.request
@@ -125,49 +144,50 @@ class TheSpy:
         )
 
         req = RequestData(
-            http_version=mitmreq.http_version,
-            method=mitmreq.method,
-            url=url,
-            headers=list(mitmreq.headers.items(multi=True)),
-            raw_content=mitmreq.raw_content,
-            trailers=list(mitmreq.trailers.items(multi=True) if mitmreq.trailers else []),
-            object_id=id(flow),
+            http_version=mitmreq.http_version.encode(),
+            method=mitmreq.method.encode(),
+            url=url.encode(),
+            headers=bytes(mitmreq.headers),
+            content=mitmreq.raw_content,
+            trailers=bytes(mitmreq.trailers) if mitmreq.trailers else b"",
+            meta=SnifferMetadata(object_id=id(flow), timestamp=0, proxyname=self.proxyname),
         )
 
-        self.data_sender.send(req)
+        self.client.send_request_data(req)
 
         logging.info("Sent request")
-        status = self.data_sender.read_str()
+        command = self.client.get_command()
 
-        if status == "REPLACE_RESPONSE":
-            r = self.data_sender.read_response_data()
+        if command.command == SniffCommand.REPLACE:
+            if command.response is not None:
+                r = command.response
 
-            logging.info("Headers: %s", r.headers)
-            headers_bytes = []
-            for key, value in r.headers:
-                headers_bytes.append((key.encode(), value.encode()))
-            resp = http.Response.make(
-                status_code=r.status_code,
-                content=r.raw_content,
-                headers=headers_bytes,
-            )
-            resp.http_version = r.http_version
-            resp.reason = r.reason
-            resp.trailers = http.Headers(r.trailers)
+                headers_bytes = []
+                for key, value in r.headers:
+                    headers_bytes.append((key.encode(), value.encode()))
+                resp = http.Response.make(
+                    status_code=r.status_code,
+                    content=r.raw_content,
+                    headers=headers_bytes,
+                )
+                resp.http_version = r.http_version
+                resp.reason = r.reason
+                resp.trailers = http.Headers(r.trailers)
 
-            flow.response = resp
-        elif status == "REPLACE_REQUEST":
-            r = self.data_sender.read_request_data()
+                flow.response = resp
+            if command.request is not None:
+                r = command.request
 
-            req = http.Request.make(method=r.method, url=r.url, content=r.raw_content, headers=http.Headers(r.headers))
-            req.http_version = (r.http_version,)
-            req.reason = (r.reason,)
-            req.trailers = (http.Headers(r.trailers),)
+                req = http.Request.make(
+                    method=r.method, url=r.url, content=r.raw_content, headers=http.Headers(r.headers)
+                )
+                req.http_version = (r.http_version,)
+                req.reason = (r.reason,)
+                req.trailers = (http.Headers(r.trailers),)
 
-            flow.request = req
-
-        elif status != "OK":
-            raise Exception(f"Unknown status: {status}")
+                flow.request = req
+        elif command.command != SniffCommand.NOP:
+            raise Exception(f"Unknown command: {command.command}")
 
         logging.info("OK Intercepted request")
 
@@ -182,43 +202,60 @@ class TheSpy:
             mitmres = flow.response
             logging.info("Response headers: %s", mitmres.headers)
             res = ResponseData(
-                http_version=mitmres.http_version,
+                http_version=mitmres.http_version.encode(),
                 status_code=mitmres.status_code,
-                reason=mitmres.reason,
-                headers=list(mitmres.headers.items(multi=True)),
-                raw_content=mitmres.raw_content,
-                trailers=list(mitmres.trailers.items(multi=True) if mitmres.trailers else []),
-                object_id=id(flow),
+                reason=mitmres.reason.encode(),
+                headers=bytes(mitmres.headers),
+                content=mitmres.raw_content,
+                trailers=bytes(mitmres.trailers) if mitmres.trailers else b"",
+                meta=SnifferMetadata(object_id=id(flow), timestamp=0, proxyname=self.proxyname),
             )
 
             logging.info("Constructed ResponseData")
 
-            self.data_sender.send(res)
+            self.client.send_response_data(res)
             logging.info("Sent response")
 
-            status = self.data_sender.read_str()
-            logging.info("Got status in response")
+            command = self.client.get_command()
+            logging.info("Got command in response")
 
-            if status == "REPLACE_RESPONSE":
-                r = self.data_sender.read_response_data()
+            if command.command == SniffCommand.REPLACE:
+                if command.response is not None:
+                    r = command.response
 
-                resp = http.Response.make(
-                    status_code=r.status_code,
-                    content=r.raw_content,
-                    headers=http.Headers(r.headers),
-                )
-                resp.http_version = (r.http_version,)
-                resp.reason = (r.reason,)
-                resp.trailers = (http.Headers(r.trailers),)
+                    resp = http.Response.make(
+                        status_code=r.status_code,
+                        content=r.raw_content,
+                        headers=http.Headers(r.headers),
+                    )
+                    resp.http_version = (r.http_version,)
+                    resp.reason = (r.reason,)
+                    resp.trailers = (http.Headers(r.trailers),)
 
-                flow.response = resp
-            elif status != "OK":
-                raise Exception(f"Unknown status: {status}")
+                    flow.response = resp
+            elif command.command != SniffCommand.NOP:
+                raise Exception(f"Unknown command: {sommand.command}")
 
             logging.info("OK Intercepted response")
         except Exception as exc:
             logging.info("Addon Exception: %s", exc)
             raise
+
+    def server_connect(self, data):
+        logging.info("About to connect to: %s. %s", data.server.address, str(data.server))
+        if data.server.address[0] == "local":
+            data.server.address = ("127.0.0.1", data.server.address[1])
+
+
+def tcp_message(flow: tcp.TCPFlow):
+    from mitmproxy.utils import strutils
+
+    message = flow.messages[-1]
+    # message.content = message.content.replace(b"foo", b"bar")
+
+    logging.info(
+        f"tcp_message[from_client={message.from_client}), content={strutils.bytes_to_escaped_str(message.content)}]"
+    )
 
 
 addons = [TheSpy()]

@@ -5,7 +5,7 @@ from selenium.webdriver.common.by import By
 def run_csrf_form_submitsuccess(driver):
     # Step # | name | target | value
     # 1 | open | / |
-    driver.get("http://127.0.0.1:5000/")
+    # driver.get("http://localhost:5000/")
     # 2 | setWindowSize | 736x729 |
     driver.set_window_size(736, 729)
     # 3 | click | css=html |

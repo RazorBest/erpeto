@@ -58,6 +58,7 @@ class PrefixFilter(logging.Filter):
 
 class MitmproxySnifferProxyClient(SnifferProxyClient):
     def __init__(self, sockaddr: str):
+        super().__init__()
         self.client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.client.connect(sockaddr)
 
@@ -89,6 +90,8 @@ class TheSpy:
         handler.addFilter(self.log_filter)
         wrapper_formatter = WrapperFormatter(handler.formatter)
         handler.setFormatter(wrapper_formatter)
+
+        self.objid_to_session = {}
 
     def load(self, loader):
         url = f"{ctx.options.listen_host}:{ctx.options.listen_port}"
@@ -125,8 +128,14 @@ class TheSpy:
         if ctx.options.socketaddress is not None:
             self.start_connection(ctx.options.socketaddress)
 
+    def get_session_for_object_id(self, object_id: int):
+        if object_id not in self.objid_to_session:
+            session = self.client.new_session()
+            self.objid_to_session[object_id] = session
+
+        return self.objid_to_session[object_id]
+
     def request(self, flow: http.HTTPFlow):
-        pass
         self.flows.add(id(flow))
         logging.info("Intercepted request")
         mitmreq = flow.request
@@ -153,10 +162,11 @@ class TheSpy:
             meta=SnifferMetadata(object_id=id(flow), timestamp=0, proxyname=self.proxyname),
         )
 
-        self.client.send_request_data(req)
+        session = self.get_session_for_object_id(id(flow))
+        session.send_request_data(req)
 
         logging.info("Sent request")
-        command = self.client.get_command()
+        command = session.get_command()
 
         if command.command == SniffCommand.REPLACE:
             if command.response is not None:
@@ -213,10 +223,11 @@ class TheSpy:
 
             logging.info("Constructed ResponseData")
 
-            self.client.send_response_data(res)
+            session = self.get_session_for_object_id(id(flow))
+            session.send_response_data(res)
             logging.info("Sent response")
 
-            command = self.client.get_command()
+            command = session.get_command()
             logging.info("Got command in response")
 
             if command.command == SniffCommand.REPLACE:

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import os.path
 import subprocess
+from collections import defaultdict
 from enum import IntEnum
 from typing import Callable, TypeVar, TYPE_CHECKING, Union
 
@@ -37,7 +39,10 @@ class SnifferNone:
 
 class SnifferInt64:
     @staticmethod
-    def to_bytes(value: int):
+    def to_bytes(value: Optional[int]):
+        if value is None:
+            return SnifferNone.to_bytes()
+
         data = b""
         data += SnifferMessageType.INT64.to_bytes(8, "big")
         data += value.to_bytes(8, "big")
@@ -73,7 +78,7 @@ class SnifferMetadata:
         proxyname = data[i : i + size].decode("utf8")
         i += size
 
-        return cls(object_id, timestamp, proxyname, session), i
+        return cls(object_id, timestamp, proxyname), i
 
     def __str__(self) -> str:
         text = f"{self.__class__.__name__}("
@@ -86,7 +91,7 @@ class SnifferMetadata:
 
 
 class RequestData:
-    __slots__ = ["http_version", "method", "url", "headers", "content", "trailers", "meta"]
+    __slots__ = ["http_version", "method", "url", "headers", "content", "trailers", "meta", "session"]
 
     def __init__(
         self,
@@ -97,7 +102,7 @@ class RequestData:
         content: bytes,
         trailers: bytes,
         meta: SnifferMetadata,
-        sesison: Optional[int],
+        session: Optional[int] = None,
     ):
         self.http_version = http_version
         self.method = method
@@ -168,7 +173,7 @@ class RequestData:
         assert isinstance(session, int) or session is None
         i += used
 
-        return cls(http_version, method, url, headers, content, trailers, meta), i
+        return cls(http_version, method, url, headers, content, trailers, meta, session), i
 
     def __str__(self) -> str:
         text = f"{self.__class__.__name__}("
@@ -185,7 +190,7 @@ class RequestData:
 
 
 class ResponseData:
-    __slots__ = ["http_version", "status_code", "reason", "headers", "content", "trailers", "meta"]
+    __slots__ = ["http_version", "status_code", "reason", "headers", "content", "trailers", "meta", "session"]
 
     def __init__(
         self,
@@ -196,7 +201,7 @@ class ResponseData:
         content: bytes,
         trailers: bytes,
         meta: SnifferMetadata,
-        session: Optional[int],
+        session: Optional[int] = None,
     ):
         self.http_version = http_version
         self.status_code = status_code
@@ -410,29 +415,29 @@ class SnifferProxyClient:
         self.session_to_messages[obj.session].append(obj)
 
     def get_message(self, ignore_error: bool = False, session: Optional[int] = None) -> SnifferMessage:
-        if session is not None:
-            while len(self.session_to_messages[session]):
-                obj = self.session_to_messages[session].pop(0)
-                if isinstance(obj, SnifferError) and not ignore_error:
-                    raise ProxyException(obj)
-
-                if isinstance(obj, SnifferMessage):
-                    if obj.session is None and session is not None:
-                        raise ProxyException(obj, "Received sesionless message in a context with session")
-                    return obj
-
-            del self.session_to_messages[session]
-
-        while True:
-            data = self._get_data()
-            obj, _ = sniffer_data_from_bytes(data)
-
+        print(f"Waiting message with session: {session}")
+        while len(self.session_to_messages[session]):
+            obj = self.session_to_messages[session].pop(0)
+            print(f"Got obj: {obj}")
             if isinstance(obj, SnifferError) and not ignore_error:
                 raise ProxyException(obj)
 
             if isinstance(obj, SnifferMessage):
                 if obj.session is None and session is not None:
-                    raise ProxyException(obj, "Received sesionless message in a context with session")
+                    raise ProxyException(obj, "Received sessionless message in a context with session")
+                return obj
+
+        del self.session_to_messages[session]
+
+        while True:
+            data = self._get_data()
+            obj, _ = sniffer_data_from_bytes(data)
+            print(f"Got obj: {obj}")
+
+            if isinstance(obj, SnifferError) and not ignore_error:
+                raise ProxyException(obj)
+
+            if isinstance(obj, SnifferMessage):
                 if obj.session != session:
                     self.pushback_message(obj)
                 else:
@@ -455,15 +460,13 @@ class SnifferProxyClient:
         self._send_data(data)
 
     def send_request_data(self, obj: RequestData, session: Optional[int] = None):
-        obj.session = session
-        self.send_proxy_message(obj)
+        self.send_proxy_message(obj, session)
 
     def send_response_data(self, obj: ResponseData, session: Optional[int] = None):
-        obj.session = session
-        self.send_proxy_message(obj)
+        self.send_proxy_message(obj, session)
 
     def send_proxy_event(self, obj: ProxyEvent, session: Optional[int] = None):
-        self.send_proxy_message(obj)
+        self.send_proxy_message(obj, session)
 
     def send_error(self, msg: SnifferError, session: Optional[int] = None):
         msg.session = session
@@ -488,32 +491,6 @@ class SnifferClientSession:
             value = functools.partial(value, session=self.id)
 
         return value
-
-
-class BufferedSnifferProxyClient(SnifferProxyClient):
-    def __init__(self):
-        self.command_queue = asyncio.Queue()
-        self.request_queue = asyncio.Queue()
-        self.response_queue = asyncio.Queue()
-        pass
-
-    def get_message(self, ignore_error: bool = False) -> SnifferMessage:
-        while True:
-            data = self._get_data()
-            obj, _ = sniffer_data_from_bytes(data)
-
-            if isinstance(obj, SnifferError) and not ignore_error:
-                raise ProxyException(obj)
-
-            if isinstance(obj, SnifferMessage):
-                return obj
-
-    def get_command(self, ignore_error: bool = False) -> SniffCommand:
-        while True:
-            msg = self.get_message(ignore_error)
-            if not isinstance(msg, SniffCommand):
-                raise ProxyException(msg, "Expected message of type SniffCommand")
-            return msg
 
 
 def to_sock_datagram(data: bytes):

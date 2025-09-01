@@ -76,7 +76,7 @@ async def test_csrf_form_run_csrf_from_submit_success():
     cdp_port = 9222
     options.add_argument(f"--remote-debugging-port={cdp_port}")
     options.add_argument(f"--proxy-server={proxy_url1}")
-    options.add_argument("--headless=new")
+    # options.add_argument("--headless=new")
     capabilities = options.to_capabilities()
     capabilities["acceptInsecureCerts"] = True
     print(options.to_capabilities())
@@ -94,31 +94,37 @@ async def test_csrf_form_run_csrf_from_submit_success():
     sniffer1 = comparator.sniffer1
 
     async def pass_sniffer():
-        req = None
+        print("pass sniffer")
+        msg = None
         try:
             while True:
-                req = await sniffer1.get_message()
-                await sniffer1.send_command(skopo.SniffCommand.NOP)
+                msg = await sniffer1.get_message()
+
+                logging.debug("Msg: %s", msg)
+                logging.debug("Session: %s", msg.session)
+                await sniffer1.to_session(msg.session).send_command(skopo.SniffCommand.NOP)
         except asyncio.CancelledError:
-            if req is not None:
-                await sniffer1.send_command(skopo.SniffCommand.NOP)
+            if msg is not None:
+                await sniffer1.to_session(msg.session).send_command(skopo.SniffCommand.NOP)
             pass
+        except:
+            logging.exception("Pass sniffer ended with exception")
+
+    pass_task = asyncio.create_task(pass_sniffer())
+    rec = await recorder.init_recorder(recorder_options)
+    await asyncio.sleep(2)
+    pass_task.cancel()
+    try:
+        pass_task.result()
+    except (asyncio.CancelledError, asyncio.InvalidStateError):
+        pass
+    except:
+        logging.exception("pass_task ended with exception")
 
     try:
-        t1 = asyncio.create_task(recorder.init_recorder(recorder_options))
-        t2 = asyncio.create_task(pass_sniffer())
-        done, pending = await asyncio.wait([t1, t2], return_when=asyncio.FIRST_COMPLETED)
-
-        if t1 not in done:
-            assert False, "Recorder should end"
-        await asyncio.sleep(2)
-        t2.cancel()
-
-        rec = t1.result()
-
         t1 = asyncio.create_task(asyncio.to_thread(run_csrf_form_submitsuccess, driver))
         t2 = asyncio.create_task(recorder.collect_communications(rec, 30))
-        t3 = asyncio.create_task(log_sniffer())
+        t3 = asyncio.create_task(pass_sniffer())
         done, pending = await asyncio.wait([t1, t2, t3], return_when=asyncio.FIRST_COMPLETED)
 
         if t2 in done:
@@ -140,12 +146,9 @@ async def test_csrf_form_run_csrf_from_submit_success():
     finally:
         await rec.close()
 
+    driver.quit()
+
     logging.info("Recorded communications")
-
-    sniffer1.stop()
-    comparator.sniffer2.stop()
-
-    return
 
     actions = erpeto.parse_communications_into_actions(communications)
     erpeto.make_action_ids_consecutive_from_list(actions)
@@ -155,16 +158,26 @@ async def test_csrf_form_run_csrf_from_submit_success():
     # TODO: probably, a sniffer that's not linked to a comparator should not block
     # comparator = skopo.SnifferComparator(on_fail, sniffer_manager1.sniffer, sniffer_manager2.sniffer)
 
+    driver = webdriver.Chrome(options)
+
     t1 = asyncio.create_task(asyncio.to_thread(run_csrf_form_submitsuccess, driver))
-    t2 = asyncio.create_task(asyncio.to_thread(erpeto.run_replicate, actions))
+    t2 = asyncio.create_task(asyncio.to_thread(erpeto.run_replicate, actions, [proxy_url2]))
     t3 = asyncio.create_task(comparator.run())
 
-    pair = asyncio.wait([t1, t2], return_when=asyncio.ALL_COMPLETED)
+    pair = asyncio.create_task(asyncio.wait([t1, t2], return_when=asyncio.ALL_COMPLETED))
     done, pending = await asyncio.wait([pair, t3], return_when=asyncio.FIRST_COMPLETED)
 
+    logging.debug("Pending state: %s, %s", pair.done(), t3.done())
+
+    t3.cancel()
+    if t3 in done:
+        assert t3.result() is True
+    # comparator.stop()
+    return
+
     # TODO: this probably can't cancel t1 and t2
-    for t in pending:
-        t.cancel()
+    for pair in pending:
+        pair.cancel()
 
     if t3 in done:
         res = t3.result()

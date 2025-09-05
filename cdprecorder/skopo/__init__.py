@@ -2,32 +2,37 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import logging
 import os.path
 import random
 import socket
 import string
 import subprocess
 from collections import defaultdict
-from typing import Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from .._storage import DEFAULT_SOCKET_NAME, get_runtime_dir
 from .sniff_protocol import (
-    async_read_sock_datagram,
     ProxyEvent,
     ProxyMessage,
+    ProxyException,
     RequestData,
     ResponseData,
     SniffCommand,
     SnifferError,
     SnifferMessage,
+    SkopoMessage,
+    async_read_sock_datagram,
     sniffer_data_from_bytes,
     to_sock_datagram,
 )
 
 if TYPE_CHECKING:
     from asyncio import StreamReader, StreamWriter
+    from typing import Callable, Optional, Union
 
-CNT = 0
+
+logger = logging.getLogger(__name__)
 
 
 class SkopoException(Exception):
@@ -35,32 +40,34 @@ class SkopoException(Exception):
 
 
 class SnifferException(SkopoException):
-    def __init__(self, obj: Optional[SnifferError], *args, **kwargs):
+    def __init__(self, obj: Optional[SkopoMessage], *args: object, **kwargs: object) -> None:
         super().__init__(*args, **kwargs)
         self.obj = obj
 
 
 class SnifferProcessTerminated(SkopoException):
-    def __init__(self, proc: asyncio.subprocess.Process, *args, **kwargs):
+    def __init__(self, proc: asyncio.subprocess.Process, *args: object, **kwargs: object) -> None:
         super().__init__(*args, **kwargs)
         self.proc = proc
 
 
 class Sniffer:
-    def __init__(self):
+    def __init__(self) -> None:
         self._ignore_reconnects = False
-        self.session_to_msg_queues = defaultdict(asyncio.Queue)
+        self.session_to_msg_queues: dict[Optional[int], asyncio.Queue[ProxyMessage]] = defaultdict(asyncio.Queue)
 
-    def ignore_reconnects(self, ignore=True):
+    def ignore_reconnects(self, ignore: bool = True) -> None:
         self._ignore_reconnects = ignore
 
     async def _get_data(self) -> bytes:
         raise NotImplementedError
 
-    async def pushback_message(self, obj):
-        await self.session_to_msg_queues[obj.session].put(obj)
+    def pushback_message(self, obj: ProxyMessage) -> None:
+        self.session_to_msg_queues[obj.session].put_nowait(obj)
 
-    def _handle_message(self, obj, ignore_error: bool = False, session: Optional[int] = None) -> Optional[ProxyMessage]:
+    def _handle_message(
+        self, obj: ProxyMessage, ignore_error: bool = False, session: Optional[int] = None
+    ) -> Optional[ProxyMessage]:
         if isinstance(obj, SnifferError) and not ignore_error:
             raise ProxyException(obj)
 
@@ -70,7 +77,7 @@ class Sniffer:
 
         if isinstance(obj, SnifferMessage):
             if obj.session is None and session is not None:
-                raise ProxyException(obj, "Received sesionless message in a context with session")
+                raise SnifferException(obj, "Received sesionless message in a context with session")
             if session is not None and obj.session != session:
                 self.pushback_message(obj)
                 return None
@@ -91,7 +98,7 @@ class Sniffer:
                 if t1 in done:
                     results.append(t1.result())
                 if t2 in done:
-                    data = t1.result()
+                    data = t2.result()
                     obj, _ = sniffer_data_from_bytes(data)
                     results.append(obj)
 
@@ -141,7 +148,7 @@ class Sniffer:
 
             return msg
 
-    async def _send_data(self, data: bytes):
+    async def _send_data(self, data: bytes) -> None:
         raise NotImplementedError
 
     async def send_command(
@@ -150,21 +157,24 @@ class Sniffer:
         request: Optional[RequestData] = None,
         response: Optional[ResponseData] = None,
         session: Optional[int] = None,
-    ):
+    ) -> None:
         sniff_command = SniffCommand(command, request, response)
         sniff_command.session = session
         data = sniff_command.to_bytes()
         await self._send_data(data)
 
-    async def send_error(self, msg: SnifferError, session: Optional[int] = None):
+    async def send_error(self, msg: SnifferError, session: Optional[int] = None) -> None:
         msg.session = session
         data = msg.to_bytes()
         await self._send_data(data)
 
-    async def async_stop(self):
-        raise NotImplemented
+    async def async_stop(self) -> None:
+        raise NotImplementedError
 
-    def to_session(self, session: int):
+    def stop(self) -> None:
+        raise NotImplementedError
+
+    def to_session(self, session: int) -> SnifferSession:
         return SnifferSession(self, session)
 
 
@@ -173,9 +183,9 @@ class SnifferSession:
         self.sniffer = sniffer
         self.id = id_
 
-    def __getattr__(self, key: str):
+    def __getattr__(self, key: str):  # type: ignore
         value = getattr(self.sniffer, key)
-        if isinstance(value, Callable):
+        if callable(value):
             value = functools.partial(value, session=self.id)
 
         return value
@@ -189,15 +199,21 @@ class ComparatorSniffer:
         self.on_diff = on_diff
 
         # self.http_queues = defaultdict(lambda _: asyncio.Queue(), asyncio.Queue())
-        self.sessions1 = defaultdict(lambda _: asyncio.Queue())
-        self.sessions2 = defaultdict(lambda _: asyncio.Queue())
-        self.unpaired_sessions1 = {}
-        self.unpaired_sessions2 = {}
-        self.waiting_tasks = []
+        self.sessions1: dict[Optional[int], asyncio.Queue[ProxyMessage]] = defaultdict(lambda: asyncio.Queue())
+        self.sessions2: dict[Optional[int], asyncio.Queue[ProxyMessage]] = defaultdict(lambda: asyncio.Queue())
+        self.unpaired_sessions1: dict[bytes, asyncio.Queue[ProxyMessage]] = {}
+        self.unpaired_sessions2: dict[bytes, asyncio.Queue[ProxyMessage]] = {}
+        self.waiting_tasks: list[asyncio.Task] = []
 
-    async def handle_request_response(self, task, queue1: asyncio.Queue, queue2: asyncio.Queue):
-        session1 = self.sniffer1
-        session2 = self.sniffer2
+        self.filtered_sessions: set[int] = set()
+        self.filtered_url_keywords: list[bytes] = []
+
+    def add_filtered_url_keywords(self, keywords: list[str]) -> None:
+        self.filtered_url_keywords.extend(kw.encode() for kw in keywords)
+
+    async def handle_request_response(self, queue1: asyncio.Queue, queue2: asyncio.Queue) -> None:
+        session1: Union[Sniffer, SnifferSession] = self.sniffer1
+        session2: Union[Sniffer, SnifferSession] = self.sniffer2
 
         req1 = await queue1.get()
         assert isinstance(req1, RequestData)
@@ -209,15 +225,15 @@ class ComparatorSniffer:
         assert isinstance(req2, RequestData)
 
         if req1 != req2:
-            self.on_diff(req1, req2)
-
-        if req2.session is not None:
-            session2 = self.sniffer2.to_session(req2.session)
-        await session2.send_command(SniffCommand.REPLACE, response=res1)
+            await self.on_diff(self, req1, req2)
 
         res1 = await queue1.get()
         assert isinstance(res1, ResponseData)
         await session1.send_command(SniffCommand.NOP)
+
+        if req2.session is not None:
+            session2 = self.sniffer2.to_session(req2.session)
+        await session2.send_command(SniffCommand.REPLACE, response=res1)
 
         res2 = await queue2.get()
         assert isinstance(res2, ResponseData)
@@ -227,68 +243,108 @@ class ComparatorSniffer:
             self.on_diff(res1, res2)
         await session2.send_command(SniffCommand.NOP)
 
-    @staticmethod
-    def _request_data_key(obj: RequestData) -> str:
-        return obj.method + url
+    async def _pass_message(self, sniffer: Sniffer, msg: Union[RequestData, ResponseData]) -> None:
+        session: Union[Sniffer, SnifferSession] = sniffer
+        if msg.session is not None:
+            session = sniffer.to_session(msg.session)
+
+        await session.send_command(SniffCommand.NOP)
 
     @staticmethod
-    async def _try_extracting_session(obj: RequestData, unpaired_sessions: dict) -> Optional[asyncio.Queue]:
-        obj_key = self._request_data_key(obj)
+    def _request_data_key(obj: RequestData) -> bytes:
+        return obj.method + obj.url
+
+    @classmethod
+    def _try_extracting_session(
+        cls, obj: RequestData, unpaired_sessions: dict[bytes, asyncio.Queue[ProxyMessage]]
+    ) -> Optional[asyncio.Queue[ProxyMessage]]:
+        obj_key = cls._request_data_key(obj)
         if obj_key in unpaired_sessions:
             value = unpaired_sessions[obj_key]
             del unpaired_sessions[obj_key]
             return value
 
-        return value
+        return None
 
-    async def _create_comparator_task(self, q1: asyncio.Queue, q2: asyncio.Queue):
-        task = asyncio.create_task(handle_request_response(q1, q2))
-        self.waiting_tasks.append((task, q1, q2))
+    async def _create_comparator_task(self, q1: asyncio.Queue, q2: asyncio.Queue) -> asyncio.Task:
+        task = asyncio.create_task(self.handle_request_response(q1, q2))
+        self.waiting_tasks.append(task)
         return task
 
-    async def run(self):
+    def is_object_filtered(self, obj: Union[RequestData, ResponseData]) -> bool:
+        if isinstance(obj, RequestData):
+            return any(kw in obj.url for kw in self.filtered_url_keywords)
+
+        if isinstance(obj, ResponseData):
+            if obj.session is not None and obj.session in self.filtered_sessions:
+                return True
+
+        return False
+
+    def remember_filtered_object(self, obj: Union[RequestData, ResponseData]) -> None:
+        if obj.session is None:
+            raise SkopoException("Can't remember a filtered object with no session.")
+        self.filtered_sessions.add(obj.session)
+
+    async def run(self) -> None:
         print("Comparator start run")
         on_message1 = asyncio.create_task(self.sniffer1.get_message())
         on_message2 = asyncio.create_task(self.sniffer2.get_message())
         while True:
-            print("Comparator await")
+            logger.debug("Comparator await")
             done, pending = await asyncio.wait([on_message1, on_message2], return_when=asyncio.FIRST_COMPLETED)
-            print("Comparator callback")
+            logger.debug("Comparator callback")
 
-            for done_task in done:
-                obj = done_task.result()
-                print(f"ComparatorSniffer object: {obj}")
-                if not isinstance(obj, (RequestData, ResponseData)):
-                    logging.error("Received unwanted object: %s", obj)
+            for task in [on_message1, on_message2]:
+                if task not in done:
                     continue
 
-                object_id = obj.meta.object_id
+                try:
+                    obj = task.result()
+                    if not isinstance(obj, (RequestData, ResponseData)):
+                        logger.error("Received unwanted object: %s", obj)
+                        continue
 
-                if done_task is on_message1:
-                    if obj.session not in self.sessions1:
-                        q1 = asyncio.Queue()
-                        self.sessions1[obj.session] = q1
-                        q2 = self._try_extracting_session(obj, self.unpaired_sessions2)
-                        if q2 is not None:
-                            self._create_comparator_task(q1, q2)
+                    if self.is_object_filtered(obj):
+                        self.remember_filtered_object(obj)
+                        sniffer = self.sniffer1 if task is on_message1 else self.sniffer2
+                        await self._pass_message(sniffer, obj)
+                        continue
 
-                    q1 = self.sessions1[obj.session]
-                    await q1.put(obj)
-                    on_message1 = asyncio.create_task(self.sniffer1.get_message())
+                    if task is on_message1:
+                        if obj.session not in self.sessions1:
+                            q1: asyncio.Queue[ProxyMessage] = asyncio.Queue()
+                            self.sessions1[obj.session] = q1
+                            q2 = self._try_extracting_session(obj, self.unpaired_sessions2)
+                            if q2 is not None:
+                                await self._create_comparator_task(q1, q2)
+                            else:
+                                obj_key = self._request_data_key(obj)
+                                self.unpaired_sessions1[obj_key] = q1
 
-                if done_task is on_message2:
-                    if obj.session not in self.sessions2:
-                        q2 = asyncio.Queue()
-                        self.sessions2[obj.session] = q2
-                        q1 = self._try_extracting_session(obj, self.unpaired_sessions1)
-                        if q1 is not None:
-                            self._create_comparator_task(q1, q2)
+                        q1 = self.sessions1[obj.session]
+                        await q1.put(obj)
 
-                    q2 = self.sessions2[obj.session]
-                    await q2.put(obj)
-                    on_message2 = asyncio.create_task(self.sniffer2.get_message())
+                    if task is on_message2:
+                        if obj.session not in self.sessions2:
+                            q2 = asyncio.Queue()
+                            self.sessions2[obj.session] = q2
+                            q1 = self._try_extracting_session(obj, self.unpaired_sessions1)
+                            if q1 is not None:
+                                await self._create_comparator_task(q1, q2)
+                            else:
+                                obj_key = self._request_data_key(obj)
+                                self.unpaired_sessions2[obj_key] = q2
 
-    def stop(self):
+                        q2 = self.sessions2[obj.session]
+                        await q2.put(obj)
+                finally:
+                    if task is on_message1:
+                        on_message1 = asyncio.create_task(self.sniffer1.get_message())
+                    elif task is on_message2:
+                        on_message2 = asyncio.create_task(self.sniffer2.get_message())
+
+    def stop(self) -> None:
         self.sniffer1.stop()
         self.sniffer2.stop()
 
@@ -299,7 +355,7 @@ async def mitmproxy_run(
     port: int = 8080,
     addon_script: str = "intercept_addon.py",
     binary: str = "mitmdump",
-):
+) -> tuple[asyncio.subprocess.Process, str, int, str]:
     proxy_name: str = "".join(random.choices(string.ascii_letters, k=32))
     module_dir = os.path.dirname(os.path.realpath(__file__))
     addon_path = os.path.join(module_dir, addon_script)
@@ -336,52 +392,53 @@ class MitmproxySniffer(Sniffer):
     ):
         super().__init__()
         self.sockaddr = sockaddr
-        self._server = None
+        self._server: Optional[asyncio.Server] = None
         self.stop_event = asyncio.Event()
 
         self._read_queue: asyncio.Queue[bytes] = asyncio.Queue()
         self._write_queue: asyncio.Queue[bytes] = asyncio.Queue()
 
-        self._proc = mitmproxy_proc
+        self._proc: Optional[asyncio.subprocess.Process] = mitmproxy_proc
         self.proxy_host = proxy_host
         self.proxy_port = proxy_port
         self.proxy_name = proxy_name
 
-    async def init(self):
+    async def init(self) -> None:
         self._server = await asyncio.start_unix_server(self.on_client_connected, path=self.sockaddr)
 
     @property
-    def proxy_url(self):
+    def proxy_url(self) -> str:
         return f"http://{self.proxy_host}:{self.proxy_port}"
 
-    async def _get_data(self):
-        wait_task = asyncio.create_task(self._proc.wait())
+    async def _get_data(self) -> bytes:
+        tasks: list[asyncio.Task] = []
+        wait_task = None
+        if self._proc is not None:
+            wait_task = asyncio.create_task(self._proc.wait())
+            tasks.append(wait_task)
         read_task = asyncio.create_task(self._read_queue.get())
+        tasks.append(read_task)
         try:
-            done, _pending = await asyncio.wait([wait_task, read_task], return_when=asyncio.FIRST_COMPLETED)
+            done, _pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         finally:
             # Here, I found out that task cancelation can create bugs
             # Hence, in a couroutine, you should always expect that when you
             #   await a coroutine/task, that can generate a CancelledError.
-            wait_task.cancel()
+            if wait_task is not None:
+                wait_task.cancel()
             read_task.cancel()
 
-        if wait_task in done:
-            print("Sniffer proxy error")
-            raise SnifferProcessTerminated(None, self._proc)
+        if wait_task in done and self._proc is not None:
+            raise SnifferProcessTerminated(self._proc)
 
         return read_task.result()
 
-    async def _send_data(self, data: bytes):
+    async def _send_data(self, data: bytes) -> None:
         datagram = to_sock_datagram(data)
-        print(f"Sniffer._send_data: {data}")
         await self._write_queue.put(datagram)
-        print(f"done put")
 
-    async def on_client_connected(self, reader: StreamReader, writer: StreamWriter):
-        global CNT
+    async def on_client_connected(self, reader: StreamReader, writer: StreamWriter) -> None:
         """Called when a proxy server has connected to this sniffer."""
-        print(f"On client connected")
         await self._read_queue.put(ProxyEvent(event=ProxyEvent.CONNECT).to_bytes())
 
         # Handle both reading and writing concurrently
@@ -389,7 +446,6 @@ class MitmproxySniffer(Sniffer):
         task1 = asyncio.create_task(async_read_sock_datagram(reader))
         task2 = asyncio.create_task(self._write_queue.get())
         stop_task = asyncio.create_task(self.stop_event.wait())
-        print(f"Created task2 for awaiting {self._write_queue}")
         try:
             while True:
                 # ignore pending tasks, because they will be waited again in the next loop iteration
@@ -406,7 +462,6 @@ class MitmproxySniffer(Sniffer):
 
                 if task2 in done:
                     data = task2.result()
-                    print(f"Sniffer writes data: {data}")
                     writer.write(data)
                     await writer.drain()
                     # recreate the task
@@ -416,7 +471,7 @@ class MitmproxySniffer(Sniffer):
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            print(f"Exception: {e}")
+            logger.exception(f"Exception")
             # Hopefully, the event loop is still running
             await self._read_queue.put(ProxyEvent(event=ProxyEvent.CLOSE).to_bytes())
             while not self._write_queue.empty():
@@ -429,35 +484,25 @@ class MitmproxySniffer(Sniffer):
 
         await self._read_queue.put(ProxyEvent(event=ProxyEvent.CLOSE).to_bytes())
 
-        print(f"on_client_connected: return")
-
-    def stop(self):
+    def stop(self) -> None:
         if self._server is not None:
             self._server.close()
             self.stop_event.set()
             self._server = None
-        print("Stopping")
         if self._proc is None:
             return
 
         self._proc.terminate()
-        print("Terminate")
         try:
             # Imagine having an API that that has both async and blocking functions
             # Sadly, this is not the case for asyncio.subprocess.Process
-            print("Waiting")
-            p = self._proc._transport._proc.wait(timeout=0.5)
-            print("Waited")
+            p = self._proc._transport._proc.wait(timeout=0.5)  # type: ignore[attr-defined]
         except subprocess.TimeoutExpired:
-            print("Killing")
             self._proc.kill()
-
-        print("Done stopping")
 
         self._proc = None
 
-    def __del__(self):
-        print(f"Called del for {self}")
+    def __del__(self) -> None:
         # The object might be destroyed before __init__ terminates
         if hasattr(self, "_proc"):
             self.stop()
@@ -467,9 +512,9 @@ async def create_mitmproxy_sniffer_comparator(
     on_diff: Callable, socksuffix1: str = "1", proxy_port1: int = 8080, socksuffix2: str = "2", proxy_port2: int = 8081
 ) -> ComparatorSniffer:
     if socksuffix1 == socksuffix2:
-        raise SnifferException("Socket suffixes must be different")
+        raise SkopoException("Socket suffixes must be different")
     if proxy_port1 == proxy_port2:
-        raise SnifferException("Proxy ports must be different")
+        raise SkopoException("Proxy ports must be different")
 
     sockaddr1 = os.path.join(get_runtime_dir(), DEFAULT_SOCKET_NAME + socksuffix1)
     proc1, host1, port1, proxy_name1 = await mitmproxy_run(sockaddr1, port=proxy_port1)
@@ -488,11 +533,9 @@ async def create_mitmproxy_sniffer_comparator(
     except:
         proc1.kill()
         out, err = await proc1.communicate()
-        print(f"Proc output: {out}")
-        print(f"Proc err: {err}")
+        logger.error("Proc output: %s", out)
+        logger.error("Proc err: %s", err)
         raise
-
-    print("The sniffers are ready to start")
 
     sniffer1.ignore_reconnects(True)
     sniffer2.ignore_reconnects(True)

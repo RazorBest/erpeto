@@ -6,13 +6,13 @@ import os.path
 import subprocess
 from collections import defaultdict
 from enum import IntEnum
-from typing import Callable, TypeVar, TYPE_CHECKING, Union
+from typing import Callable, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
     import socket
     from asyncio import StreamReader, StreamWriter
-    from typing import TypeVar
+    from typing import Optional, TypeAlias, Protocol, Union
 
 
 def bytes_to_varlen_bytes(data: bytes):
@@ -113,23 +113,6 @@ class RequestData:
         self.meta = meta
         self.session = session
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, RequestData):
-            raise ValueError("eq only supported for RequestData types")
-
-        # Compare everything but the metadata
-        if (
-            self.http_version != other.http_version
-            or self.method != other.method
-            or self.url != other.url
-            or self.headers != other.headers
-            or self.content != other.content
-            or self.trailers != other.trailers
-        ):
-            return False
-
-        return True
-
     def to_bytes(self) -> bytes:
         data = b""
         data += SnifferMessageType.REQUEST_DATA.to_bytes(8, "big")
@@ -183,10 +166,24 @@ class RequestData:
         text += f"headers={self.headers}, "
         text += f"content={self.content!r}, "
         text += f"trailers={self.trailers}, "
-        text += f"meta={self.meta}"
+        text += f"meta={self.meta},"
+        text += f"session={self.session}"
         text += ")"
 
         return text
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, RequestData):
+            raise NotImplementedError
+
+        return (
+            self.http_version == other.http_version
+            and self.method == other.method
+            and self.url == other.url
+            and self.headers == other.headers
+            and self.content == other.content
+            and self.trailers == other.trailers
+        )
 
 
 class ResponseData:
@@ -211,23 +208,6 @@ class ResponseData:
         self.trailers = trailers
         self.meta = meta
         self.session = session
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, ResponseData):
-            raise ValueError("eq only supported for ResponseData types")
-
-        # Compare everything but the metadata
-        if (
-            self.http_version != other.http_version
-            or self.status_code != other.status_code
-            or self.reason != other.reason
-            or self.headers != other.headers
-            or self.content != other.content
-            or self.trailers != other.trailers
-        ):
-            return False
-
-        return True
 
     def to_bytes(self) -> bytes:
         data = b""
@@ -280,6 +260,33 @@ class ResponseData:
 
         return cls(http_version, status_code, reason, headers, content, trailers, meta, session), i
 
+    def __str__(self) -> str:
+        text = f"{self.__class__.__name__}("
+        text += f"http_version={self.http_version}, "
+        text += f"status_code={self.status_code}, "
+        text += f"reasom={self.reason}, "
+        text += f"headers={self.headers}, "
+        text += f"content={self.content!r}, "
+        text += f"trailers={self.trailers}, "
+        text += f"meta={self.meta},"
+        text += f"session={self.session}"
+        text += ")"
+
+        return text
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, RequestData):
+            raise NotImplementedError
+
+        return (
+            self.http_version == other.http_version
+            and self.status_code == other.status_code
+            and self.reason == other.reason
+            and self.headers == other.headers
+            and self.content == other.content
+            and self.trailers == other.trailers
+        )
+
 
 class ProxyEvent:
     CONNECT = 1
@@ -287,6 +294,7 @@ class ProxyEvent:
 
     def __init__(self, event: int):
         self.event = event
+        self.session: Optional[int] = None
 
     @classmethod
     def from_bytes(cls, data: bytes) -> tuple[ProxyEvent, int]:
@@ -309,9 +317,18 @@ class ProxyEvent:
 
 
 class SnifferError:
-    def __init__(self, error_msg: str, error_type: str):
+    def __init__(self, error_msg: str, error_type: str, session: Optional[int] = None):
         self.error_msg = error_msg
         self.error_type = error_type
+        self.session = session
+
+    def to_bytes(self) -> bytes:
+        data = b""
+        data += bytes_to_varlen_bytes(self.error_msg)
+        data += bytes_to_varlen_bytes(self.error_type)
+        data += SnifferInt64.to_bytes(self.session)
+
+        return data
 
 
 class SniffCommand:
@@ -334,7 +351,7 @@ class SniffCommand:
         self.meta = meta
         self.session = session
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         data = b""
         data += SnifferMessageType.SNIFF_COMMAND.to_bytes(8, "big")
         data += self.command.to_bytes(8, "big")
@@ -381,8 +398,9 @@ class ProxyException(Exception):
         self.obj = obj
 
 
-SnifferMessage: TypeVar = Union[SniffCommand]
-ProxyMessage: TypeVar = Union[RequestData, ResponseData, ProxyEvent]
+SnifferMessage: TypeAlias = Union[RequestData]
+ProxyMessage: TypeAlias = Union[RequestData, ResponseData, ProxyEvent]
+SkopoMessage: TypeAlias = Union[ProxyMessage, SnifferError]
 
 
 def sniffer_data_from_bytes(data: bytes):
@@ -415,10 +433,9 @@ class SnifferProxyClient:
         self.session_to_messages[obj.session].append(obj)
 
     def get_message(self, ignore_error: bool = False, session: Optional[int] = None) -> SnifferMessage:
-        print(f"Waiting message with session: {session}")
         while len(self.session_to_messages[session]):
             obj = self.session_to_messages[session].pop(0)
-            print(f"Got obj: {obj}")
+
             if isinstance(obj, SnifferError) and not ignore_error:
                 raise ProxyException(obj)
 
@@ -432,7 +449,6 @@ class SnifferProxyClient:
         while True:
             data = self._get_data()
             obj, _ = sniffer_data_from_bytes(data)
-            print(f"Got obj: {obj}")
 
             if isinstance(obj, SnifferError) and not ignore_error:
                 raise ProxyException(obj)

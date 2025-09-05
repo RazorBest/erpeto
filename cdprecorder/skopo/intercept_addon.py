@@ -27,7 +27,7 @@ class WrapperFormatter(logging.Formatter):
     def __init__(self, formatter: loggingFormatter):
         self.formatter = formatter
 
-    def format(self, record: logging.LogRecord):
+    def format(self, record: logging.LogRecord) -> str:
         msg = self.formatter.format(record)
 
         msg_prefix = ""
@@ -36,13 +36,13 @@ class WrapperFormatter(logging.Formatter):
 
         return f"{msg_prefix}{msg}"
 
-    def formatTime(self, *args, **kwargs):
+    def formatTime(self, *args: object, **kwargs: object) -> str:
         return self.formatter.formatTime(*args, **kwargs)
 
-    def formatException(self, *args, **kwargs):
+    def formatException(self, *args: object, **kwargs: object) -> str:
         return self.formatter.formatException(*args, **kwargs)
 
-    def formatStack(self, *args, **kwargs):
+    def formatStack(self, *args: object, **kwargs: object) -> str:
         return self.formatter.formatStack(*args, **kwargs)
 
 
@@ -57,7 +57,7 @@ class PrefixFilter(logging.Filter):
 
 
 class MitmproxySnifferProxyClient(SnifferProxyClient):
-    def __init__(self, sockaddr: str):
+    def __init__(self, sockaddr: str) -> None:
         super().__init__()
         self.client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.client.connect(sockaddr)
@@ -66,11 +66,11 @@ class MitmproxySnifferProxyClient(SnifferProxyClient):
         data = read_sock_datagram(self.client)
         return data
 
-    def _send_data(self, data: bytes):
+    def _send_data(self, data: bytes) -> None:
         datagram = to_sock_datagram(data)
         self.client.sendall(datagram)
 
-    def close(self):
+    def close(self) -> None:
         if self.client is not None:
             self.client.shutdown(socket.SHUT_RDWR)
             self.client.close()
@@ -81,7 +81,7 @@ class MitmproxySnifferProxyClient(SnifferProxyClient):
 
 
 class TheSpy:
-    def __init__(self):
+    def __init__(self) -> None:
         self.client = None
         self.flows = set()
 
@@ -118,24 +118,24 @@ class TheSpy:
         self.client = MitmproxySnifferProxyClient(socketaddress)
         assert isinstance(self.proxyname, str)
 
-    def running(self):
+    def running(self) -> None:
         if ctx.options.socketaddress is not None:
             self.start_connection(ctx.options.socketaddress)
 
-    def configure(self, updated: set[str]):
+    def configure(self, updated: set[str]) -> None:
         self.proxyname = ctx.options.proxyname
         logging.info("Set proxyname=%s", self.proxyname)
         if ctx.options.socketaddress is not None:
             self.start_connection(ctx.options.socketaddress)
 
-    def get_session_for_object_id(self, object_id: int):
+    def get_session_for_object_id(self, object_id: int) -> None:
         if object_id not in self.objid_to_session:
             session = self.client.new_session()
             self.objid_to_session[object_id] = session
 
         return self.objid_to_session[object_id]
 
-    def request(self, flow: http.HTTPFlow):
+    def request(self, flow: http.HTTPFlow) -> None:
         self.flows.add(id(flow))
         logging.info("Intercepted request")
         mitmreq = flow.request
@@ -165,8 +165,10 @@ class TheSpy:
         session = self.get_session_for_object_id(id(flow))
         session.send_request_data(req)
 
-        logging.info("Sent request")
+        logging.info("Sent request session=%s", session.id)
         command = session.get_command()
+
+        logging.info("Got command in request")
 
         if command.command == SniffCommand.REPLACE:
             if command.response is not None:
@@ -192,7 +194,6 @@ class TheSpy:
                     method=r.method, url=r.url, content=r.raw_content, headers=http.Headers(r.headers)
                 )
                 req.http_version = (r.http_version,)
-                req.reason = (r.reason,)
                 req.trailers = (http.Headers(r.trailers),)
 
                 flow.request = req
@@ -201,7 +202,7 @@ class TheSpy:
 
         logging.info("OK Intercepted request")
 
-    def response(self, flow: http.HTTPFlow):
+    def response(self, flow: http.HTTPFlow) -> None:
         logging.info("Intercepted response")
         if id(flow) not in self.flows:
             logging.error("Got response before existing request")
@@ -225,7 +226,7 @@ class TheSpy:
 
             session = self.get_session_for_object_id(id(flow))
             session.send_response_data(res)
-            logging.info("Sent response")
+            logging.info("Sent response session=%s", session.id)
 
             command = session.get_command()
             logging.info("Got command in response")
@@ -245,7 +246,7 @@ class TheSpy:
 
                     flow.response = resp
             elif command.command != SniffCommand.NOP:
-                raise Exception(f"Unknown command: {sommand.command}")
+                raise Exception(f"Unknown command: {command.command}")
 
             logging.info("OK Intercepted response")
         except Exception as exc:

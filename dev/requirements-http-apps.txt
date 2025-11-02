@@ -1,0 +1,4 @@
+# Requirements for the Python apps in tests/test_e2e_run/http_apps
+Flask==3.1.1
+Flask-WTF==1.2.2
+WTForms==3.2.1

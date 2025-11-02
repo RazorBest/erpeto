@@ -1,6 +1,8 @@
 import abc
 from typing import TYPE_CHECKING, Callable
 
+from twisted.internet.interfaces import IReactorCore
+
 if TYPE_CHECKING:
     from typing import TYPE_CHECKING, Callable
     from twisted.internet.interfaces import IReactorCore

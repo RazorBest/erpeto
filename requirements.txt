@@ -7,3 +7,4 @@ python-dateutil==2.8.2
 python-cdp @ git+https://github.com/RazorBest/python-cdp.git@erpeto
 adblockparser==0.7
 cheap_repr @ git+https://github.com/RazorBest/cheap_repr.git@add-annotations
+mitmproxy==11.0.2

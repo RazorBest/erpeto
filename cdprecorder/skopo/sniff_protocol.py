@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from typing import Optional, TypeAlias, Protocol, Union
 
 
-def bytes_to_varlen_bytes(data: bytes):
+def bytes_to_varlen_bytes(data: bytes) -> bytes:
     size = len(data)
     return size.to_bytes(8, "big") + data
 
@@ -25,13 +25,15 @@ class SnifferMessageType(IntEnum):
     RESPONSE_DATA = 2
     PROXY_EVENT = 3
     SNIFF_COMMAND = 4
-    INT64 = 5
-    NONE = 6
+    SNIFFER_ERROR = 5
+    INT64 = 6
+    STRING = 7
+    NONE = 8
 
 
 class SnifferNone:
     @staticmethod
-    def to_bytes():
+    def to_bytes() -> bytes:
         data = b""
         data += SnifferMessageType.NONE.to_bytes(8, "big")
         return data
@@ -39,7 +41,7 @@ class SnifferNone:
 
 class SnifferInt64:
     @staticmethod
-    def to_bytes(value: Optional[int]):
+    def to_bytes(value: Optional[int]) -> bytes:
         if value is None:
             return SnifferNone.to_bytes()
 
@@ -49,8 +51,36 @@ class SnifferInt64:
         return data
 
 
+class SnifferString:
+    @staticmethod
+    def to_bytes(value: Optional[str]) -> bytes:
+        if value is None:
+            return SnifferNone.to_bytes()
+        
+        data = b""
+        data += SnifferMessageType.STRING.to_bytes(8, "big")
+        data += bytes_to_varlen_bytes(value.encode())
+
+        return data
+    
+    @staticmethod
+    def from_bytes(data: bytes) -> tuple[str, int]:
+        i = 0
+        message_type = int.from_bytes(data[i : i + 8], "big")
+        i += 8
+        assert message_type == SnifferMessageType.STRING
+
+        length = int.from_bytes(data[i : i + 8], "big")
+        i += 8
+
+        s = data[i : i + length].decode("utf-8")
+        i += length
+
+        return s, i + length
+
+
 class SnifferMetadata:
-    def __init__(self, object_id: int, timestamp: int, proxyname: str):
+    def __init__(self, object_id: int, timestamp: int, proxyname: str) -> None:
         self.object_id = object_id
         self.timestamp = timestamp
         self.proxyname = proxyname
@@ -160,12 +190,12 @@ class RequestData:
 
     def __str__(self) -> str:
         text = f"{self.__class__.__name__}("
-        text += f"http_version={self.http_version}, "
-        text += f"method={self.method}, "
-        text += f"url={self.url}, "
-        text += f"headers={self.headers}, "
+        text += f"http_version={self.http_version!r}, "
+        text += f"method={self.method!r}, "
+        text += f"url={self.url!r}, "
+        text += f"headers={self.headers!r}, "
         text += f"content={self.content!r}, "
-        text += f"trailers={self.trailers}, "
+        text += f"trailers={self.trailers!r}, "
         text += f"meta={self.meta},"
         text += f"session={self.session}"
         text += ")"
@@ -262,12 +292,12 @@ class ResponseData:
 
     def __str__(self) -> str:
         text = f"{self.__class__.__name__}("
-        text += f"http_version={self.http_version}, "
+        text += f"http_version={self.http_version!r}, "
         text += f"status_code={self.status_code}, "
-        text += f"reasom={self.reason}, "
-        text += f"headers={self.headers}, "
+        text += f"reasom={self.reason!r}, "
+        text += f"headers={self.headers!r}, "
         text += f"content={self.content!r}, "
-        text += f"trailers={self.trailers}, "
+        text += f"trailers={self.trailers!r}, "
         text += f"meta={self.meta},"
         text += f"session={self.session}"
         text += ")"
@@ -275,7 +305,7 @@ class ResponseData:
         return text
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, RequestData):
+        if not isinstance(other, ResponseData):
             raise NotImplementedError
 
         return (
@@ -324,11 +354,30 @@ class SnifferError:
 
     def to_bytes(self) -> bytes:
         data = b""
-        data += bytes_to_varlen_bytes(self.error_msg)
-        data += bytes_to_varlen_bytes(self.error_type)
+        data += SnifferMessageType.SNIFFER_ERROR.to_bytes(8, "big")
+        data += SnifferString.to_bytes(self.error_msg)
+        data += SnifferString.to_bytes(self.error_type)
         data += SnifferInt64.to_bytes(self.session)
 
         return data
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> tuple[SnifferError, int]:
+        i = 0
+        message_type = int.from_bytes(data[i : i + 8], "big")
+        i += 8
+        assert message_type == SnifferMessageType.SNIFFER_ERROR
+
+        error_msg, used = SnifferString.from_bytes(data[i:])
+        i += used
+
+        error_type, used = SnifferString.from_bytes(data[i:])
+        i += used
+
+        session = int.from_bytes(data[i : i + 8], "big")
+        i += 8
+
+        return cls(error_msg, error_type, session), i
 
 
 class SniffCommand:
@@ -336,6 +385,8 @@ class SniffCommand:
     REPLACE = 2
     CANCEL = 3
     CLOSE_CLIENT = 4
+
+    __slots__ = ["command", "request", "response", "meta", "session"]
 
     def __init__(
         self,
@@ -356,7 +407,7 @@ class SniffCommand:
         data += SnifferMessageType.SNIFF_COMMAND.to_bytes(8, "big")
         data += self.command.to_bytes(8, "big")
         data += self.request.to_bytes() if self.request is not None else SnifferNone.to_bytes()
-        data += self.repsonse.to_bytes() if self.response is not None else SnifferNone.to_bytes()
+        data += self.response.to_bytes() if self.response is not None else SnifferNone.to_bytes()
         data += self.meta.to_bytes() if self.meta is not None else SnifferNone.to_bytes()
         data += SnifferInt64.to_bytes(self.session) if self.session is not None else SnifferNone.to_bytes()
 
@@ -393,17 +444,23 @@ class SniffCommand:
 
 
 class ProxyException(Exception):
-    def __init__(self, obj: Optional[SnifferError], *args, **kwargs):
+    def __init__(self, obj: Optional[SnifferError], *args: object, **kwargs: object) -> None:
         super().__init__(*args, **kwargs)
         self.obj = obj
 
 
-SnifferMessage: TypeAlias = Union[RequestData]
-ProxyMessage: TypeAlias = Union[RequestData, ResponseData, ProxyEvent]
+class SnifferClientException(Exception):
+    def __init__(self, obj: Optional[SnifferMessage], *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)
+        self.obj = obj
+
+
+SnifferMessage: TypeAlias = Union[SniffCommand, SnifferError]
+ProxyMessage: TypeAlias = Union[RequestData, ResponseData, ProxyEvent, SnifferError]
 SkopoMessage: TypeAlias = Union[ProxyMessage, SnifferError]
 
 
-def sniffer_data_from_bytes(data: bytes):
+def sniffer_data_from_bytes(data: bytes) -> tuple[Union[RequestData, ResponseData, ProxyEvent, SniffCommand, int, str, None], int]:
     message_type = int.from_bytes(data[:8], "big")
     if message_type == SnifferMessageType.REQUEST_DATA:
         return RequestData.from_bytes(data)
@@ -416,6 +473,8 @@ def sniffer_data_from_bytes(data: bytes):
     elif message_type == SnifferMessageType.INT64:
         assert len(data) >= 16, "Not enough bytes to decode"
         return int.from_bytes(data[8:16], "big"), 16
+    elif message_type == SnifferMessageType.STRING:
+        return SnifferString.from_bytes(data)
     elif message_type == SnifferMessageType.NONE:
         return None, 8
     else:
@@ -423,26 +482,26 @@ def sniffer_data_from_bytes(data: bytes):
 
 
 class SnifferProxyClient:
-    def __init__(self):
-        self.session_to_messages = defaultdict(list)
+    def __init__(self) -> None:
+        self.session_to_messages: dict[Optional[int], list[SnifferMessage]] = defaultdict(list)
 
     def _get_data(self) -> bytes:
         raise NotImplementedError
 
-    def pushback_message(self, obj):
+    def pushback_message(self, obj: SnifferMessage) -> None:
         self.session_to_messages[obj.session].append(obj)
 
     def get_message(self, ignore_error: bool = False, session: Optional[int] = None) -> SnifferMessage:
         while len(self.session_to_messages[session]):
-            obj = self.session_to_messages[session].pop(0)
+            queue_obj = self.session_to_messages[session].pop(0)
 
-            if isinstance(obj, SnifferError) and not ignore_error:
-                raise ProxyException(obj)
+            if isinstance(queue_obj, SnifferError) and not ignore_error:
+                raise ProxyException(queue_obj)
 
-            if isinstance(obj, SnifferMessage):
-                if obj.session is None and session is not None:
-                    raise ProxyException(obj, "Received sessionless message in a context with session")
-                return obj
+            if isinstance(queue_obj, SniffCommand):
+                if queue_obj.session is None and session is not None:
+                    raise SnifferClientException(queue_obj, "Received sessionless message in a context with session")
+                return queue_obj
 
         del self.session_to_messages[session]
 
@@ -453,7 +512,7 @@ class SnifferProxyClient:
             if isinstance(obj, SnifferError) and not ignore_error:
                 raise ProxyException(obj)
 
-            if isinstance(obj, SnifferMessage):
+            if isinstance(obj, SniffCommand):
                 if obj.session != session:
                     self.pushback_message(obj)
                 else:
@@ -466,62 +525,62 @@ class SnifferProxyClient:
                 raise ProxyException(msg, "Expected message of type SniffCommand")
             return msg
 
-    def _send_data(self, data: bytes):
+    def _send_data(self, data: bytes) -> None:
         raise NotImplementedError
 
-    def send_proxy_message(self, obj: ProxyMessage, session: Optional[int] = None):
+    def send_proxy_message(self, obj: ProxyMessage, session: Optional[int] = None) -> None:
         if hasattr(obj, "session"):
             obj.session = session
         data = obj.to_bytes()
         self._send_data(data)
 
-    def send_request_data(self, obj: RequestData, session: Optional[int] = None):
+    def send_request_data(self, obj: RequestData, session: Optional[int] = None) -> None:
         self.send_proxy_message(obj, session)
 
-    def send_response_data(self, obj: ResponseData, session: Optional[int] = None):
+    def send_response_data(self, obj: ResponseData, session: Optional[int] = None) -> None:
         self.send_proxy_message(obj, session)
 
-    def send_proxy_event(self, obj: ProxyEvent, session: Optional[int] = None):
+    def send_proxy_event(self, obj: ProxyEvent, session: Optional[int] = None) -> None:
         self.send_proxy_message(obj, session)
 
-    def send_error(self, msg: SnifferError, session: Optional[int] = None):
+    def send_error(self, msg: SnifferError, session: Optional[int] = None) -> None:
         msg.session = session
         data = msg.to_bytes()
         self._send_data(data)
 
-    def new_session(self):
+    def new_session(self) -> SnifferClientSession:
         return SnifferClientSession(self)
 
 
 class SnifferClientSession:
     _LAST_ID = 1
 
-    def __init__(self, client: SnifferProxyClient):
+    def __init__(self, client: SnifferProxyClient) -> None:
         self.client = client
         self.id = SnifferClientSession._LAST_ID
         SnifferClientSession._LAST_ID += 1
 
-    def __getattr__(self, key: str):
+    def __getattr__(self, key: str) -> object:
         value = getattr(self.client, key)
-        if isinstance(value, Callable):
+        if callable(value):
             value = functools.partial(value, session=self.id)
 
         return value
 
 
-def to_sock_datagram(data: bytes):
+def to_sock_datagram(data: bytes) -> bytes:
     size = len(data)
     return size.to_bytes(8, "big") + data
 
 
-async def async_read_sock_datagram(reader: StreamReader):
+async def async_read_sock_datagram(reader: StreamReader) -> bytes:
     data_size = await reader.readexactly(8)
     size = int.from_bytes(data_size, "big")
     data = await reader.readexactly(size)
     return data
 
 
-def read_sock_datagram(sock: socket.socket):
+def read_sock_datagram(sock: socket.socket) -> bytes:
     data_size = sock.recv(8)
     if len(data_size) != 8:
         raise ProxyException("Received less than expected data")

@@ -15,7 +15,7 @@ from twisted.internet.interfaces import IReactorCore
 from pycdp import cdp
 
 import cdprecorder
-from cdprecorder import generate_python
+from cdprecorder import generate_python, logger
 from cdprecorder.action import (
     BrowserAction,
     InputAction,
@@ -55,7 +55,7 @@ def generate_action(action: HttpAction, prev_new_actions: list[Optional[HttpActi
     return new_action
 
 
-def run_actions(actions: list[HttpAction]) -> None:
+def run_actions(actions: list[HttpAction], proxies: Optional[list[str]] = None) -> None:
     new_actions: list[Optional[HttpAction]] = []
 
     for action in actions:
@@ -72,7 +72,8 @@ def run_actions(actions: list[HttpAction]) -> None:
                     cookies=new_action.cookies_to_dict(),
                 )
                 prepared_request = req.prepare()
-                resp = session.send(prepared_request, allow_redirects=False)
+                logger.debug("Replicating request: %s", prepared_request)
+                resp = session.send(prepared_request, allow_redirects=False, proxies=proxies)
                 resp_action = response_action_from_python_response(resp)
                 new_actions.append(resp_action)
 
@@ -342,8 +343,9 @@ def run_analyse(actions):
     cdprecorder.analyser.analyse_actions(actions)
 
 
-def run_replicate(actions):
-    run_actions(actions)
+def run_replicate(actions, proxies: Optional[list[str]] = None):
+    logger.debug("Start run_replicate")
+    run_actions(actions, proxies)
 
 
 async def run(options: RecorderOptions) -> None:

@@ -692,7 +692,11 @@ async def bind_func_to_context_id(
     # Using execution_context_id is deprecated
     # But, adding the biding with execution_context_name doesn't work when the recorder is restarted
     #   on an already started Chrome
-    await target_session.execute(cdp.runtime.add_binding(name, execution_context_id=context_id))
+    try:
+        await target_session.execute(cdp.runtime.add_binding(name, execution_context_id=context_id))
+    except:
+        logger.exception("Exception in bind_func_to_context_id")
+        raise
 
 
 async def init_runtime_scripts(
@@ -744,7 +748,23 @@ class RuntimeContext:
     async def on_execution_context_created(self, evt: cdp.runtime.ExecutionContextCreated) -> None:
         if evt.context.name == self.listener_context_name:
             self.listener_context_id = evt.context.id_
-            await bind_func_to_context_id(self.target_session, self.EVENT_SEND_BINDING, self.listener_context_id)
+            try:
+                await bind_func_to_context_id(self.target_session, self.EVENT_SEND_BINDING, self.listener_context_id)
+            except pycdp.exceptions.CDPBrowserError as exc:
+                if "Cannot find execution context with given executionContextId" not in str(exc):
+                    raise
+                # This happens when the execution gets destroyed before we even
+                #   had the chance to create the binding
+                # One issue in the case we don't raise the error is that we
+                #   might miss cases where an active page doesn't have the
+                #   bindings set up. Which means that the javascript events
+                #   (like clicks)
+                #   can't be captured by our javascript extension.
+                # TODO: make this error traceable, to make the case above
+                #   detectable
+                logger.debug("Couldn't attach binding to execution context %s because it has been destroyed already", evt.context.id_)
+
+
 
     def pop_actions(self) -> list[InputAction]:
         actions = self.actions
@@ -791,7 +811,7 @@ async def insert_widget_extension(
 
 
 async def init_recorder(options: RecorderOptions):
-    urlfilter = filters.URLFilter()
+    urlfilter = None # filters.URLFilter()
 
     try:
         http = ClientSession()

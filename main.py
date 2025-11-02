@@ -15,26 +15,10 @@ async def on_fail(comparator, httpobj1, httpobj2):
 
 
 async def main() -> None:
-    sniffer_manager1 = skopo.MitmproxySnifferManager("1")
-    sniffer_manager1.start_sniffer_on_thread()
-    proxy1 = sniffer_manager1.start_proxy_instance(port=8082)
+    comparator = await skopo.create_mitmproxy_sniffer_comparator(on_fail)
 
-    sniffer_manager2 = skopo.MitmproxySnifferManager("2")
-    sniffer_manager2.start_sniffer_on_thread()
-    proxy2 = sniffer_manager2.start_proxy_instance(port=8083)
-
-    print(f"Event loop: {asyncio.get_event_loop()}")
-    comparator = skopo.SnifferComparator(
-        on_fail, sniffer_manager1.sniffer, sniffer_manager2.sniffer, asyncio.get_event_loop()
-    )
-
-    await sniffer_manager1.wait_for_proxy_connection_with_sniffer()
-    await sniffer_manager2.wait_for_proxy_connection_with_sniffer()
-
-    print("Waited")
-
-    proxy_url1 = f"http://{proxy1.host}:{proxy1.port}"
-    proxy_url2 = f"http://{proxy2.host}:{proxy2.port}"
+    proxy_url1 = comparator.sniffer1.proxy_url
+    proxy_url2 = comparator.sniffer2.proxy_url
 
     import requests
 

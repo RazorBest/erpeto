@@ -51,9 +51,8 @@ class VenvAppRunner:
 
 
 async def on_fail(comparator, httpobj1, httpobj2):
-    logging.error(f"Comparator failed after {comparator.requests_passed} passes")
-    logging.error(f"First  httpobj: {httpobj1}")
-    logging.error(f"Second httpobj: {httpobj2}")
+    logging.error("First httpobj: %s", httpobj1)
+    logging.error("Second httpobj %s", httpobj2)
     raise Exception("Failure")
 
 
@@ -61,12 +60,14 @@ async def on_fail(comparator, httpobj1, httpobj2):
 async def test_csrf_form_run_csrf_from_submit_success():
     logging.getLogger("selenium").setLevel(logging.WARNING)
     logging.getLogger("pycdp").setLevel(logging.WARNING)
+    logging.getLogger("cdprecorder").setLevel(logging.WARNING)
     logging.info("Starting web app")
     app = VenvAppRunner("http_apps/csrf_form")
     app.wait_until_up()
     logging.info("Web app started")
 
     comparator = await skopo.create_mitmproxy_sniffer_comparator(on_fail)
+    comparator.add_filtered_url_keywords(["clients2.google.com"])
 
     proxy_url1 = comparator.sniffer1.proxy_url
     proxy_url2 = comparator.sniffer2.proxy_url
@@ -91,26 +92,24 @@ async def test_csrf_form_run_csrf_from_submit_success():
         collect_all=True,
     )
 
-    sniffer1 = comparator.sniffer1
-
-    async def pass_sniffer():
+    async def pass_sniffer(sniffer):
         print("pass sniffer")
         msg = None
         try:
             while True:
-                msg = await sniffer1.get_message()
+                msg = await sniffer.get_message()
 
-                logging.debug("Msg: %s", msg)
-                logging.debug("Session: %s", msg.session)
-                await sniffer1.to_session(msg.session).send_command(skopo.SniffCommand.NOP)
+                # logging.debug("Msg: %s", msg)
+                # logging.debug("Session: %s", msg.session)
+                await sniffer.to_session(msg.session).send_command(skopo.SniffCommand.NOP)
         except asyncio.CancelledError:
             if msg is not None:
-                await sniffer1.to_session(msg.session).send_command(skopo.SniffCommand.NOP)
+                await sniffer.to_session(msg.session).send_command(skopo.SniffCommand.NOP)
             pass
         except:
             logging.exception("Pass sniffer ended with exception")
 
-    pass_task = asyncio.create_task(pass_sniffer())
+    pass_task = asyncio.create_task(pass_sniffer(comparator.sniffer1))
     rec = await recorder.init_recorder(recorder_options)
     await asyncio.sleep(2)
     pass_task.cancel()
@@ -121,10 +120,12 @@ async def test_csrf_form_run_csrf_from_submit_success():
     except:
         logging.exception("pass_task ended with exception")
 
+    logging.info("Start recording")
+
     try:
         t1 = asyncio.create_task(asyncio.to_thread(run_csrf_form_submitsuccess, driver))
         t2 = asyncio.create_task(recorder.collect_communications(rec, 30))
-        t3 = asyncio.create_task(pass_sniffer())
+        t3 = asyncio.create_task(pass_sniffer(comparator.sniffer1))
         done, pending = await asyncio.wait([t1, t2, t3], return_when=asyncio.FIRST_COMPLETED)
 
         if t2 in done:
@@ -148,6 +149,8 @@ async def test_csrf_form_run_csrf_from_submit_success():
 
     driver.quit()
 
+    await asyncio.sleep(2)
+
     logging.info("Recorded communications")
 
     actions = erpeto.parse_communications_into_actions(communications)
@@ -158,16 +161,32 @@ async def test_csrf_form_run_csrf_from_submit_success():
     # TODO: probably, a sniffer that's not linked to a comparator should not block
     # comparator = skopo.SnifferComparator(on_fail, sniffer_manager1.sniffer, sniffer_manager2.sniffer)
 
+    logging.info("Starting replication")
+    logging.getLogger("cdprecorder").setLevel(logging.DEBUG)
+
+    #import requests
+    #requests.get("http://local:5000", )
+    #time.sleep(2)
+    replicator_proxies = {
+        'http': proxy_url2,
+        'https': proxy_url2,
+    }
+
+    #return
+
     driver = webdriver.Chrome(options)
 
     t1 = asyncio.create_task(asyncio.to_thread(run_csrf_form_submitsuccess, driver))
-    t2 = asyncio.create_task(asyncio.to_thread(erpeto.run_replicate, actions, [proxy_url2]))
+    t2 = asyncio.create_task(asyncio.to_thread(erpeto.run_replicate, actions, replicator_proxies))
     t3 = asyncio.create_task(comparator.run())
 
     pair = asyncio.create_task(asyncio.wait([t1, t2], return_when=asyncio.ALL_COMPLETED))
-    done, pending = await asyncio.wait([pair, t3], return_when=asyncio.FIRST_COMPLETED)
+    done, pending = await asyncio.wait([t1, t2, t3], return_when=asyncio.FIRST_COMPLETED)
 
     logging.debug("Pending state: %s, %s", pair.done(), t3.done())
+
+    if t2.done():
+        t2.result()
 
     t3.cancel()
     if t3 in done:

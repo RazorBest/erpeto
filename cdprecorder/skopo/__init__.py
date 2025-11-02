@@ -75,7 +75,7 @@ class Sniffer:
             if obj.event == ProxyEvent.CONNECT or obj.event == ProxyEvent.CLOSE:
                 return None
 
-        if isinstance(obj, SnifferMessage):
+        if isinstance(obj, (SniffCommand, SnifferError)):
             if obj.session is None and session is not None:
                 raise SnifferException(obj, "Received sesionless message in a context with session")
             if session is not None and obj.session != session:
